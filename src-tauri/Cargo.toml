@@ -1,0 +1,63 @@
+[package]
+name = "sofia"
+version = "0.0.1"
+description = "Σόφια - Modern note-taking app with AI-powered transcription and analysis"
+authors = ["Sofia Team"]
+license = "MIT"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+[dependencies]
+tauri = { version = "2.0", features = ["tray-icon"] }
+tauri-plugin-dialog = "2.0"
+tauri-plugin-fs = "2.0"
+tauri-plugin-notification = "2.0"
+tauri-plugin-opener = "2.0"
+tauri-plugin-shell = "2.0"
+tauri-plugin-sql = { version = "2.0", features = ["sqlite"] }
+tauri-plugin-store = "2.0"
+tauri-plugin-process = "2.0"
+tauri-plugin-clipboard = "2.0"
+tauri-plugin-global-shortcut = "2.0"
+tauri-plugin-updater = "2.0"
+
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.0", features = ["v4", "serde", "fast-rng"] }
+directories = "5.0"
+walkdir = "2.4"
+ignore = "0.4"
+glob = "0.3"
+mime_guess = "2.0"
+base64 = "0.22"
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"] }
+sysinfo = "0.30"
+sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono", "uuid"] }
+regex = "1.10"
+zip = "2.1"
+
+[profile.dev]
+debug = true
+opt-level = 0
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.test]
+opt-level = 3
+debug = true
+
+[workspace]
+members = []
+resolver = "2"
