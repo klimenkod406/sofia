@@ -68,15 +68,12 @@ if (!DRY) fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 // --- 4. src-tauri/Cargo.toml ([package] section only) ---
 {
   const text = fs.readFileSync(cargoPath, 'utf8');
-  const headEnd = text.search(/^\[[^\[]/m); // end of [package] section
-  const head = headEnd === -1 ? text : text.slice(0, headEnd);
-  const tail = headEnd === -1 ? '' : text.slice(headEnd);
-  const replaced = head.replace(
-    /^(version\s*=\s*")[^"]+(")/m,
+  const replaced = text.replace(
+    /(^\[package\][\s\S]*?^version\s*=\s*")[^"]+(")/m,
     `$1${next}$2`,
   );
-  if (replaced === head) throw new Error('Could not find version in [package] of Cargo.toml');
-  if (!DRY) fs.writeFileSync(cargoPath, replaced + tail);
+  if (replaced === text) throw new Error('Could not find version in [package] of Cargo.toml');
+  if (!DRY) fs.writeFileSync(cargoPath, replaced);
 }
 
 // --- 5. src-tauri/Cargo.lock (root `sofia` entry only) ---
