@@ -1,11 +1,11 @@
 //! Notes commands
 
-use crate::services::AppState;
 use crate::db::repository::{NoteFilter, Pagination};
 use crate::services::notes::{ExportFormat, ImportFormat};
-use tauri::{State, command};
+use crate::services::AppState;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use tauri::{command, State};
 
 #[derive(Deserialize)]
 pub struct CreateNoteRequest {
@@ -77,7 +77,9 @@ pub async fn create_note(
     folder_id: Option<String>,
     title: Option<String>,
 ) -> Result<crate::db::models::Note, String> {
-    state.notes.create_note(folder_id, title)
+    state
+        .notes
+        .create_note(folder_id, title)
         .await
         .map_err(|e| e.to_string())
 }
@@ -87,9 +89,7 @@ pub async fn get_note(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<Option<crate::db::models::Note>, String> {
-    state.notes.get_note(&id)
-        .await
-        .map_err(|e| e.to_string())
+    state.notes.get_note(&id).await.map_err(|e| e.to_string())
 }
 
 #[command]
@@ -97,7 +97,12 @@ pub async fn update_note(
     state: State<'_, AppState>,
     request: UpdateNoteRequest,
 ) -> Result<(), String> {
-    if let Some(mut note) = state.notes.get_note(&request.id).await.map_err(|e| e.to_string())? {
+    if let Some(mut note) = state
+        .notes
+        .get_note(&request.id)
+        .await
+        .map_err(|e| e.to_string())?
+    {
         if let Some(folder_id) = request.folder_id {
             note.folder_id = Some(folder_id);
         }
@@ -132,7 +137,11 @@ pub async fn update_note(
             note.is_favorite = is_favorite;
         }
         note.update_counts();
-        state.notes.update_note(&note).await.map_err(|e| e.to_string())?;
+        state
+            .notes
+            .update_note(&note)
+            .await
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
@@ -143,7 +152,9 @@ pub async fn delete_note(
     id: String,
     permanent: Option<bool>,
 ) -> Result<(), String> {
-    state.notes.delete_note(&id, permanent.unwrap_or(false))
+    state
+        .notes
+        .delete_note(&id, permanent.unwrap_or(false))
         .await
         .map_err(|e| e.to_string())
 }
@@ -163,13 +174,21 @@ pub async fn list_notes(
         is_favorite: filter.is_favorite,
         search_query: filter.search_query,
         tag_ids: filter.tag_ids.unwrap_or_default(),
-        date_from: filter.date_from.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok()).map(|d| d.with_timezone(&chrono::Utc)),
-        date_to: filter.date_to.and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok()).map(|d| d.with_timezone(&chrono::Utc)),
+        date_from: filter
+            .date_from
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+            .map(|d| d.with_timezone(&chrono::Utc)),
+        date_to: filter
+            .date_to
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(&s).ok())
+            .map(|d| d.with_timezone(&chrono::Utc)),
         sort_by: filter.sort_by.unwrap_or_else(|| "updated_at".to_string()),
         sort_order: filter.sort_order.unwrap_or_else(|| "DESC".to_string()),
     };
 
-    state.notes.list_notes(note_filter, pagination)
+    state
+        .notes
+        .list_notes(note_filter, pagination)
         .await
         .map_err(|e| e.to_string())
 }
@@ -180,7 +199,9 @@ pub async fn search_notes(
     query: String,
     limit: Option<i32>,
 ) -> Result<Vec<crate::db::models::Note>, String> {
-    state.notes.search_notes(&query, limit.unwrap_or(20))
+    state
+        .notes
+        .search_notes(&query, limit.unwrap_or(20))
         .await
         .map_err(|e| e.to_string())
 }
@@ -190,7 +211,9 @@ pub async fn export_note(
     state: State<'_, AppState>,
     request: ExportNoteRequest,
 ) -> Result<String, String> {
-    state.notes.export_note(&request.note_id, request.format)
+    state
+        .notes
+        .export_note(&request.note_id, request.format)
         .await
         .map_err(|e| e.to_string())
 }
@@ -200,7 +223,9 @@ pub async fn import_note(
     state: State<'_, AppState>,
     request: ImportNoteRequest,
 ) -> Result<crate::db::models::Note, String> {
-    state.notes.import_note(request.folder_id, &request.content, request.format)
+    state
+        .notes
+        .import_note(request.folder_id, &request.content, request.format)
         .await
         .map_err(|e| e.to_string())
 }
@@ -210,7 +235,9 @@ pub async fn get_note_tree(
     state: State<'_, AppState>,
     folder_id: Option<String>,
 ) -> Result<Vec<crate::db::models::FolderTree>, String> {
-    state.notes.get_note_tree(folder_id.as_deref())
+    state
+        .notes
+        .get_note_tree(folder_id.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -221,7 +248,9 @@ pub async fn move_note(
     note_id: String,
     folder_id: Option<String>,
 ) -> Result<(), String> {
-    state.notes.move_note(&note_id, folder_id.as_deref())
+    state
+        .notes
+        .move_note(&note_id, folder_id.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -231,18 +260,18 @@ pub async fn duplicate_note(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<crate::db::models::Note, String> {
-    state.notes.duplicate_note(&id)
+    state
+        .notes
+        .duplicate_note(&id)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[command]
-pub async fn pin_note(
-    state: State<'_, AppState>,
-    id: String,
-    pinned: bool,
-) -> Result<(), String> {
-    state.notes.pin_note(&id, pinned)
+pub async fn pin_note(state: State<'_, AppState>, id: String, pinned: bool) -> Result<(), String> {
+    state
+        .notes
+        .pin_note(&id, pinned)
         .await
         .map_err(|e| e.to_string())
 }
@@ -253,7 +282,9 @@ pub async fn archive_note(
     id: String,
     archived: bool,
 ) -> Result<(), String> {
-    state.notes.archive_note(&id, archived)
+    state
+        .notes
+        .archive_note(&id, archived)
         .await
         .map_err(|e| e.to_string())
 }
@@ -264,7 +295,9 @@ pub async fn favorite_note(
     id: String,
     favorite: bool,
 ) -> Result<(), String> {
-    state.notes.favorite_note(&id, favorite)
+    state
+        .notes
+        .favorite_note(&id, favorite)
         .await
         .map_err(|e| e.to_string())
 }
@@ -275,7 +308,9 @@ pub async fn add_tag_to_note(
     note_id: String,
     tag_id: String,
 ) -> Result<(), String> {
-    state.notes.add_tag(&note_id, &tag_id)
+    state
+        .notes
+        .add_tag(&note_id, &tag_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -286,7 +321,9 @@ pub async fn remove_tag_from_note(
     note_id: String,
     tag_id: String,
 ) -> Result<(), String> {
-    state.notes.remove_tag(&note_id, &tag_id)
+    state
+        .notes
+        .remove_tag(&note_id, &tag_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -296,7 +333,9 @@ pub async fn get_recent_notes(
     state: State<'_, AppState>,
     limit: Option<i32>,
 ) -> Result<Vec<crate::db::models::Note>, String> {
-    state.notes.get_recent_notes(limit.unwrap_or(10))
+    state
+        .notes
+        .get_recent_notes(limit.unwrap_or(10))
         .await
         .map_err(|e| e.to_string())
 }
@@ -305,7 +344,9 @@ pub async fn get_recent_notes(
 pub async fn get_pinned_notes(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::models::Note>, String> {
-    state.notes.get_pinned_notes()
+    state
+        .notes
+        .get_pinned_notes()
         .await
         .map_err(|e| e.to_string())
 }
@@ -317,7 +358,9 @@ pub async fn get_archived_notes(
     per_page: Option<i32>,
 ) -> Result<Vec<crate::db::models::Note>, String> {
     let pagination = Pagination::new(page.unwrap_or(1), per_page.unwrap_or(50));
-    state.notes.get_archived_notes(pagination)
+    state
+        .notes
+        .get_archived_notes(pagination)
         .await
         .map_err(|e| e.to_string())
 }
@@ -326,7 +369,9 @@ pub async fn get_archived_notes(
 pub async fn get_note_statistics(
     state: State<'_, AppState>,
 ) -> Result<crate::db::models::Statistics, String> {
-    state.notes.get_statistics()
+    state
+        .notes
+        .get_statistics()
         .await
         .map_err(|e| e.to_string())
 }

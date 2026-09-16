@@ -5,13 +5,12 @@ pub mod models;
 pub mod repository;
 pub mod sql;
 
+use anyhow::{Context, Result};
 use sqlx::sqlite::SqlitePoolOptions;
 use std::sync::Arc;
 use tauri::{AppHandle, Manager};
-use anyhow::{Context, Result};
 use tracing::info;
 
-use models::*;
 use repository::*;
 pub use sql::{Sql, Value};
 
@@ -128,8 +127,9 @@ impl Database {
              ('line_height', '1.6', datetime('now')),
              ('editor_mode', 'wysiwyg', datetime('now')),
              ('auto_save', 'true', datetime('now')),
-             ('spell_check', 'true', datetime('now'))"
-        ).await?;
+             ('spell_check', 'true', datetime('now'))",
+        )
+        .await?;
 
         info!("Database initialization complete");
         Ok(())

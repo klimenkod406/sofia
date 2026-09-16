@@ -1,21 +1,30 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from '@/components/ui/dropdown-menu'
-import { Sparkles, Cpu, Cloud, Download, Check } from 'lucide-react'
-import { AIModel } from '@/types'
+import { cn } from '@/utils/cn';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
+import { Sparkles, Cpu, Cloud, Download, Check } from 'lucide-react';
+import { AIModel } from '@/types';
 
 interface ModelSelectorProps {
-  currentModel: AIModel | null
-  models: AIModel[]
-  onSelect: (model: AIModel) => void
+  currentModel: AIModel | null;
+  models: AIModel[];
+  onSelect: (model: AIModel) => void;
 }
 
 export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorProps) {
-  const localModels = models.filter(m => m.source === 'local' && m.is_downloaded)
-  const apiModels = models.filter(m => m.source === 'api')
-  const availableModels = models.filter(m => m.is_active && (m.is_downloaded || m.source === 'api'))
+  const localModels = models.filter(m => m.source === 'local' && m.is_downloaded);
+  const apiModels = models.filter(m => m.source === 'api');
+  const availableModels = models.filter(
+    m => m.is_active && (m.is_downloaded || m.source === 'api')
+  );
 
   return (
     <DropdownMenu>
@@ -32,7 +41,7 @@ export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorP
           <Sparkles className="w-4 h-4 text-muted-foreground" />
           <span>Available Models</span>
         </DropdownMenuLabel>
-        
+
         {localModels.length > 0 && (
           <>
             <DropdownMenuSeparator />
@@ -44,15 +53,26 @@ export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorP
               <DropdownMenuItem
                 key={model.id}
                 onSelect={() => onSelect(model)}
-                className={cn('flex items-center gap-2', currentModel?.id === model.id && 'bg-primary/10')}
+                className={cn(
+                  'flex items-center gap-2',
+                  currentModel?.id === model.id && 'bg-primary/10'
+                )}
               >
                 <span className="w-2 h-2 rounded-full bg-green-500" title="Downloaded" />
                 <div className="flex-1 min-w-0">
-                  <p className={cn('truncate font-medium', currentModel?.id === model.id && 'text-primary')}>
+                  <p
+                    className={cn(
+                      'truncate font-medium',
+                      currentModel?.id === model.id && 'text-primary'
+                    )}
+                  >
                     {model.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {model.quantization} · {model.size_bytes > 0 ? `${(model.size_bytes / 1e9).toFixed(1)}GB` : 'Unknown size'}
+                    {model.quantization} ·{' '}
+                    {model.size_bytes > 0
+                      ? `${(model.size_bytes / 1e9).toFixed(1)}GB`
+                      : 'Unknown size'}
                   </p>
                 </div>
                 {currentModel?.id === model.id && <Check className="w-4 h-4 text-primary" />}
@@ -72,11 +92,19 @@ export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorP
               <DropdownMenuItem
                 key={model.id}
                 onSelect={() => onSelect(model)}
-                className={cn('flex items-center gap-2', currentModel?.id === model.id && 'bg-primary/10')}
+                className={cn(
+                  'flex items-center gap-2',
+                  currentModel?.id === model.id && 'bg-primary/10'
+                )}
               >
                 <span className="w-2 h-2 rounded-full bg-blue-500" title="API" />
                 <div className="flex-1 min-w-0">
-                  <p className={cn('truncate font-medium', currentModel?.id === model.id && 'text-primary')}>
+                  <p
+                    className={cn(
+                      'truncate font-medium',
+                      currentModel?.id === model.id && 'text-primary'
+                    )}
+                  >
                     {model.name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">{model.api_endpoint}</p>
@@ -95,7 +123,9 @@ export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorP
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() => { /* Navigate to model settings */ }}
+          onSelect={() => {
+            /* Navigate to model settings */
+          }}
           className="text-center"
         >
           <Download className="w-4 h-4 mr-2" />
@@ -103,5 +133,5 @@ export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorP
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }

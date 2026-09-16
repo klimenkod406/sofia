@@ -1,56 +1,49 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useRef } from 'react'
-import { useAIChat } from '@/hooks/use-ai-chat'
-import { MessageBubble } from '@/components/ai/message-bubble'
-import { ModelSelector } from '@/components/ai/model-selector'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { Sparkles, Send, Mic, Loader2, X } from 'lucide-react'
-import { cn } from '@/utils/cn'
+import { useState, useEffect, useRef } from 'react';
+import { useAIChat } from '@/hooks/use-ai-chat';
+import { MessageBubble } from '@/components/ai/message-bubble';
+import { ModelSelector } from '@/components/ai/model-selector';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sparkles, Send, Mic, Loader2, X } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 export function AIChatPage() {
-  const {
-    messages,
-    isLoading,
-    currentModel,
-    availableModels,
-    sendMessage,
-    setModel,
-    clearChat,
-  } = useAIChat()
+  const { messages, isLoading, currentModel, availableModels, sendMessage, setModel, clearChat } =
+    useAIChat();
 
-  const [input, setInput] = useState('')
-  const [isRecording, setIsRecording] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const [input, setInput] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+    scrollToBottom();
+  }, [messages]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || isLoading) return
+    e.preventDefault();
+    if (!input.trim() || isLoading) return;
 
-    const text = input.trim()
-    setInput('')
-    await sendMessage(text)
-  }
+    const text = input.trim();
+    setInput('');
+    await sendMessage(text);
+  };
 
   const handleSuggestion = async (suggestion: string) => {
-    if (isLoading) return
-    await sendMessage(suggestion)
-  }
+    if (isLoading) return;
+    await sendMessage(suggestion);
+  };
 
   const handleVoiceInput = () => {
     // TODO: Implement voice recording
-    setIsRecording(!isRecording)
-  }
+    setIsRecording(!isRecording);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -67,11 +60,7 @@ export function AIChatPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <ModelSelector
-            currentModel={currentModel}
-            models={availableModels}
-            onSelect={setModel}
-          />
+          <ModelSelector currentModel={currentModel} models={availableModels} onSelect={setModel} />
           <Button variant="ghost" size="icon" onClick={clearChat} disabled={messages.length === 0}>
             <X className="w-4 h-4" />
           </Button>
@@ -117,7 +106,10 @@ export function AIChatPage() {
       </ScrollArea>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="border-t p-4 bg-surface-light dark:bg-surface-dark backdrop-blur-xl">
+      <form
+        onSubmit={handleSubmit}
+        className="border-t p-4 bg-surface-light dark:bg-surface-dark backdrop-blur-xl"
+      >
         <div className="flex items-end gap-2">
           <Button
             type="button"
@@ -133,7 +125,7 @@ export function AIChatPage() {
           <div className="flex-1 relative">
             <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={e => setInput(e.target.value)}
               placeholder={isLoading ? 'AI is thinking...' : 'Ask me anything...'}
               disabled={isLoading}
               className={cn(
@@ -141,17 +133,21 @@ export function AIChatPage() {
                 isLoading && 'opacity-50'
               )}
               rows={1}
-              onKeyDown={(e) => {
+              onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  void handleSubmit(e)
+                  e.preventDefault();
+                  void handleSubmit(e);
                 }
               }}
             />
           </div>
 
           <Button type="submit" size="icon" disabled={isLoading || !input.trim()} className="h-10">
-            {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {isLoading ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <Send className="w-5 h-5" />
+            )}
           </Button>
         </div>
 
@@ -161,5 +157,5 @@ export function AIChatPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

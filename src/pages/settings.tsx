@@ -1,22 +1,41 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useSettings } from '@/stores/settings'
-import { cn } from '@/utils/cn'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
-import { Separator } from '@/components/ui/separator'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Sun, Moon, Type, Palette, Bot, LayoutGrid, Shield, Download, Upload, RotateCcw, Trash2 } from 'lucide-react'
+import { useState } from 'react';
+import { useSettings } from '@/stores/settings';
+import { cn } from '@/utils/cn';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Slider } from '@/components/ui/slider';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import {
+  Sun,
+  Moon,
+  Type,
+  Palette,
+  Bot,
+  LayoutGrid,
+  Shield,
+  Download,
+  Upload,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 
 export function SettingsPage() {
-  const { theme, font, editor, ai, setTheme, setFont, setEditor, setAI, resetToDefaults } = useSettings()
-  const [activeTab, setActiveTab] = useState('appearance')
+  const { theme, font, editor, ai, setTheme, setFont, setEditor, setAI, resetToDefaults } =
+    useSettings();
+  const [activeTab, setActiveTab] = useState('appearance');
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -27,11 +46,26 @@ export function SettingsPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="appearance"><Palette className="w-4 h-4 mr-2" />Appearance</TabsTrigger>
-          <TabsTrigger value="editor"><Type className="w-4 h-4 mr-2" />Editor</TabsTrigger>
-          <TabsTrigger value="ai"><Bot className="w-4 h-4 mr-2" />AI Models</TabsTrigger>
-          <TabsTrigger value="calendar"><LayoutGrid className="w-4 h-4 mr-2" />Calendar</TabsTrigger>
-          <TabsTrigger value="advanced"><Shield className="w-4 h-4 mr-2" />Advanced</TabsTrigger>
+          <TabsTrigger value="appearance">
+            <Palette className="w-4 h-4 mr-2" />
+            Appearance
+          </TabsTrigger>
+          <TabsTrigger value="editor">
+            <Type className="w-4 h-4 mr-2" />
+            Editor
+          </TabsTrigger>
+          <TabsTrigger value="ai">
+            <Bot className="w-4 h-4 mr-2" />
+            AI Models
+          </TabsTrigger>
+          <TabsTrigger value="calendar">
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Calendar
+          </TabsTrigger>
+          <TabsTrigger value="advanced">
+            <Shield className="w-4 h-4 mr-2" />
+            Advanced
+          </TabsTrigger>
         </TabsList>
 
         {/* Appearance Tab */}
@@ -66,7 +100,14 @@ export function SettingsPage() {
                     </div>
                     {theme === value && (
                       <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="3"
+                        >
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                       </div>
@@ -85,15 +126,21 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="fontFamily">Font Family</Label>
-                <Select value={font.family} onValueChange={(v) => setFont({ family: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={font.family} onValueChange={v => setFont({ family: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     {[
                       { value: 'Onest', hint: 'Текст и интерфейс' },
                       { value: 'Manrope', hint: 'Заголовки' },
                       { value: 'JetBrains Mono', hint: 'Код' },
                     ].map(f => (
-                      <SelectItem key={f.value} value={f.value}><span style={{ fontFamily: f.value }}>{f.value} — {f.hint}</span></SelectItem>
+                      <SelectItem key={f.value} value={f.value}>
+                        <span style={{ fontFamily: f.value }}>
+                          {f.value} — {f.hint}
+                        </span>
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -133,10 +180,17 @@ export function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Editor Mode</Label>
-                  <p className="text-sm text-muted-foreground">Choose between WYSIWYG and Markdown editing</p>
+                  <p className="text-sm text-muted-foreground">
+                    Choose between WYSIWYG and Markdown editing
+                  </p>
                 </div>
-                <Select value={editor.mode} onValueChange={(v) => setEditor({ mode: v as 'wysiwyg' | 'markdown' })}>
-                  <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+                <Select
+                  value={editor.mode}
+                  onValueChange={v => setEditor({ mode: v as 'wysiwyg' | 'markdown' })}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="wysiwyg">WYSIWYG (Rich Text)</SelectItem>
                     <SelectItem value="markdown">Markdown Source</SelectItem>
@@ -148,10 +202,26 @@ export function SettingsPage() {
 
               <div className="space-y-4">
                 {[
-                  { key: 'autoSave', label: 'Auto-save', desc: 'Automatically save changes as you type' },
-                  { key: 'spellCheck', label: 'Spell Check', desc: 'Enable browser spell checking' },
-                  { key: 'showLineNumbers', label: 'Line Numbers', desc: 'Show line numbers in markdown mode' },
-                  { key: 'vimMode', label: 'Vim Keybindings', desc: 'Enable vim-style keyboard shortcuts' },
+                  {
+                    key: 'autoSave',
+                    label: 'Auto-save',
+                    desc: 'Automatically save changes as you type',
+                  },
+                  {
+                    key: 'spellCheck',
+                    label: 'Spell Check',
+                    desc: 'Enable browser spell checking',
+                  },
+                  {
+                    key: 'showLineNumbers',
+                    label: 'Line Numbers',
+                    desc: 'Show line numbers in markdown mode',
+                  },
+                  {
+                    key: 'vimMode',
+                    label: 'Vim Keybindings',
+                    desc: 'Enable vim-style keyboard shortcuts',
+                  },
                 ].map(({ key, label, desc }) => (
                   <div key={key} className="flex items-center justify-between">
                     <div>
@@ -160,7 +230,7 @@ export function SettingsPage() {
                     </div>
                     <Switch
                       checked={editor[key as keyof typeof editor] as boolean}
-                      onCheckedChange={(v) => setEditor({ [key]: v })}
+                      onCheckedChange={v => setEditor({ [key]: v })}
                     />
                   </div>
                 ))}
@@ -169,7 +239,9 @@ export function SettingsPage() {
               <Separator />
 
               <div className="space-y-2">
-                <Label htmlFor="autoSaveInterval">Auto-save Interval: {editor.autoSaveInterval}ms</Label>
+                <Label htmlFor="autoSaveInterval">
+                  Auto-save Interval: {editor.autoSaveInterval}ms
+                </Label>
                 <Slider
                   value={[editor.autoSaveInterval]}
                   onValueChange={([v]) => setEditor({ autoSaveInterval: v })}
@@ -192,35 +264,60 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 {[
-                  { key: 'transcriptionLanguage', label: 'Transcription Language', options: [
-                    { value: 'auto', label: 'Auto-detect' },
-                    { value: 'zh', label: 'Chinese (中文)' },
-                    { value: 'en', label: 'English' },
-                    { value: 'ja', label: 'Japanese (日本語)' },
-                    { value: 'ko', label: 'Korean (한국어)' },
-                  ]},
-                  { key: 'transcriptionModel', label: 'Transcription Model', options: [
-                    { value: 'funasr', label: 'FunASR (Local)' },
-                    { value: 'whisper', label: 'Whisper (Local)' },
-                    { value: 'openai', label: 'OpenAI Whisper API' },
-                  ]},
-                  { key: 'analysisModel', label: 'Text Analysis Model', options: [
-                    { value: 'local', label: 'Local LLM (llama.cpp)' },
-                    { value: 'openai', label: 'OpenAI GPT-4o Mini' },
-                    { value: 'anthropic', label: 'Anthropic Claude' },
-                  ]},
-                  { key: 'apiProvider', label: 'API Provider', options: [
-                    { value: 'openai', label: 'OpenAI' },
-                    { value: 'anthropic', label: 'Anthropic' },
-                    { value: 'custom', label: 'Custom Endpoint' },
-                  ]},
+                  {
+                    key: 'transcriptionLanguage',
+                    label: 'Transcription Language',
+                    options: [
+                      { value: 'auto', label: 'Auto-detect' },
+                      { value: 'zh', label: 'Chinese (中文)' },
+                      { value: 'en', label: 'English' },
+                      { value: 'ja', label: 'Japanese (日本語)' },
+                      { value: 'ko', label: 'Korean (한국어)' },
+                    ],
+                  },
+                  {
+                    key: 'transcriptionModel',
+                    label: 'Transcription Model',
+                    options: [
+                      { value: 'funasr', label: 'FunASR (Local)' },
+                      { value: 'whisper', label: 'Whisper (Local)' },
+                      { value: 'openai', label: 'OpenAI Whisper API' },
+                    ],
+                  },
+                  {
+                    key: 'analysisModel',
+                    label: 'Text Analysis Model',
+                    options: [
+                      { value: 'local', label: 'Local LLM (llama.cpp)' },
+                      { value: 'openai', label: 'OpenAI GPT-4o Mini' },
+                      { value: 'anthropic', label: 'Anthropic Claude' },
+                    ],
+                  },
+                  {
+                    key: 'apiProvider',
+                    label: 'API Provider',
+                    options: [
+                      { value: 'openai', label: 'OpenAI' },
+                      { value: 'anthropic', label: 'Anthropic' },
+                      { value: 'custom', label: 'Custom Endpoint' },
+                    ],
+                  },
                 ].map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <Label>{label}</Label>
-                    <Select value={ai[key as keyof typeof ai]} onValueChange={(v) => setAI({ [key]: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={ai[key as keyof typeof ai]}
+                      onValueChange={v => setAI({ [key]: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {options.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                        {options.map(o => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -239,7 +336,9 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>OpenAI API Key</Label>
                   <Input type="password" placeholder="sk-..." />
-                  <p className="text-sm text-muted-foreground">Stored securely in system keychain</p>
+                  <p className="text-sm text-muted-foreground">
+                    Stored securely in system keychain
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Anthropic API Key</Label>
@@ -262,10 +361,14 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Default Reminder</Label>
-                    <p className="text-sm text-muted-foreground">Set default reminder time for new events</p>
+                    <p className="text-sm text-muted-foreground">
+                      Set default reminder time for new events
+                    </p>
                   </div>
                   <Select defaultValue="15" onValueChange={() => {}}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="15 minutes" /></SelectTrigger>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="15 minutes" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">At time of event</SelectItem>
                       <SelectItem value="5">5 minutes</SelectItem>
@@ -280,10 +383,14 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Week Starts On</Label>
-                    <p className="text-sm text-muted-foreground">Choose the first day of the week</p>
+                    <p className="text-sm text-muted-foreground">
+                      Choose the first day of the week
+                    </p>
                   </div>
                   <Select defaultValue="0" onValueChange={() => {}}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="Sunday" /></SelectTrigger>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="Sunday" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="0">Sunday</SelectItem>
                       <SelectItem value="1">Monday</SelectItem>
@@ -295,7 +402,9 @@ export function SettingsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <Label>Show Weekends</Label>
-                    <p className="text-sm text-muted-foreground">Display Saturday and Sunday in week view</p>
+                    <p className="text-sm text-muted-foreground">
+                      Display Saturday and Sunday in week view
+                    </p>
                   </div>
                   <Switch checked={true} onCheckedChange={() => {}} />
                 </div>
@@ -306,7 +415,9 @@ export function SettingsPage() {
                     <p className="text-sm text-muted-foreground">Default length for new events</p>
                   </div>
                   <Select defaultValue="60" onValueChange={() => {}}>
-                    <SelectTrigger className="w-[200px]"><SelectValue placeholder="60 minutes" /></SelectTrigger>
+                    <SelectTrigger className="w-[200px]">
+                      <SelectValue placeholder="60 minutes" />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="15">15 minutes</SelectItem>
                       <SelectItem value="30">30 minutes</SelectItem>
@@ -332,7 +443,9 @@ export function SettingsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto Backup</Label>
-                  <p className="text-sm text-muted-foreground">Automatically create backups daily</p>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically create backups daily
+                  </p>
                 </div>
                 <Switch checked={true} onCheckedChange={() => {}} />
               </div>
@@ -347,7 +460,11 @@ export function SettingsPage() {
                 Import Data
               </Button>
 
-              <Button variant="outline" className="w-full justify-start gap-2" onClick={resetToDefaults}>
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={resetToDefaults}
+              >
                 <RotateCcw className="w-4 h-4" />
                 Reset All Settings
               </Button>
@@ -362,13 +479,17 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Hardware Acceleration</Label>
-                <p className="text-sm text-muted-foreground">Use GPU for AI inference when available</p>
+                <p className="text-sm text-muted-foreground">
+                  Use GPU for AI inference when available
+                </p>
               </div>
               <Switch checked={true} onCheckedChange={() => {}} />
-              
+
               <div className="space-y-2">
                 <Label>Reduce Animations</Label>
-                <p className="text-sm text-muted-foreground">Minimize motion for better performance</p>
+                <p className="text-sm text-muted-foreground">
+                  Minimize motion for better performance
+                </p>
               </div>
               <Switch checked={false} onCheckedChange={() => {}} />
             </CardContent>
@@ -389,5 +510,5 @@ export function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

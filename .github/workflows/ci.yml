@@ -32,7 +32,7 @@ jobs:
         run: npm run typecheck
       
       - name: Run format check
-        run: npm run format -- --check
+        run: npm run format:check
 
   frontend-tests:
     name: Frontend Tests

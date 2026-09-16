@@ -87,7 +87,8 @@ impl SystemService {
             name: "Σόφια".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             authors: vec!["Sofia Team".to_string()],
-            description: "Modern note-taking app with AI-powered transcription and analysis".to_string(),
+            description: "Modern note-taking app with AI-powered transcription and analysis"
+                .to_string(),
             homepage: "https://github.com/sofia/sofia".to_string(),
             license: "MIT".to_string(),
         }

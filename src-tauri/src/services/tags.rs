@@ -12,9 +12,7 @@ pub struct TagsService {
 
 impl TagsService {
     pub fn new(db: Arc<Database>) -> Self {
-        Self {
-            repo: db.tags(),
-        }
+        Self { repo: db.tags() }
     }
 
     pub async fn list_tags(&self, include_system: bool) -> Result<Vec<Tag>> {

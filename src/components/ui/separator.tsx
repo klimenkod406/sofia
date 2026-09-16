@@ -1,13 +1,18 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
+import { cn } from '@/utils/cn';
 
 export interface SeparatorProps extends React.HTMLAttributes<HTMLDivElement> {
-  orientation?: 'horizontal' | 'vertical'
-  decorative?: boolean
+  orientation?: 'horizontal' | 'vertical';
+  decorative?: boolean;
 }
 
-export function Separator({ className, orientation = 'horizontal', decorative = true, ...props }: SeparatorProps) {
+export function Separator({
+  className,
+  orientation = 'horizontal',
+  decorative = true,
+  ...props
+}: SeparatorProps) {
   return (
     <div
       className={cn(
@@ -19,5 +24,5 @@ export function Separator({ className, orientation = 'horizontal', decorative = 
       aria-orientation={orientation}
       {...props}
     />
-  )
+  );
 }

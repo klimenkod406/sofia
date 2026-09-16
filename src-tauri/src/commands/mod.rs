@@ -1,11 +1,11 @@
 //! Tauri commands for Σόφια
 
-pub mod notes;
-pub mod calendar;
-pub mod settings;
 pub mod ai;
-pub mod models;
+pub mod calendar;
 pub mod file_ops;
-pub mod system;
 pub mod folders;
+pub mod models;
+pub mod notes;
+pub mod settings;
+pub mod system;
 pub mod tags;

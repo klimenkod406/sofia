@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+//! NOTE: this is an application binary (not a library). Repository/service
+//! methods form a reserved API surface that Tauri commands adopt incrementally,
+//! so unreachable `pub` items are intentional — don't warn about them.
 //! Σόφια - Main entry point
 //!
 //! A modern note-taking application with AI-powered transcription and analysis.
@@ -8,9 +12,9 @@ mod db;
 mod services;
 
 use std::sync::Arc;
-use tauri::{Emitter, Manager, Runtime};
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
+use tauri::{Emitter, Manager, Runtime};
 use tracing::info;
 
 use db::Database;
@@ -218,29 +222,31 @@ fn setup_shortcuts<R: Runtime>(app: &tauri::AppHandle<R>) -> anyhow::Result<()> 
     use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
     // Toggle window: Ctrl+Space
-    app.global_shortcut().on_shortcut("Ctrl+Space", |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            if let Some(window) = app.get_webview_window("main") {
-                if window.is_visible().unwrap_or(false) {
-                    let _ = window.hide();
-                } else {
-                    let _ = window.show();
-                    let _ = window.set_focus();
+    app.global_shortcut()
+        .on_shortcut("Ctrl+Space", |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Some(window) = app.get_webview_window("main") {
+                    if window.is_visible().unwrap_or(false) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
                 }
             }
-        }
-    })?;
+        })?;
 
     // New note: Ctrl+N
-    app.global_shortcut().on_shortcut("Ctrl+N", |app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-                let _ = window.emit("new-note", ());
+    app.global_shortcut()
+        .on_shortcut("Ctrl+N", |app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = window.emit("new-note", ());
+                }
             }
-        }
-    })?;
+        })?;
 
     Ok(())
 }

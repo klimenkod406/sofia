@@ -1,9 +1,9 @@
 //! llama.cpp integration for local LLM inference
 
+use crate::db::models::AIModel;
 use anyhow::Result;
 use std::path::Path;
 use tokio::process::Command;
-use crate::db::models::AIModel;
 
 pub struct LlamaCppEngine {
     llama_cli: String,
@@ -42,7 +42,7 @@ impl Default for LlamaParams {
 impl LlamaCppEngine {
     pub fn new() -> Result<Self> {
         let llama_cli = Self::find_llama_cli()?;
-        
+
         Ok(Self {
             llama_cli,
             default_params: LlamaParams::default(),
@@ -57,11 +57,19 @@ impl LlamaCppEngine {
                 }
             }
         }
-        Err(anyhow::anyhow!("llama.cpp not found. Please install llama.cpp"))
+        Err(anyhow::anyhow!(
+            "llama.cpp not found. Please install llama.cpp"
+        ))
     }
 
-    pub async fn generate(&self, prompt: &str, model: &AIModel) -> Result<crate::services::ai::AnalysisResult> {
-        let model_path = model.local_path.as_deref()
+    pub async fn generate(
+        &self,
+        prompt: &str,
+        model: &AIModel,
+    ) -> Result<crate::services::ai::AnalysisResult> {
+        let model_path = model
+            .local_path
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("Model path not set"))?;
 
         if !Path::new(model_path).exists() {
@@ -72,18 +80,28 @@ impl LlamaCppEngine {
         let params = self.merge_params(&config);
 
         let mut cmd = Command::new(&self.llama_cli);
-        cmd.arg("-m").arg(model_path)
-            .arg("-p").arg(prompt)
-            .arg("-n").arg(params.n_ctx.to_string())
-            .arg("--temp").arg(params.temp.to_string())
-            .arg("--top-p").arg(params.top_p.to_string())
-            .arg("--top-k").arg(params.top_k.to_string())
-            .arg("--repeat-penalty").arg(params.repeat_penalty.to_string())
-            .arg("-t").arg(params.n_threads.to_string())
-            .arg("--batch-size").arg(params.batch_size.to_string());
+        cmd.arg("-m")
+            .arg(model_path)
+            .arg("-p")
+            .arg(prompt)
+            .arg("-n")
+            .arg(params.n_ctx.to_string())
+            .arg("--temp")
+            .arg(params.temp.to_string())
+            .arg("--top-p")
+            .arg(params.top_p.to_string())
+            .arg("--top-k")
+            .arg(params.top_k.to_string())
+            .arg("--repeat-penalty")
+            .arg(params.repeat_penalty.to_string())
+            .arg("-t")
+            .arg(params.n_threads.to_string())
+            .arg("--batch-size")
+            .arg(params.batch_size.to_string());
 
         if params.n_gpu_layers >= 0 {
-            cmd.arg("--n-gpu-layers").arg(params.n_gpu_layers.to_string());
+            cmd.arg("--n-gpu-layers")
+                .arg(params.n_gpu_layers.to_string());
         }
 
         if params.seed >= 0 {
@@ -109,8 +127,15 @@ impl LlamaCppEngine {
         })
     }
 
-    pub async fn chat(&self, messages: Vec<crate::services::ai::ChatMessage>, model: &AIModel, options: crate::services::ai::ChatOptions) -> Result<crate::services::ai::ChatCompletion> {
-        let model_path = model.local_path.as_deref()
+    pub async fn chat(
+        &self,
+        messages: Vec<crate::services::ai::ChatMessage>,
+        model: &AIModel,
+        options: crate::services::ai::ChatOptions,
+    ) -> Result<crate::services::ai::ChatCompletion> {
+        let model_path = model
+            .local_path
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("Model path not set"))?;
 
         if !Path::new(model_path).exists() {
@@ -119,25 +144,35 @@ impl LlamaCppEngine {
 
         // Build conversation prompt
         let prompt = self.build_chat_prompt(&messages);
-        
+
         let config: serde_json::Value = serde_json::from_str(&model.config)?;
         let params = self.merge_params(&config);
         let max_tokens = options.max_tokens;
         let params = params.with_overrides(options);
 
         let mut cmd = Command::new(&self.llama_cli);
-        cmd.arg("-m").arg(model_path)
-            .arg("-p").arg(prompt.clone())
-            .arg("-n").arg(max_tokens.to_string())
-            .arg("--temp").arg(params.temp.to_string())
-            .arg("--top-p").arg(params.top_p.to_string())
-            .arg("--top-k").arg(params.top_k.to_string())
-            .arg("--repeat-penalty").arg(params.repeat_penalty.to_string())
-            .arg("-t").arg(params.n_threads.to_string())
-            .arg("--batch-size").arg(params.batch_size.to_string());
+        cmd.arg("-m")
+            .arg(model_path)
+            .arg("-p")
+            .arg(prompt.clone())
+            .arg("-n")
+            .arg(max_tokens.to_string())
+            .arg("--temp")
+            .arg(params.temp.to_string())
+            .arg("--top-p")
+            .arg(params.top_p.to_string())
+            .arg("--top-k")
+            .arg(params.top_k.to_string())
+            .arg("--repeat-penalty")
+            .arg(params.repeat_penalty.to_string())
+            .arg("-t")
+            .arg(params.n_threads.to_string())
+            .arg("--batch-size")
+            .arg(params.batch_size.to_string());
 
         if params.n_gpu_layers >= 0 {
-            cmd.arg("--n-gpu-layers").arg(params.n_gpu_layers.to_string());
+            cmd.arg("--n-gpu-layers")
+                .arg(params.n_gpu_layers.to_string());
         }
 
         let output = cmd.output().await?;
@@ -162,7 +197,7 @@ impl LlamaCppEngine {
 
     fn merge_params(&self, config: &serde_json::Value) -> LlamaParams {
         let mut params = self.default_params.clone();
-        
+
         if let Some(n_ctx) = config.get("context_length").and_then(|v| v.as_i64()) {
             params.n_ctx = n_ctx as i32;
         }
@@ -181,7 +216,7 @@ impl LlamaCppEngine {
 
     fn build_chat_prompt(&self, messages: &[crate::services::ai::ChatMessage]) -> String {
         let mut prompt = String::new();
-        
+
         for msg in messages {
             match msg.role.as_str() {
                 "system" => prompt.push_str(&format!("<|system|>\n{}\n", msg.content)),
@@ -190,7 +225,7 @@ impl LlamaCppEngine {
                 _ => prompt.push_str(&format!("<|user|>\n{}\n", msg.content)),
             }
         }
-        
+
         prompt.push_str("<|assistant|>\n");
         prompt
     }

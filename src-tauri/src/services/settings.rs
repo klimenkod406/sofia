@@ -1,12 +1,13 @@
 //! Settings service
 
-use crate::db::models::*;
 use crate::db::repository::SettingsRepository;
 use crate::db::Database;
 use anyhow::Result;
 use std::sync::Arc;
 
-pub use crate::db::repository::settings::{FontSettings, EditorSettings, AISettings, UIPreferences};
+pub use crate::db::repository::settings::{
+    AISettings, EditorSettings, FontSettings, UIPreferences,
+};
 
 pub struct SettingsService {
     repo: SettingsRepository,
@@ -23,15 +24,30 @@ impl SettingsService {
         self.repo.get(key).await
     }
 
-    pub async fn get_setting_typed<T: serde::de::DeserializeOwned>(&self, key: &str) -> Result<Option<T>> {
+    pub async fn get_setting_typed<T: serde::de::DeserializeOwned>(
+        &self,
+        key: &str,
+    ) -> Result<Option<T>> {
         self.repo.get_typed(key).await
     }
 
-    pub async fn set_setting(&self, key: &str, value: &str, type_: &str, description: &str) -> Result<()> {
+    pub async fn set_setting(
+        &self,
+        key: &str,
+        value: &str,
+        type_: &str,
+        description: &str,
+    ) -> Result<()> {
         self.repo.set(key, value, type_, description).await
     }
 
-    pub async fn set_setting_typed<T: serde::Serialize>(&self, key: &str, value: &T, type_: &str, description: &str) -> Result<()> {
+    pub async fn set_setting_typed<T: serde::Serialize>(
+        &self,
+        key: &str,
+        value: &T,
+        type_: &str,
+        description: &str,
+    ) -> Result<()> {
         self.repo.set_typed(key, value, type_, description).await
     }
 
@@ -93,19 +109,19 @@ impl SettingsService {
     pub async fn reset_to_defaults(&self) -> Result<()> {
         // Theme
         self.set_theme("system").await?;
-        
+
         // Font
         self.set_font_settings(&FontSettings::default()).await?;
-        
+
         // Editor
         self.set_editor_settings(&EditorSettings::default()).await?;
-        
+
         // AI
         self.set_ai_settings(&AISettings::default()).await?;
-        
+
         // UI
         self.set_ui_preferences(&UIPreferences::default()).await?;
-        
+
         Ok(())
     }
 }

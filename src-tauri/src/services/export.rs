@@ -1,8 +1,8 @@
 //! Export service
 
+use super::notes::ExportFormat;
 use crate::db::models::*;
 use crate::services::notes::NotesService;
-use super::notes::{ExportFormat, ImportFormat};
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,9 +23,17 @@ impl ExportService {
         self.notes_service = service;
     }
 
-    pub async fn export_note(&self, note_id: &str, format: ExportFormat, output_path: &PathBuf) -> Result<()> {
-        let content = self.notes_service.export_note(note_id, format.clone()).await?;
-        
+    pub async fn export_note(
+        &self,
+        note_id: &str,
+        format: ExportFormat,
+        output_path: &std::path::Path,
+    ) -> Result<()> {
+        let content = self
+            .notes_service
+            .export_note(note_id, format.clone())
+            .await?;
+
         let extension = match format {
             ExportFormat::Markdown => "md",
             ExportFormat::HTML => "html",
@@ -48,9 +56,14 @@ impl ExportService {
         Ok(())
     }
 
-    pub async fn export_notes(&self, note_ids: &[String], format: ExportFormat, output_dir: &PathBuf) -> Result<Vec<PathBuf>> {
+    pub async fn export_notes(
+        &self,
+        note_ids: &[String],
+        format: ExportFormat,
+        output_dir: &std::path::Path,
+    ) -> Result<Vec<PathBuf>> {
         let mut exported = Vec::new();
-        
+
         for note_id in note_ids {
             let note = self.notes_service.get_note(note_id).await?;
             if let Some(note) = note {
@@ -64,8 +77,9 @@ impl ExportService {
                 };
                 let file_name = format!("{}.{}", safe_title, extension);
                 let output_path = output_dir.join(file_name);
-                
-                self.export_note(note_id, format.clone(), &output_path).await?;
+
+                self.export_note(note_id, format.clone(), &output_path)
+                    .await?;
                 exported.push(output_path);
             }
         }
@@ -73,33 +87,53 @@ impl ExportService {
         Ok(exported)
     }
 
-    pub async fn export_folder(&self, folder_id: &str, format: ExportFormat, output_dir: &PathBuf, recursive: bool) -> Result<Vec<PathBuf>> {
+    pub async fn export_folder(
+        &self,
+        folder_id: &str,
+        format: ExportFormat,
+        output_dir: &std::path::Path,
+        _recursive: bool,
+    ) -> Result<Vec<PathBuf>> {
         // Get all notes in folder (and subfolders if recursive)
         let filter = crate::db::repository::NoteFilter {
             folder_id: Some(folder_id.to_string()),
             is_deleted: Some(false),
             ..Default::default()
         };
-        
-        let notes = self.notes_service.list_notes(filter, crate::db::repository::Pagination::default()).await?;
+
+        let notes = self
+            .notes_service
+            .list_notes(filter, crate::db::repository::Pagination::default())
+            .await?;
         let note_ids: Vec<String> = notes.iter().map(|n| n.id.clone()).collect();
-        
+
         self.export_notes(&note_ids, format, output_dir).await
     }
 
-    pub async fn export_all(&self, format: ExportFormat, output_dir: &PathBuf) -> Result<Vec<PathBuf>> {
+    pub async fn export_all(
+        &self,
+        format: ExportFormat,
+        output_dir: &std::path::Path,
+    ) -> Result<Vec<PathBuf>> {
         let filter = crate::db::repository::NoteFilter {
             is_deleted: Some(false),
             ..Default::default()
         };
-        
-        let notes = self.notes_service.list_notes(filter, crate::db::repository::Pagination::default()).await?;
+
+        let notes = self
+            .notes_service
+            .list_notes(filter, crate::db::repository::Pagination::default())
+            .await?;
         let note_ids: Vec<String> = notes.iter().map(|n| n.id.clone()).collect();
-        
+
         self.export_notes(&note_ids, format, output_dir).await
     }
 
-    pub async fn export_as_bundle(&self, note_ids: &[String], output_path: &PathBuf) -> Result<()> {
+    pub async fn export_as_bundle(
+        &self,
+        note_ids: &[String],
+        output_path: &std::path::Path,
+    ) -> Result<()> {
         // Export as a single JSON bundle with all notes and metadata
         let mut bundle = ExportBundle {
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -118,7 +152,11 @@ impl ExportService {
         Ok(())
     }
 
-    pub async fn import_bundle(&self, bundle_path: &PathBuf, target_folder: Option<String>) -> Result<ImportResult> {
+    pub async fn import_bundle(
+        &self,
+        bundle_path: &PathBuf,
+        target_folder: Option<String>,
+    ) -> Result<ImportResult> {
         let json = fs::read_to_string(bundle_path).await?;
         let bundle: ExportBundle = serde_json::from_str(&json)?;
 
@@ -145,7 +183,9 @@ impl ExportService {
                 }
                 Err(e) => {
                     result.failed_count += 1;
-                    result.errors.push(format!("Failed to import '{}': {}", note.title, e));
+                    result
+                        .errors
+                        .push(format!("Failed to import '{}': {}", note.title, e));
                 }
             }
         }

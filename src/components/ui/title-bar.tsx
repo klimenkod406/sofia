@@ -1,18 +1,18 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { Minus, Square, Copy, X } from 'lucide-react'
-import { cn } from '@/utils/cn'
+import { useEffect, useState } from 'react';
+import { Minus, Square, Copy, X } from 'lucide-react';
+import { cn } from '@/utils/cn';
 
 function isTauri(): boolean {
-  if (typeof window === 'undefined') return false
-  const w = window as unknown as Record<string, unknown>
-  return '__TAURI_INTERNALS__' in w || '__TAURI__' in w
+  if (typeof window === 'undefined') return false;
+  const w = window as unknown as Record<string, unknown>;
+  return '__TAURI_INTERNALS__' in w || '__TAURI__' in w;
 }
 
 async function appWindow() {
-  const { getCurrentWindow } = await import('@tauri-apps/api/window')
-  return getCurrentWindow()
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  return getCurrentWindow();
 }
 
 /**
@@ -23,64 +23,64 @@ async function appWindow() {
  * separate hit-test targets.
  */
 export function TitleBar() {
-  const [tauri, setTauri] = useState(false)
-  const [maximized, setMaximized] = useState(false)
+  const [tauri, setTauri] = useState(false);
+  const [maximized, setMaximized] = useState(false);
 
   useEffect(() => {
-    setTauri(isTauri())
-  }, [])
+    setTauri(isTauri());
+  }, []);
 
   useEffect(() => {
-    if (!tauri) return
-    let unlisten: (() => void) | undefined
-    ;(async () => {
+    if (!tauri) return;
+    let unlisten: (() => void) | undefined;
+    (async () => {
       try {
-        const win = await appWindow()
-        setMaximized(await win.isMaximized())
+        const win = await appWindow();
+        setMaximized(await win.isMaximized());
         unlisten = await win.onResized(async () => {
           try {
-            setMaximized(await win.isMaximized())
+            setMaximized(await win.isMaximized());
           } catch {
             /* window gone */
           }
-        })
+        });
       } catch {
         /* not in Tauri after all */
       }
-    })()
-    return () => unlisten?.()
-  }, [tauri])
+    })();
+    return () => unlisten?.();
+  }, [tauri]);
 
-  if (!tauri) return null
+  if (!tauri) return null;
 
   const minimize = async () => {
     try {
-      await (await appWindow()).minimize()
+      await (await appWindow()).minimize();
     } catch (e) {
-      console.error('minimize failed:', e)
+      console.error('minimize failed:', e);
     }
-  }
+  };
 
   const toggleMaximize = async () => {
     try {
-      const win = await appWindow()
-      await win.toggleMaximize()
-      setMaximized(await win.isMaximized())
+      const win = await appWindow();
+      await win.toggleMaximize();
+      setMaximized(await win.isMaximized());
     } catch (e) {
-      console.error('toggle maximize failed:', e)
+      console.error('toggle maximize failed:', e);
     }
-  }
+  };
 
   const close = async () => {
     try {
-      await (await appWindow()).close()
+      await (await appWindow()).close();
     } catch (e) {
-      console.error('close failed:', e)
+      console.error('close failed:', e);
     }
-  }
+  };
 
   const btn =
-    'flex items-center justify-center w-10 h-9 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent focus-visible:outline-none'
+    'flex items-center justify-center w-10 h-9 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent focus-visible:outline-none';
 
   return (
     <header
@@ -122,5 +122,5 @@ export function TitleBar() {
         </button>
       </div>
     </header>
-  )
+  );
 }

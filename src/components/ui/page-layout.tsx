@@ -1,21 +1,21 @@
-'use client'
+'use client';
 
-import { ReactNode } from 'react'
-import { useLocation } from 'react-router-dom'
-import { cn } from '@/utils/cn'
+import { ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
+import { cn } from '@/utils/cn';
 
 interface PageLayoutProps {
-  children: ReactNode
-  className?: string
+  children: ReactNode;
+  className?: string;
   /** Максимальная ширина центральной колонки */
-  width?: 'narrow' | 'default' | 'wide'
+  width?: 'narrow' | 'default' | 'wide';
 }
 
 const widths = {
   narrow: 'max-w-3xl',
   default: 'max-w-5xl',
   wide: 'max-w-6xl',
-}
+};
 
 /**
  * Центрированная сцена (п.2): никакого «слева меню — справа контент».
@@ -24,7 +24,7 @@ const widths = {
  * key по pathname перезапускает анимацию page-enter.
  */
 export function PageLayout({ children, className, width = 'default' }: PageLayoutProps) {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <div className={cn('flex h-full flex-col', className)}>
@@ -36,5 +36,5 @@ export function PageLayout({ children, className, width = 'default' }: PageLayou
         </div>
       </div>
     </div>
-  )
+  );
 }

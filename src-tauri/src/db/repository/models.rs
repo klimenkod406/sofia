@@ -17,7 +17,7 @@ impl ModelsRepository {
 
     pub async fn create(&self, mut model: AIModel) -> Result<AIModel> {
         model.id = Uuid::new_v4().to_string();
-        
+
         self.db.execute_with_params(
             r#"
             INSERT INTO ai_models (id, name, model_type, source, model_id, api_endpoint,
@@ -70,17 +70,24 @@ impl ModelsRepository {
     }
 
     pub async fn get(&self, id: &str) -> Result<Option<AIModel>> {
-        let rows = self.db.select_with_params(
-            "SELECT * FROM ai_models WHERE id = ?",
-            vec![Value::Text(id.to_string())],
-        ).await?;
+        let rows = self
+            .db
+            .select_with_params(
+                "SELECT * FROM ai_models WHERE id = ?",
+                vec![Value::Text(id.to_string())],
+            )
+            .await?;
 
-        Ok(rows.into_iter().next().and_then(|row| self.row_to_model(row)))
+        Ok(rows
+            .into_iter()
+            .next()
+            .and_then(|row| self.row_to_model(row)))
     }
 
     pub async fn update(&self, model: &AIModel) -> Result<()> {
-        self.db.execute_with_params(
-            r#"
+        self.db
+            .execute_with_params(
+                r#"
             UPDATE ai_models SET
                 name = ?, model_type = ?, source = ?, model_id = ?, api_endpoint = ?,
                 api_key_encrypted = ?, local_path = ?, huggingface_repo = ?,
@@ -93,51 +100,64 @@ impl ModelsRepository {
                 last_used_at = ?, updated_at = ?
             WHERE id = ?
             "#,
-            vec![
-                Value::Text(model.name.clone()),
-                Value::Text(model.model_type.clone()),
-                Value::Text(model.source.clone()),
-                Value::Text(model.model_id.clone().unwrap_or_default()),
-                Value::Text(model.api_endpoint.clone().unwrap_or_default()),
-                Value::Text(model.api_key_encrypted.clone().unwrap_or_default()),
-                Value::Text(model.local_path.clone().unwrap_or_default()),
-                Value::Text(model.huggingface_repo.clone().unwrap_or_default()),
-                Value::Text(model.huggingface_revision.clone().unwrap_or_default()),
-                Value::Text(model.tokenizer_path.clone().unwrap_or_default()),
-                Value::Text(model.config_path.clone().unwrap_or_default()),
-                Value::Integer(model.size_bytes),
-                Value::Text(model.quantization.clone().unwrap_or_default()),
-                Value::Text(model.languages.clone()),
-                Value::Text(model.capabilities.clone()),
-                Value::Text(model.config.clone()),
-                Value::Integer(model.min_ram_gb as i64),
-                Value::Integer(model.recommended_ram_gb as i64),
-                Value::Integer(if model.supports_gpu { 1 } else { 0 }),
-                Value::Integer(if model.supports_cpu { 1 } else { 0 }),
-                Value::Integer(model.max_context_length as i64),
-                Value::Integer(model.sample_rate as i64),
-                Value::Real(model.chunk_duration_seconds as f64),
-                Value::Real(model.overlap_duration_seconds as f64),
-                Value::Integer(if model.is_active { 1 } else { 0 }),
-                Value::Integer(if model.is_downloaded { 1 } else { 0 }),
-                Value::Real(model.download_progress as f64),
-                Value::Text(model.last_used_at.map(|d| d.to_rfc3339()).unwrap_or_default()),
-                Value::Text(Utc::now().to_rfc3339()),
-                Value::Text(model.id.clone()),
-            ],
-        ).await?;
+                vec![
+                    Value::Text(model.name.clone()),
+                    Value::Text(model.model_type.clone()),
+                    Value::Text(model.source.clone()),
+                    Value::Text(model.model_id.clone().unwrap_or_default()),
+                    Value::Text(model.api_endpoint.clone().unwrap_or_default()),
+                    Value::Text(model.api_key_encrypted.clone().unwrap_or_default()),
+                    Value::Text(model.local_path.clone().unwrap_or_default()),
+                    Value::Text(model.huggingface_repo.clone().unwrap_or_default()),
+                    Value::Text(model.huggingface_revision.clone().unwrap_or_default()),
+                    Value::Text(model.tokenizer_path.clone().unwrap_or_default()),
+                    Value::Text(model.config_path.clone().unwrap_or_default()),
+                    Value::Integer(model.size_bytes),
+                    Value::Text(model.quantization.clone().unwrap_or_default()),
+                    Value::Text(model.languages.clone()),
+                    Value::Text(model.capabilities.clone()),
+                    Value::Text(model.config.clone()),
+                    Value::Integer(model.min_ram_gb as i64),
+                    Value::Integer(model.recommended_ram_gb as i64),
+                    Value::Integer(if model.supports_gpu { 1 } else { 0 }),
+                    Value::Integer(if model.supports_cpu { 1 } else { 0 }),
+                    Value::Integer(model.max_context_length as i64),
+                    Value::Integer(model.sample_rate as i64),
+                    Value::Real(model.chunk_duration_seconds as f64),
+                    Value::Real(model.overlap_duration_seconds as f64),
+                    Value::Integer(if model.is_active { 1 } else { 0 }),
+                    Value::Integer(if model.is_downloaded { 1 } else { 0 }),
+                    Value::Real(model.download_progress as f64),
+                    Value::Text(
+                        model
+                            .last_used_at
+                            .map(|d| d.to_rfc3339())
+                            .unwrap_or_default(),
+                    ),
+                    Value::Text(Utc::now().to_rfc3339()),
+                    Value::Text(model.id.clone()),
+                ],
+            )
+            .await?;
         Ok(())
     }
 
     pub async fn delete(&self, id: &str) -> Result<()> {
-        self.db.execute_with_params(
-            "DELETE FROM ai_models WHERE id = ?",
-            vec![Value::Text(id.to_string())],
-        ).await?;
+        self.db
+            .execute_with_params(
+                "DELETE FROM ai_models WHERE id = ?",
+                vec![Value::Text(id.to_string())],
+            )
+            .await?;
         Ok(())
     }
 
-    pub async fn list(&self, model_type: Option<&str>, source: Option<&str>, active_only: bool) -> Result<Vec<AIModel>> {
+    pub async fn list(
+        &self,
+        model_type: Option<&str>,
+        source: Option<&str>,
+        active_only: bool,
+    ) -> Result<Vec<AIModel>> {
         let mut query = String::from("SELECT * FROM ai_models WHERE 1=1");
         let mut params = Vec::new();
 
@@ -158,7 +178,10 @@ impl ModelsRepository {
         query.push_str(" ORDER BY model_type, name");
 
         let rows = self.db.select_with_params(&query, params).await?;
-        Ok(rows.into_iter().filter_map(|row| self.row_to_model(row)).collect())
+        Ok(rows
+            .into_iter()
+            .filter_map(|row| self.row_to_model(row))
+            .collect())
     }
 
     pub async fn get_by_type(&self, model_type: &str) -> Result<Vec<AIModel>> {
@@ -171,7 +194,10 @@ impl ModelsRepository {
             vec![],
         ).await?;
 
-        Ok(rows.into_iter().next().and_then(|row| self.row_to_model(row)))
+        Ok(rows
+            .into_iter()
+            .next()
+            .and_then(|row| self.row_to_model(row)))
     }
 
     pub async fn get_default_analysis(&self) -> Result<Option<AIModel>> {
@@ -180,7 +206,10 @@ impl ModelsRepository {
             vec![],
         ).await?;
 
-        Ok(rows.into_iter().next().and_then(|row| self.row_to_model(row)))
+        Ok(rows
+            .into_iter()
+            .next()
+            .and_then(|row| self.row_to_model(row)))
     }
 
     pub async fn get_default_chat(&self) -> Result<Option<AIModel>> {
@@ -189,18 +218,23 @@ impl ModelsRepository {
             vec![],
         ).await?;
 
-        Ok(rows.into_iter().next().and_then(|row| self.row_to_model(row)))
+        Ok(rows
+            .into_iter()
+            .next()
+            .and_then(|row| self.row_to_model(row)))
     }
 
     pub async fn set_download_progress(&self, id: &str, progress: f32) -> Result<()> {
-        self.db.execute_with_params(
-            "UPDATE ai_models SET download_progress = ?, updated_at = ? WHERE id = ?",
-            vec![
-                Value::Real(progress as f64),
-                Value::Text(Utc::now().to_rfc3339()),
-                Value::Text(id.to_string()),
-            ],
-        ).await?;
+        self.db
+            .execute_with_params(
+                "UPDATE ai_models SET download_progress = ?, updated_at = ? WHERE id = ?",
+                vec![
+                    Value::Real(progress as f64),
+                    Value::Text(Utc::now().to_rfc3339()),
+                    Value::Text(id.to_string()),
+                ],
+            )
+            .await?;
         Ok(())
     }
 
@@ -217,14 +251,16 @@ impl ModelsRepository {
     }
 
     pub async fn update_last_used(&self, id: &str) -> Result<()> {
-        self.db.execute_with_params(
-            "UPDATE ai_models SET last_used_at = ?, updated_at = ? WHERE id = ?",
-            vec![
-                Value::Text(Utc::now().to_rfc3339()),
-                Value::Text(Utc::now().to_rfc3339()),
-                Value::Text(id.to_string()),
-            ],
-        ).await?;
+        self.db
+            .execute_with_params(
+                "UPDATE ai_models SET last_used_at = ?, updated_at = ? WHERE id = ?",
+                vec![
+                    Value::Text(Utc::now().to_rfc3339()),
+                    Value::Text(Utc::now().to_rfc3339()),
+                    Value::Text(id.to_string()),
+                ],
+            )
+            .await?;
         Ok(())
     }
 
@@ -269,16 +305,52 @@ impl ModelsRepository {
             name: row.get("name")?.as_str()?.to_string(),
             model_type: row.get("model_type")?.as_str()?.to_string(),
             source: row.get("source")?.as_str()?.to_string(),
-            model_id: row.get("model_id").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            api_endpoint: row.get("api_endpoint").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            api_key_encrypted: row.get("api_key_encrypted").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            local_path: row.get("local_path").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            huggingface_repo: row.get("huggingface_repo").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            huggingface_revision: row.get("huggingface_revision").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            tokenizer_path: row.get("tokenizer_path").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
-            config_path: row.get("config_path").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
+            model_id: row
+                .get("model_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            api_endpoint: row
+                .get("api_endpoint")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            api_key_encrypted: row
+                .get("api_key_encrypted")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            local_path: row
+                .get("local_path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            huggingface_repo: row
+                .get("huggingface_repo")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            huggingface_revision: row
+                .get("huggingface_revision")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            tokenizer_path: row
+                .get("tokenizer_path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
+            config_path: row
+                .get("config_path")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
             size_bytes: row.get("size_bytes")?.as_i64()?,
-            quantization: row.get("quantization").and_then(|v| v.as_str()).map(|s| s.to_string()).filter(|s| !s.is_empty()),
+            quantization: row
+                .get("quantization")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .filter(|s| !s.is_empty()),
             languages: row.get("languages")?.as_str()?.to_string(),
             capabilities: row.get("capabilities")?.as_str()?.to_string(),
             config: row.get("config")?.as_str()?.to_string(),
@@ -293,9 +365,17 @@ impl ModelsRepository {
             is_active: row.get("is_active")?.as_i64()? != 0,
             is_downloaded: row.get("is_downloaded")?.as_i64()? != 0,
             download_progress: row.get("download_progress")?.as_f64()? as f32,
-            last_used_at: row.get("last_used_at").and_then(|v| v.as_str()).and_then(|s| DateTime::parse_from_rfc3339(s).ok()).map(|d| d.with_timezone(&Utc)),
-            created_at: DateTime::parse_from_rfc3339(row.get("created_at")?.as_str()?).ok()?.with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(row.get("updated_at")?.as_str()?).ok()?.with_timezone(&Utc),
+            last_used_at: row
+                .get("last_used_at")
+                .and_then(|v| v.as_str())
+                .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
+                .map(|d| d.with_timezone(&Utc)),
+            created_at: DateTime::parse_from_rfc3339(row.get("created_at")?.as_str()?)
+                .ok()?
+                .with_timezone(&Utc),
+            updated_at: DateTime::parse_from_rfc3339(row.get("updated_at")?.as_str()?)
+                .ok()?
+                .with_timezone(&Utc),
         })
     }
 }

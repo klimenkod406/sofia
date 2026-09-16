@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { forwardRef } from 'react'
+import { cn } from '@/utils/cn';
+import { forwardRef } from 'react';
 
 export interface ColorPickerProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
@@ -14,24 +14,37 @@ export const ColorPicker = forwardRef<HTMLInputElement, ColorPickerProps>(
       {...props}
     />
   )
-)
+);
 
-ColorPicker.displayName = 'ColorPicker'
+ColorPicker.displayName = 'ColorPicker';
 
 // Also export a more advanced color picker component
 export interface ColorPickerAdvancedProps {
-  value: string
-  onChange: (color: string) => void
-  presetColors?: string[]
+  value: string;
+  onChange: (color: string) => void;
+  presetColors?: string[];
 }
 
-export function ColorPickerAdvanced({ value, onChange, presetColors = ['#00BFA6', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#10B981'] }: ColorPickerAdvancedProps) {
+export function ColorPickerAdvanced({
+  value,
+  onChange,
+  presetColors = [
+    '#00BFA6',
+    '#3B82F6',
+    '#F59E0B',
+    '#EF4444',
+    '#8B5CF6',
+    '#EC4899',
+    '#06B6D4',
+    '#10B981',
+  ],
+}: ColorPickerAdvancedProps) {
   return (
     <div className="flex items-center gap-2">
       <input
         type="color"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={e => onChange(e.target.value)}
         className="h-10 w-10 rounded-lg border border-input cursor-pointer"
       />
       <div className="flex flex-wrap gap-1">
@@ -49,5 +62,5 @@ export function ColorPickerAdvanced({ value, onChange, presetColors = ['#00BFA6'
         ))}
       </div>
     </div>
-  )
+  );
 }

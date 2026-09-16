@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { forwardRef } from 'react'
+import { cn } from '@/utils/cn';
+import { forwardRef } from 'react';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
 
@@ -16,8 +16,8 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
         ref={ref}
         {...props}
       />
-    )
+    );
   }
-)
+);
 
-Textarea.displayName = 'Textarea'
+Textarea.displayName = 'Textarea';

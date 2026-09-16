@@ -1,81 +1,149 @@
-'use client'
+'use client';
 
-import type { useEditor } from '@tiptap/react'
-import type { Level } from '@tiptap/extension-heading'
-import { cn } from '@/utils/cn'
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import type { useEditor } from '@tiptap/react';
+import type { Level } from '@tiptap/extension-heading';
+import { cn } from '@/utils/cn';
+import { Button } from '@/components/ui/button';
 import {
-  Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3,
-  List, ListOrdered, Quote, Link, Image, Table,
-  Undo, Redo, Save, Highlighter, CheckSquare,
-  MoreHorizontal, Type, Download,
-} from 'lucide-react'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Bold,
+  Italic,
+  Strikethrough,
+  Code,
+  Heading1,
+  Heading2,
+  Heading3,
+  List,
+  ListOrdered,
+  Quote,
+  Link,
+  Image,
+  Table,
+  Undo,
+  Redo,
+  Save,
+  Highlighter,
+  CheckSquare,
+  MoreHorizontal,
+  Type,
+  Download,
+} from 'lucide-react';
 
 interface EditorToolbarProps {
-  editor: ReturnType<typeof useEditor>
+  editor: ReturnType<typeof useEditor>;
 }
 
 interface ToolbarButton {
-  kind: 'button'
-  icon: React.ComponentType<{ className?: string }>
-  action: () => boolean | void
-  disabled?: boolean
-  active?: boolean
-  title: string
+  kind: 'button';
+  icon: React.ComponentType<{ className?: string }>;
+  action: () => boolean | void;
+  disabled?: boolean;
+  active?: boolean;
+  title: string;
 }
 
 interface ToolbarMenu {
-  kind: 'menu'
-  icon: React.ComponentType<{ className?: string }>
-  action: () => void
-  title: string
-  menuItems: { icon: React.ComponentType<{ className?: string }>; label: string; action: () => void }[]
+  kind: 'menu';
+  icon: React.ComponentType<{ className?: string }>;
+  action: () => void;
+  title: string;
+  menuItems: {
+    icon: React.ComponentType<{ className?: string }>;
+    label: string;
+    action: () => void;
+  }[];
 }
 
-type ToolbarItem = ToolbarButton | ToolbarMenu
+type ToolbarItem = ToolbarButton | ToolbarMenu;
 
 export function EditorToolbar({ editor }: EditorToolbarProps) {
-  if (!editor) return null
+  if (!editor) return null;
 
-  const canUndo = editor.can().undo()
-  const canRedo = editor.can().redo()
+  const canUndo = editor.can().undo();
+  const canRedo = editor.can().redo();
 
   const addHeading = (level: Level) => {
-    editor.chain().focus().toggleHeading({ level }).run()
-  }
+    editor.chain().focus().toggleHeading({ level }).run();
+  };
 
   const addTable = () => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-  }
+    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+  };
 
   const addTaskList = () => {
-    editor.chain().focus().toggleTaskList().run()
-  }
+    editor.chain().focus().toggleTaskList().run();
+  };
 
   const addLink = () => {
-    const url = window.prompt('Enter URL:')
-    if (url) editor.chain().focus().setLink({ href: url }).run()
-  }
+    const url = window.prompt('Enter URL:');
+    if (url) editor.chain().focus().setLink({ href: url }).run();
+  };
 
   const addImage = () => {
-    const url = window.prompt('Enter image URL:')
-    if (url) editor.chain().focus().setImage({ src: url }).run()
-  }
+    const url = window.prompt('Enter image URL:');
+    if (url) editor.chain().focus().setImage({ src: url }).run();
+  };
 
   const groups: ToolbarItem[][] = [
     // History
     [
-      { kind: 'button', icon: Undo, action: () => editor.chain().focus().undo().run(), disabled: !canUndo, title: 'Undo (Ctrl+Z)' },
-      { kind: 'button', icon: Redo, action: () => editor.chain().focus().redo().run(), disabled: !canRedo, title: 'Redo (Ctrl+Shift+Z)' },
+      {
+        kind: 'button',
+        icon: Undo,
+        action: () => editor.chain().focus().undo().run(),
+        disabled: !canUndo,
+        title: 'Undo (Ctrl+Z)',
+      },
+      {
+        kind: 'button',
+        icon: Redo,
+        action: () => editor.chain().focus().redo().run(),
+        disabled: !canRedo,
+        title: 'Redo (Ctrl+Shift+Z)',
+      },
     ],
     // Text formatting
     [
-      { kind: 'button', icon: Bold, action: () => editor.chain().focus().toggleBold().run(), active: editor.isActive('bold'), title: 'Bold (Ctrl+B)' },
-      { kind: 'button', icon: Italic, action: () => editor.chain().focus().toggleItalic().run(), active: editor.isActive('italic'), title: 'Italic (Ctrl+I)' },
-      { kind: 'button', icon: Strikethrough, action: () => editor.chain().focus().toggleStrike().run(), active: editor.isActive('strike'), title: 'Strikethrough' },
-      { kind: 'button', icon: Code, action: () => editor.chain().focus().toggleCode().run(), active: editor.isActive('code'), title: 'Inline Code' },
-      { kind: 'button', icon: Highlighter, action: () => editor.chain().focus().toggleHighlight().run(), active: editor.isActive('highlight'), title: 'Highlight' },
+      {
+        kind: 'button',
+        icon: Bold,
+        action: () => editor.chain().focus().toggleBold().run(),
+        active: editor.isActive('bold'),
+        title: 'Bold (Ctrl+B)',
+      },
+      {
+        kind: 'button',
+        icon: Italic,
+        action: () => editor.chain().focus().toggleItalic().run(),
+        active: editor.isActive('italic'),
+        title: 'Italic (Ctrl+I)',
+      },
+      {
+        kind: 'button',
+        icon: Strikethrough,
+        action: () => editor.chain().focus().toggleStrike().run(),
+        active: editor.isActive('strike'),
+        title: 'Strikethrough',
+      },
+      {
+        kind: 'button',
+        icon: Code,
+        action: () => editor.chain().focus().toggleCode().run(),
+        active: editor.isActive('code'),
+        title: 'Inline Code',
+      },
+      {
+        kind: 'button',
+        icon: Highlighter,
+        action: () => editor.chain().focus().toggleHighlight().run(),
+        active: editor.isActive('highlight'),
+        title: 'Highlight',
+      },
     ],
     // Headings
     [
@@ -103,14 +171,44 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
     ],
     // Lists
     [
-      { kind: 'button', icon: List, action: () => editor.chain().focus().toggleBulletList().run(), active: editor.isActive('bulletList'), title: 'Bullet List' },
-      { kind: 'button', icon: ListOrdered, action: () => editor.chain().focus().toggleOrderedList().run(), active: editor.isActive('orderedList'), title: 'Numbered List' },
-      { kind: 'button', icon: CheckSquare, action: addTaskList, active: editor.isActive('taskList'), title: 'Task List' },
+      {
+        kind: 'button',
+        icon: List,
+        action: () => editor.chain().focus().toggleBulletList().run(),
+        active: editor.isActive('bulletList'),
+        title: 'Bullet List',
+      },
+      {
+        kind: 'button',
+        icon: ListOrdered,
+        action: () => editor.chain().focus().toggleOrderedList().run(),
+        active: editor.isActive('orderedList'),
+        title: 'Numbered List',
+      },
+      {
+        kind: 'button',
+        icon: CheckSquare,
+        action: addTaskList,
+        active: editor.isActive('taskList'),
+        title: 'Task List',
+      },
     ],
     // Blocks
     [
-      { kind: 'button', icon: Quote, action: () => editor.chain().focus().toggleBlockquote().run(), active: editor.isActive('blockquote'), title: 'Blockquote' },
-      { kind: 'button', icon: Code, action: () => editor.chain().focus().toggleCodeBlock().run(), active: editor.isActive('codeBlock'), title: 'Code Block' },
+      {
+        kind: 'button',
+        icon: Quote,
+        action: () => editor.chain().focus().toggleBlockquote().run(),
+        active: editor.isActive('blockquote'),
+        title: 'Blockquote',
+      },
+      {
+        kind: 'button',
+        icon: Code,
+        action: () => editor.chain().focus().toggleCodeBlock().run(),
+        active: editor.isActive('codeBlock'),
+        title: 'Code Block',
+      },
     ],
     // Media & Tables
     [
@@ -126,7 +224,13 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         action: () => {},
         title: 'More Options',
         menuItems: [
-          { icon: Type, label: 'Clear Formatting', action: () => { editor.chain().focus().clearNodes().run() } },
+          {
+            icon: Type,
+            label: 'Clear Formatting',
+            action: () => {
+              editor.chain().focus().clearNodes().run();
+            },
+          },
           { icon: Save, label: 'Save Note', action: () => {} }, // Handled by page
           { icon: Download, label: 'Export as Markdown', action: () => {} },
           { icon: Download, label: 'Export as HTML', action: () => {} },
@@ -134,7 +238,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         ],
       },
     ],
-  ]
+  ];
 
   return (
     <div className="editor-toolbar" role="toolbar" aria-label="Editor formatting tools">
@@ -158,7 +262,11 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     {item.menuItems.map((menuItem, mi) => (
-                      <DropdownMenuItem key={mi} onClick={menuItem.action} className="flex items-center gap-2">
+                      <DropdownMenuItem
+                        key={mi}
+                        onClick={menuItem.action}
+                        className="flex items-center gap-2"
+                      >
                         <menuItem.icon className="w-4 h-4" />
                         {menuItem.label}
                       </DropdownMenuItem>
@@ -169,10 +277,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn(
-                    'editor-toolbar-btn',
-                    item.active && 'editor-toolbar-btn-active'
-                  )}
+                  className={cn('editor-toolbar-btn', item.active && 'editor-toolbar-btn-active')}
                   onClick={item.action}
                   disabled={item.disabled}
                   title={item.title}
@@ -188,5 +293,5 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         </div>
       ))}
     </div>
-  )
+  );
 }

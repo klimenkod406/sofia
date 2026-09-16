@@ -1,10 +1,10 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { forwardRef } from 'react'
+import { cn } from '@/utils/cn';
+import { forwardRef } from 'react';
 
 export interface SwitchProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
-  onCheckedChange?: (checked: boolean) => void
+  onCheckedChange?: (checked: boolean) => void;
 }
 
 export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
@@ -17,10 +17,10 @@ export const Switch = forwardRef<HTMLInputElement, SwitchProps>(
         className
       )}
       ref={ref}
-      onChange={(e) => onCheckedChange?.(e.target.checked)}
+      onChange={e => onCheckedChange?.(e.target.checked)}
       {...props}
     />
   )
-)
+);
 
-Switch.displayName = 'Switch'
+Switch.displayName = 'Switch';

@@ -12,12 +12,12 @@ pub struct FileOpsService {
 }
 
 impl FileOpsService {
-    pub fn new(db: Arc<Database>) -> Self {
+    pub fn new(_db: Arc<Database>) -> Self {
         let app_data_dir = directories::BaseDirs::new()
             .map(|b| b.data_dir().to_path_buf())
             .unwrap_or_else(|| PathBuf::from("."))
             .join("sofia");
-        
+
         Self { app_data_dir }
     }
 
@@ -167,7 +167,10 @@ impl FileOpsService {
         let mut total_size = 0u64;
         let mut file_count = 0u64;
 
-        for entry in WalkDir::new(&self.app_data_dir).into_iter().filter_map(|e| e.ok()) {
+        for entry in WalkDir::new(&self.app_data_dir)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
             if entry.file_type().is_file() {
                 if let Ok(metadata) = entry.metadata() {
                     total_size += metadata.len();

@@ -12,17 +12,23 @@ pub struct FoldersService {
 
 impl FoldersService {
     pub fn new(db: Arc<Database>) -> Self {
-        Self {
-            repo: db.folders(),
-        }
+        Self { repo: db.folders() }
     }
 
-    pub async fn create_folder(&self, name: &str, parent_id: Option<String>, color: Option<String>, icon: Option<String>) -> Result<Folder> {
-        let mut folder = Folder::default();
-        folder.name = name.to_string();
-        folder.parent_id = parent_id;
-        folder.color = color.unwrap_or_else(|| "#00BFA6".to_string());
-        folder.icon = icon.unwrap_or_else(|| "folder".to_string());
+    pub async fn create_folder(
+        &self,
+        name: &str,
+        parent_id: Option<String>,
+        color: Option<String>,
+        icon: Option<String>,
+    ) -> Result<Folder> {
+        let folder = Folder {
+            name: name.to_string(),
+            parent_id,
+            color: color.unwrap_or_else(|| "#00BFA6".to_string()),
+            icon: icon.unwrap_or_else(|| "folder".to_string()),
+            ..Default::default()
+        };
         self.repo.create(folder).await
     }
 

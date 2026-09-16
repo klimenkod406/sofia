@@ -1,9 +1,9 @@
 //! AI Service - coordinates transcription, analysis, and chat
 
-use crate::ai::{TranscriptionEngine, AnalysisEngine, ModelManager};
 pub use crate::ai::transcription::{TranscriptionResult, TranscriptionSegment};
+use crate::ai::{AnalysisEngine, ModelManager, TranscriptionEngine};
 use crate::db::models::*;
-use crate::db::repository::{ModelsRepository, TranscriptionRepository, AIChatRepository};
+use crate::db::repository::{AIChatRepository, ModelsRepository, TranscriptionRepository};
 use crate::db::Database;
 use anyhow::Result;
 use std::sync::Arc;
@@ -23,7 +23,7 @@ impl AIService {
         let models_repo = db.models();
         let transcription_repo = db.transcription();
         let chat_repo = db.ai_chat();
-        
+
         let models = Arc::new(ModelManager::new(db.models())?);
         let transcription = Arc::new(TranscriptionEngine::new(models.clone())?);
         let analysis = Arc::new(AnalysisEngine::new(models.clone())?);
@@ -39,7 +39,12 @@ impl AIService {
     }
 
     // Transcription
-    pub async fn transcribe_audio(&self, audio_path: &str, model_id: Option<&str>, language: &str) -> Result<TranscriptionResult> {
+    pub async fn transcribe_audio(
+        &self,
+        audio_path: &str,
+        model_id: Option<&str>,
+        language: &str,
+    ) -> Result<TranscriptionResult> {
         // Create job
         let job = TranscriptionJob {
             id: String::new(),
@@ -62,17 +67,25 @@ impl AIService {
         let result = self.transcription.transcribe(&job).await?;
 
         // Update job with result
-        self.transcription_repo.complete_job(
-            &job.id,
-            &result.text,
-            &serde_json::to_string(&result.segments)?,
-            result.duration,
-        ).await?;
+        self.transcription_repo
+            .complete_job(
+                &job.id,
+                &result.text,
+                &serde_json::to_string(&result.segments)?,
+                result.duration,
+            )
+            .await?;
 
         Ok(result)
     }
 
-    pub async fn transcribe_stream(&self, audio_path: &str, model_id: Option<&str>, language: &str, sender: mpsc::Sender<TranscriptionSegment>) -> Result<()> {
+    pub async fn transcribe_stream(
+        &self,
+        audio_path: &str,
+        model_id: Option<&str>,
+        language: &str,
+        sender: mpsc::Sender<TranscriptionSegment>,
+    ) -> Result<()> {
         let job = TranscriptionJob {
             id: String::new(),
             audio_path: audio_path.to_string(),
@@ -92,7 +105,11 @@ impl AIService {
         self.transcription.transcribe_stream(&job, sender).await
     }
 
-    pub async fn get_transcription_jobs(&self, status: Option<&str>, limit: i32) -> Result<Vec<TranscriptionJob>> {
+    pub async fn get_transcription_jobs(
+        &self,
+        status: Option<&str>,
+        limit: i32,
+    ) -> Result<Vec<TranscriptionJob>> {
         self.transcription_repo.list_jobs(status, limit).await
     }
 
@@ -101,11 +118,21 @@ impl AIService {
     }
 
     // Analysis
-    pub async fn analyze_text(&self, text: &str, analysis_type: AnalysisType, model_id: Option<&str>) -> Result<AnalysisResult> {
+    pub async fn analyze_text(
+        &self,
+        text: &str,
+        analysis_type: AnalysisType,
+        model_id: Option<&str>,
+    ) -> Result<AnalysisResult> {
         self.analysis.analyze(text, analysis_type, model_id).await
     }
 
-    pub async fn chat_completion(&self, messages: Vec<ChatMessage>, model_id: Option<&str>, options: ChatOptions) -> Result<ChatCompletion> {
+    pub async fn chat_completion(
+        &self,
+        messages: Vec<ChatMessage>,
+        model_id: Option<&str>,
+        options: ChatOptions,
+    ) -> Result<ChatCompletion> {
         self.analysis.chat(messages, model_id, options).await
     }
 
@@ -114,8 +141,14 @@ impl AIService {
         self.models_repo.list(model_type, None, true).await
     }
 
-    pub async fn download_model(&self, model_id: &str, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<()> {
-        self.models.download_model(model_id, progress_callback).await
+    pub async fn download_model(
+        &self,
+        model_id: &str,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<()> {
+        self.models
+            .download_model(model_id, progress_callback)
+            .await
     }
 
     pub async fn delete_model(&self, model_id: &str) -> Result<()> {
@@ -131,7 +164,11 @@ impl AIService {
     }
 
     // Chat sessions
-    pub async fn create_chat(&self, note_id: Option<&str>, model_id: Option<&str>) -> Result<AIChat> {
+    pub async fn create_chat(
+        &self,
+        note_id: Option<&str>,
+        model_id: Option<&str>,
+    ) -> Result<AIChat> {
         let chat = AIChat {
             id: String::new(),
             note_id: note_id.map(|s| s.to_string()),

@@ -1,13 +1,13 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useCalendar } from '@/hooks/use-calendar'
-import { CalendarGrid } from '@/components/calendar/calendar-grid'
-import { CalendarSidebar } from '@/components/calendar/calendar-sidebar'
-import { EventModal } from '@/components/calendar/event-modal'
-import { Button } from '@/components/ui/button'
-import { Plus, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
-import { cn, formatDate } from '@/utils/cn'
+import { useState } from 'react';
+import { useCalendar } from '@/hooks/use-calendar';
+import { CalendarGrid } from '@/components/calendar/calendar-grid';
+import { CalendarSidebar } from '@/components/calendar/calendar-sidebar';
+import { EventModal } from '@/components/calendar/event-modal';
+import { Button } from '@/components/ui/button';
+import { Plus, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { cn, formatDate } from '@/utils/cn';
 
 export function CalendarPage() {
   const {
@@ -19,29 +19,29 @@ export function CalendarPage() {
     createEvent,
     updateEvent,
     deleteEvent,
-  } = useCalendar()
+  } = useCalendar();
 
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month')
-  const [showSidebar] = useState(true)
+  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [showSidebar] = useState(true);
 
   const navigateMonth = (delta: number) => {
-    const newDate = new Date(currentDate)
-    newDate.setMonth(newDate.getMonth() + delta)
-    setCurrentDate(newDate)
-  }
+    const newDate = new Date(currentDate);
+    newDate.setMonth(newDate.getMonth() + delta);
+    setCurrentDate(newDate);
+  };
 
   const goToToday = () => {
-    setCurrentDate(new Date())
-  }
+    setCurrentDate(new Date());
+  };
 
   const handleCreateEvent = () => {
     const newEvent = {
       title: '',
       start_time: currentDate.toISOString(),
       end_time: new Date(currentDate.getTime() + 3600000).toISOString(),
-    }
-    setSelectedEvent(newEvent)
-  }
+    };
+    setSelectedEvent(newEvent);
+  };
 
   return (
     <div className="h-full flex flex-col">
@@ -51,14 +51,21 @@ export function CalendarPage() {
           <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
           <p className="text-muted-foreground">
             {view === 'month' && formatDate(currentDate, { month: 'long', year: 'numeric' })}
-            {view === 'week' && `Week of ${formatDate(currentDate, { month: 'short', day: 'numeric', year: 'numeric' })}`}
-            {view === 'day' && formatDate(currentDate, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            {view === 'week' &&
+              `Week of ${formatDate(currentDate, { month: 'short', day: 'numeric', year: 'numeric' })}`}
+            {view === 'day' &&
+              formatDate(currentDate, {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <div className="hidden sm:flex border rounded-xl overflow-hidden">
-            {(['month', 'week', 'day'] as const).map((v) => (
+            {(['month', 'week', 'day'] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -78,8 +85,12 @@ export function CalendarPage() {
             <CalendarDays className="w-4 h-4 mr-1" />
             Today
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}><ChevronLeft className="w-4 h-4" /></Button>
-          <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}><ChevronRight className="w-4 h-4" /></Button>
+          <Button variant="outline" size="icon" onClick={() => navigateMonth(-1)}>
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" size="icon" onClick={() => navigateMonth(1)}>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
           <Button onClick={handleCreateEvent} className="gap-2">
             <Plus className="w-4 h-4" />
             New Event
@@ -107,9 +118,9 @@ export function CalendarPage() {
             view={view}
             currentDate={currentDate}
             events={events}
-            onDateClick={(date) => {
-              setCurrentDate(date)
-              setView('day')
+            onDateClick={date => {
+              setCurrentDate(date);
+              setView('day');
             }}
             onEventClick={setSelectedEvent}
             onCreateEvent={handleCreateEvent}
@@ -122,18 +133,18 @@ export function CalendarPage() {
         <EventModal
           event={selectedEvent}
           onClose={() => setSelectedEvent(null)}
-          onSave={async (eventData) => {
+          onSave={async eventData => {
             if (selectedEvent.id) {
-              const eventId = selectedEvent.id
-              await updateEvent({ ...selectedEvent, ...eventData, id: eventId })
+              const eventId = selectedEvent.id;
+              await updateEvent({ ...selectedEvent, ...eventData, id: eventId });
             } else {
-              await createEvent(eventData)
+              await createEvent(eventData);
             }
-            setSelectedEvent(null)
+            setSelectedEvent(null);
           }}
           onDelete={selectedEvent.id ? () => deleteEvent(selectedEvent.id as string) : undefined}
         />
       )}
     </div>
-  )
+  );
 }

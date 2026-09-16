@@ -4,7 +4,7 @@ use crate::db::Database;
 use crate::services::file_ops::FileOpsService;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use std::io::{Read, Write, Seek};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::fs;
@@ -18,14 +18,20 @@ pub struct BackupService {
 impl BackupService {
     pub fn new(db: Arc<Database>) -> Self {
         // FileOpsService will be injected properly in production
-        Self { file_ops: Arc::new(FileOpsService::new(db)) }
+        Self {
+            file_ops: Arc::new(FileOpsService::new(db)),
+        }
     }
 
     pub fn set_file_ops(&mut self, file_ops: Arc<FileOpsService>) {
         self.file_ops = file_ops;
     }
 
-    pub async fn create_backup(&self, include_attachments: bool, include_models: bool) -> Result<BackupMetadata> {
+    pub async fn create_backup(
+        &self,
+        include_attachments: bool,
+        include_models: bool,
+    ) -> Result<BackupMetadata> {
         let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
         let backup_name = format!("sofia_backup_{}.zip", timestamp);
         let backup_path = self.file_ops.get_backups_dir().join(&backup_name);
@@ -36,7 +42,8 @@ impl BackupService {
         // Create zip file
         let file = std::fs::File::create(&backup_path)?;
         let mut zip = ZipWriter::new(file);
-        let options = FileOptions::<()>::default().compression_method(zip::CompressionMethod::Deflated);
+        let options =
+            FileOptions::<()>::default().compression_method(zip::CompressionMethod::Deflated);
 
         // Export database
         let db_path = self.file_ops.get_app_data_dir().join("sofia.db");
@@ -57,7 +64,10 @@ impl BackupService {
         // Export notes as markdown
         let notes_dir = self.file_ops.get_notes_dir();
         if notes_dir.exists() {
-            for entry in walkdir::WalkDir::new(&notes_dir).into_iter().filter_map(|e| e.ok()) {
+            for entry in walkdir::WalkDir::new(&notes_dir)
+                .into_iter()
+                .filter_map(|e| e.ok())
+            {
                 if entry.file_type().is_file() {
                     let rel_path = entry.path().strip_prefix(&notes_dir).unwrap();
                     let zip_path = format!("notes/{}", rel_path.to_string_lossy());
@@ -72,7 +82,10 @@ impl BackupService {
         if include_attachments {
             let attachments_dir = self.file_ops.get_attachments_dir();
             if attachments_dir.exists() {
-                for entry in walkdir::WalkDir::new(&attachments_dir).into_iter().filter_map(|e| e.ok()) {
+                for entry in walkdir::WalkDir::new(&attachments_dir)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
                     if entry.file_type().is_file() {
                         let rel_path = entry.path().strip_prefix(&attachments_dir).unwrap();
                         let zip_path = format!("attachments/{}", rel_path.to_string_lossy());
@@ -88,7 +101,10 @@ impl BackupService {
         if include_models {
             let models_dir = self.file_ops.get_models_dir();
             if models_dir.exists() {
-                for entry in walkdir::WalkDir::new(&models_dir).into_iter().filter_map(|e| e.ok()) {
+                for entry in walkdir::WalkDir::new(&models_dir)
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                {
                     if entry.file_type().is_file() {
                         let rel_path = entry.path().strip_prefix(&models_dir).unwrap();
                         let zip_path = format!("models/{}", rel_path.to_string_lossy());
@@ -140,21 +156,21 @@ impl BackupService {
         for i in 0..archive.len() {
             let mut file = archive.by_index(i)?;
             let name = file.name().to_string();
-            
-            if name.starts_with("notes/") {
-                let rel_path = &name[6..]; // Remove "notes/"
+
+            if let Some(rel_path) = name.strip_prefix("notes/") {
+                // Remove "notes/"
                 let dest_path = self.file_ops.get_notes_dir().join(rel_path);
                 fs::create_dir_all(dest_path.parent().unwrap()).await?;
                 let mut dest = std::fs::File::create(&dest_path)?;
                 std::io::copy(&mut file, &mut dest)?;
-            } else if name.starts_with("attachments/") {
-                let rel_path = &name[12..]; // Remove "attachments/"
+            } else if let Some(rel_path) = name.strip_prefix("attachments/") {
+                // Remove "attachments/"
                 let dest_path = self.file_ops.get_attachments_dir().join(rel_path);
                 fs::create_dir_all(dest_path.parent().unwrap()).await?;
                 let mut dest = std::fs::File::create(&dest_path)?;
                 std::io::copy(&mut file, &mut dest)?;
-            } else if name.starts_with("models/") {
-                let rel_path = &name[7..]; // Remove "models/"
+            } else if let Some(rel_path) = name.strip_prefix("models/") {
+                // Remove "models/"
                 let dest_path = self.file_ops.get_models_dir().join(rel_path);
                 fs::create_dir_all(dest_path.parent().unwrap()).await?;
                 let mut dest = std::fs::File::create(&dest_path)?;
@@ -177,11 +193,11 @@ impl BackupService {
     pub async fn list_backups(&self) -> Result<Vec<BackupInfo>> {
         let mut backups = Vec::new();
         let backups_dir = self.file_ops.get_backups_dir();
-        
+
         if backups_dir.exists() {
             let mut dir = fs::read_dir(backups_dir).await?;
             while let Some(entry) = dir.next_entry().await? {
-                if entry.path().extension().map_or(false, |ext| ext == "zip") {
+                if entry.path().extension().is_some_and(|ext| ext == "zip") {
                     let metadata = entry.metadata().await?;
                     backups.push(BackupInfo {
                         name: entry.file_name().to_string_lossy().to_string(),
@@ -193,7 +209,7 @@ impl BackupService {
             }
         }
 
-        backups.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        backups.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         Ok(backups)
     }
 
@@ -209,12 +225,12 @@ impl BackupService {
         // Check if auto-backup is enabled and when last backup was
         // This would be called on a timer
         let backups = self.list_backups().await?;
-        
+
         // If no backup in last 24 hours, create one
-        let should_backup = backups.first().map_or(true, |last| {
+        let should_backup = backups.first().is_none_or(|last| {
             last.created_at
                 .and_then(|t| t.elapsed().ok())
-                .map_or(true, |elapsed| elapsed.as_secs() >= 24 * 3600)
+                .is_none_or(|elapsed| elapsed.as_secs() >= 24 * 3600)
         });
 
         if should_backup {

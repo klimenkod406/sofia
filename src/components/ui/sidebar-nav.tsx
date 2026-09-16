@@ -1,12 +1,23 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { Home, FileText, Calendar, Settings, Bot, Plus, ChevronLeft, ChevronRight, Sun, Moon } from 'lucide-react'
-import { cn } from '@/utils/cn'
-import { useSettings } from '@/stores/settings'
-import { useTheme } from '@/components/ui/theme-provider'
-import { useNotes } from '@/stores/notes'
+import { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  Home,
+  FileText,
+  Calendar,
+  Settings,
+  Bot,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Moon,
+} from 'lucide-react';
+import { cn } from '@/utils/cn';
+import { useSettings } from '@/stores/settings';
+import { useTheme } from '@/components/ui/theme-provider';
+import { useNotes } from '@/stores/notes';
 
 const navItems = [
   { path: '/home', label: 'Главная', icon: Home },
@@ -14,7 +25,7 @@ const navItems = [
   { path: '/calendar', label: 'Календарь', icon: Calendar },
   { path: '/ai-chat', label: 'ИИ-чат', icon: Bot },
   { path: '/settings', label: 'Настройки', icon: Settings },
-] as const
+] as const;
 
 /**
  * Верхняя «чёлка» — приклеена к верху экрана без отступа, на всю ширину.
@@ -23,26 +34,26 @@ const navItems = [
  * Раскрытие/сжатие — плавное через max-width + opacity подписей.
  */
 export function SidebarNav() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { uiPreferences, toggleSidebar } = useSettings()
-  const { resolvedTheme, setTheme } = useTheme()
-  const { createNote } = useNotes()
-  const [creating, setCreating] = useState(false)
-  const collapsed = uiPreferences.sidebarCollapsed
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { uiPreferences, toggleSidebar } = useSettings();
+  const { resolvedTheme, setTheme } = useTheme();
+  const { createNote } = useNotes();
+  const [creating, setCreating] = useState(false);
+  const collapsed = uiPreferences.sidebarCollapsed;
 
   const handleNewNote = async () => {
-    if (creating) return
-    setCreating(true)
+    if (creating) return;
+    setCreating(true);
     try {
-      const note = await createNote(undefined, 'Новая заметка')
-      navigate(`/editor/${note.id}`)
+      const note = await createNote(undefined, 'Новая заметка');
+      navigate(`/editor/${note.id}`);
     } catch (e) {
-      console.error('create note failed', e)
+      console.error('create note failed', e);
     } finally {
-      setCreating(false)
+      setCreating(false);
     }
-  }
+  };
 
   return (
     <header className="top-notch" data-collapsed={collapsed ? 'true' : 'false'} role="banner">
@@ -54,8 +65,10 @@ export function SidebarNav() {
             className="flex items-center gap-2.5 rounded-2xl px-3 py-2 transition-all duration-300 hover:bg-accent/70"
             aria-label="На главную"
           >
-            <span className="flex h-8 w-8 items-center justify-center rounded-2xl font-display text-base font-extrabold"
-              style={{ background: 'hsl(var(--primary) / 0.28)', color: 'hsl(var(--foreground))' }}>
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-2xl font-display text-base font-extrabold"
+              style={{ background: 'hsl(var(--primary) / 0.28)', color: 'hsl(var(--foreground))' }}
+            >
               Σ
             </span>
             {!collapsed && (
@@ -75,9 +88,13 @@ export function SidebarNav() {
         </div>
 
         {/* Центр: навигация — смысловой центр экрана */}
-        <nav className="flex flex-1 items-center justify-center gap-1.5" role="navigation" aria-label="Основная навигация">
-          {navItems.map((item) => {
-            const isActive = location.pathname.startsWith(item.path)
+        <nav
+          className="flex flex-1 items-center justify-center gap-1.5"
+          role="navigation"
+          aria-label="Основная навигация"
+        >
+          {navItems.map(item => {
+            const isActive = location.pathname.startsWith(item.path);
             return (
               <button
                 key={item.path}
@@ -89,7 +106,7 @@ export function SidebarNav() {
                 <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
                 {!collapsed && <span className="notch-label hidden sm:inline">{item.label}</span>}
               </button>
-            )
+            );
           })}
         </nav>
 
@@ -101,7 +118,11 @@ export function SidebarNav() {
             aria-label="Переключить тему"
             title={resolvedTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
           >
-            {resolvedTheme === 'dark' ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
+            {resolvedTheme === 'dark' ? (
+              <Sun className="h-[18px] w-[18px]" />
+            ) : (
+              <Moon className="h-[18px] w-[18px]" />
+            )}
           </button>
           <button
             onClick={handleNewNote}
@@ -110,15 +131,20 @@ export function SidebarNav() {
               'flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-300 hover:-translate-y-px active:translate-y-0 active:scale-[0.98] disabled:opacity-60',
               'shadow-[0_2px_12px_rgba(87,80,70,0.18),inset_0_1px_0_rgba(255,255,255,0.35)]'
             )}
-            style={{ background: 'hsl(var(--primary) / 0.9)', color: 'hsl(var(--primary-foreground))' }}
+            style={{
+              background: 'hsl(var(--primary) / 0.9)',
+              color: 'hsl(var(--primary-foreground))',
+            }}
             aria-label="Новая заметка"
             title="Новая заметка"
           >
             <Plus className="h-4 w-4" />
-            {!collapsed && <span className="notch-label hidden md:inline">{creating ? '…' : 'Новая'}</span>}
+            {!collapsed && (
+              <span className="notch-label hidden md:inline">{creating ? '…' : 'Новая'}</span>
+            )}
           </button>
         </div>
       </div>
     </header>
-  )
+  );
 }

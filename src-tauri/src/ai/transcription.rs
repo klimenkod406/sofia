@@ -38,16 +38,12 @@ pub struct TranscriptionEngine {
 impl TranscriptionEngine {
     pub fn new(models: Arc<ModelManager>) -> Result<Self> {
         // Initialize FunASR if available
-        let funasr =
-            FunASRTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
+        let funasr = FunASRTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
 
         // Initialize whisper.cpp as fallback
-        let whisper = WhisperCppTranscriber::new(
-            &models
-                .get_model_path("ggml-base.bin")
-                .to_string_lossy(),
-        )
-        .ok();
+        let whisper =
+            WhisperCppTranscriber::new(&models.get_model_path("ggml-base.bin").to_string_lossy())
+                .ok();
 
         Ok(Self {
             models,
@@ -57,7 +53,10 @@ impl TranscriptionEngine {
         })
     }
 
-    pub async fn transcribe(&self, job: &crate::db::models::TranscriptionJob) -> Result<crate::ai::transcription::TranscriptionResult> {
+    pub async fn transcribe(
+        &self,
+        job: &crate::db::models::TranscriptionJob,
+    ) -> Result<crate::ai::transcription::TranscriptionResult> {
         // Get model to use
         let model_id = job.model_id.as_deref().unwrap_or("funasr-zh-en");
         let model = self.models.get_model(model_id).await?;
@@ -85,7 +84,11 @@ impl TranscriptionEngine {
         Err(anyhow::anyhow!("No transcription engine available"))
     }
 
-    pub async fn transcribe_stream(&self, job: &crate::db::models::TranscriptionJob, sender: tokio::sync::mpsc::Sender<crate::ai::transcription::TranscriptionSegment>) -> Result<()> {
+    pub async fn transcribe_stream(
+        &self,
+        job: &crate::db::models::TranscriptionJob,
+        sender: tokio::sync::mpsc::Sender<crate::ai::transcription::TranscriptionSegment>,
+    ) -> Result<()> {
         let model_id = job.model_id.as_deref().unwrap_or("funasr-zh-en");
         let model = self.models.get_model(model_id).await?;
 
@@ -101,20 +104,37 @@ impl TranscriptionEngine {
         Err(anyhow::anyhow!("Streaming not supported for this model"))
     }
 
-    async fn transcribe_api(&self, job: &crate::db::models::TranscriptionJob, model: &AIModel) -> Result<crate::ai::transcription::TranscriptionResult> {
+    async fn transcribe_api(
+        &self,
+        job: &crate::db::models::TranscriptionJob,
+        model: &AIModel,
+    ) -> Result<crate::ai::transcription::TranscriptionResult> {
         // Use OpenAI Whisper API or other transcription APIs
-        let api_endpoint = model.api_endpoint.as_deref().unwrap_or("https://api.openai.com/v1");
+        let api_endpoint = model
+            .api_endpoint
+            .as_deref()
+            .unwrap_or("https://api.openai.com/v1");
         let api_key = self.models.get_decrypted_api_key(&model.id).await?;
 
         let client = reqwest::Client::new();
         let audio_data = tokio::fs::read(&job.audio_path).await?;
 
-        let model_name = model.model_id.clone().unwrap_or_else(|| "whisper-1".to_string());
-        let lang = if job.language == "auto" { String::new() } else { job.language.clone() };
+        let model_name = model
+            .model_id
+            .clone()
+            .unwrap_or_else(|| "whisper-1".to_string());
+        let lang = if job.language == "auto" {
+            String::new()
+        } else {
+            job.language.clone()
+        };
         let endpoint = format!("{}/audio/transcriptions", api_endpoint);
 
         let form = reqwest::multipart::Form::new()
-            .part("file", reqwest::multipart::Part::bytes(audio_data).file_name("audio.wav"))
+            .part(
+                "file",
+                reqwest::multipart::Part::bytes(audio_data).file_name("audio.wav"),
+            )
             .text("model", model_name)
             .text("language", lang)
             .text("response_format", "verbose_json");
@@ -148,13 +168,18 @@ impl TranscriptionEngine {
 
         let api_response: APIResponse = response.json().await?;
 
-        let segments = api_response.segments.unwrap_or_default().into_iter().map(|s| crate::ai::transcription::TranscriptionSegment {
-            start: s.start,
-            end: s.end,
-            text: s.text,
-            speaker: None,
-            confidence: 1.0,
-        }).collect();
+        let segments = api_response
+            .segments
+            .unwrap_or_default()
+            .into_iter()
+            .map(|s| crate::ai::transcription::TranscriptionSegment {
+                start: s.start,
+                end: s.end,
+                text: s.text,
+                speaker: None,
+                confidence: 1.0,
+            })
+            .collect();
 
         Ok(crate::ai::transcription::TranscriptionResult {
             text: api_response.text,

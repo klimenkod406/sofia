@@ -1,60 +1,70 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { Event } from '@/types'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Label } from '@/components/ui/label'
-import { MapPin, Trash2, X } from 'lucide-react'
-import { format } from 'date-fns'
+import { useState } from 'react';
+import { Event } from '@/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { MapPin, Trash2, X } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface EventModalProps {
-  event: Partial<Event> & { id?: string }
-  onClose: () => void
-  onSave: (eventData: Partial<Event>) => Promise<void>
-  onDelete?: () => Promise<void>
+  event: Partial<Event> & { id?: string };
+  onClose: () => void;
+  onSave: (eventData: Partial<Event>) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }
 
 export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps) {
   const [formData, setFormData] = useState({
     title: event.title || '',
     description: event.description || '',
-    startDate: event.start_time ? format(new Date(event.start_time), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    startDate: event.start_time
+      ? format(new Date(event.start_time), 'yyyy-MM-dd')
+      : format(new Date(), 'yyyy-MM-dd'),
     startTime: event.start_time ? format(new Date(event.start_time), 'HH:mm') : '09:00',
-    endDate: event.end_time ? format(new Date(event.end_time), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+    endDate: event.end_time
+      ? format(new Date(event.end_time), 'yyyy-MM-dd')
+      : format(new Date(), 'yyyy-MM-dd'),
     endTime: event.end_time ? format(new Date(event.end_time), 'HH:mm') : '10:00',
     allDay: event.all_day || false,
     location: event.location || '',
     color: event.color || '#00BFA6',
     calendarId: event.calendar_id || 'default',
     reminderMinutes: event.reminder_minutes ?? 15,
-  })
+  });
 
-  const [isSaving, setIsSaving] = useState(false)
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
-      const startTime = new Date(`${formData.startDate}T${formData.startTime}`)
-      const endTime = new Date(`${formData.endDate}T${formData.endTime}`)
-      
+      const startTime = new Date(`${formData.startDate}T${formData.startTime}`);
+      const endTime = new Date(`${formData.endDate}T${formData.endTime}`);
+
       await onSave({
         ...formData,
         start_time: startTime.toISOString(),
         end_time: endTime.toISOString(),
-      })
+      });
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   const handleDelete = async () => {
     if (onDelete && window.confirm('Are you sure you want to delete this event?')) {
-      await onDelete()
+      await onDelete();
     }
-  }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
@@ -68,13 +78,19 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
         </div>
 
         {/* Form */}
-        <form onSubmit={(e) => { e.preventDefault(); handleSave() }} className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="p-4 space-y-4 max-h-[70vh] overflow-y-auto"
+        >
           <div className="space-y-2">
             <Label htmlFor="title">Title *</Label>
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+              onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
               placeholder="Event title"
               required
             />
@@ -84,7 +100,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
             <Label>Description</Label>
             <Textarea
               value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
               placeholder="Add details..."
               rows={3}
             />
@@ -96,7 +112,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               <Input
                 type="date"
                 value={formData.startDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, startDate: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -104,7 +120,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               <Input
                 type="time"
                 value={formData.startTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
                 disabled={formData.allDay}
               />
             </div>
@@ -116,7 +132,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               <Input
                 type="date"
                 value={formData.endDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
@@ -124,7 +140,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               <Input
                 type="time"
                 value={formData.endTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
                 disabled={formData.allDay}
               />
             </div>
@@ -135,10 +151,12 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               type="checkbox"
               id="allDay"
               checked={formData.allDay}
-              onChange={(e) => setFormData(prev => ({ ...prev, allDay: e.target.checked }))}
+              onChange={e => setFormData(prev => ({ ...prev, allDay: e.target.checked }))}
               className="rounded border-input"
             />
-            <Label htmlFor="allDay" className="cursor-pointer">All day</Label>
+            <Label htmlFor="allDay" className="cursor-pointer">
+              All day
+            </Label>
           </div>
 
           <div className="space-y-2">
@@ -148,7 +166,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, location: e.target.value }))}
                 placeholder="Add location"
                 className="pl-10"
               />
@@ -158,16 +176,34 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="color">Color</Label>
-              <Select value={formData.color} onValueChange={(v) => setFormData(prev => ({ ...prev, color: v }))}>
+              <Select
+                value={formData.color}
+                onValueChange={v => setFormData(prev => ({ ...prev, color: v }))}
+              >
                 <SelectTrigger className="flex items-center gap-2">
-                  <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: formData.color }} />
+                  <span
+                    className="w-4 h-4 rounded-full border"
+                    style={{ backgroundColor: formData.color }}
+                  />
                   <SelectValue placeholder="Select color" />
                 </SelectTrigger>
                 <SelectContent>
-                  {['#00BFA6', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#10B981'].map(color => (
+                  {[
+                    '#00BFA6',
+                    '#3B82F6',
+                    '#F59E0B',
+                    '#EF4444',
+                    '#8B5CF6',
+                    '#EC4899',
+                    '#06B6D4',
+                    '#10B981',
+                  ].map(color => (
                     <SelectItem key={color} value={color}>
                       <div className="flex items-center gap-2">
-                        <span className="w-4 h-4 rounded-full border" style={{ backgroundColor: color }} />
+                        <span
+                          className="w-4 h-4 rounded-full border"
+                          style={{ backgroundColor: color }}
+                        />
                         {color}
                       </div>
                     </SelectItem>
@@ -177,7 +213,12 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
             </div>
             <div className="space-y-2">
               <Label htmlFor="reminder">Reminder</Label>
-              <Select value={formData.reminderMinutes.toString()} onValueChange={(v) => setFormData(prev => ({ ...prev, reminderMinutes: parseInt(v) }))}>
+              <Select
+                value={formData.reminderMinutes.toString()}
+                onValueChange={v =>
+                  setFormData(prev => ({ ...prev, reminderMinutes: parseInt(v) }))
+                }
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select reminder" />
                 </SelectTrigger>
@@ -206,11 +247,11 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               Cancel
             </Button>
             <Button type="submit" disabled={isSaving || !formData.title.trim()}>
-              {isSaving ? 'Saving...' : (event.id ? 'Save Changes' : 'Create Event')}
+              {isSaving ? 'Saving...' : event.id ? 'Save Changes' : 'Create Event'}
             </Button>
           </div>
         </form>
       </div>
     </div>
-  )
+  );
 }

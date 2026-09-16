@@ -1,9 +1,9 @@
 //! Database models for Σόφια
 
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
-use uuid::Uuid;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use uuid::Uuid;
 
 /// Folder for organizing notes
 #[derive(Debug, Clone, Serialize, Deserialize, sqlx::FromRow)]
@@ -142,9 +142,9 @@ pub struct AIModel {
     pub config_path: Option<String>,
     pub size_bytes: i64,
     pub quantization: Option<String>,
-    pub languages: String, // JSON array
+    pub languages: String,    // JSON array
     pub capabilities: String, // JSON array
-    pub config: String,    // JSON object
+    pub config: String,       // JSON object
     pub min_ram_gb: i32,
     pub recommended_ram_gb: i32,
     pub supports_gpu: bool,
@@ -297,7 +297,8 @@ pub struct BackupMetadata {
     pub size_bytes: i64,
 }
 
-/// Export format
+/// Export format (variant names are part of the IPC/JSON contract — keep them).
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "format")]
 pub enum ExportFormat {

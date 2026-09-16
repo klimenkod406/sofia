@@ -1,14 +1,17 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { forwardRef } from 'react'
+import { cn } from '@/utils/cn';
+import { forwardRef } from 'react';
 
-export interface SliderProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
-  value: number[]
-  onValueChange: (value: number[]) => void
-  min?: number
-  max?: number
-  step?: number
+export interface SliderProps extends Omit<
+  React.InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange'
+> {
+  value: number[];
+  onValueChange: (value: number[]) => void;
+  min?: number;
+  max?: number;
+  step?: number;
 }
 
 export const Slider = forwardRef<HTMLInputElement, SliderProps>(
@@ -24,10 +27,10 @@ export const Slider = forwardRef<HTMLInputElement, SliderProps>(
       max={max}
       step={step}
       value={value[0]}
-      onChange={(e) => onValueChange([Number(e.target.value)])}
+      onChange={e => onValueChange([Number(e.target.value)])}
       {...props}
     />
   )
-)
+);
 
-Slider.displayName = 'Slider'
+Slider.displayName = 'Slider';

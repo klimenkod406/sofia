@@ -1,15 +1,17 @@
 //! Folder commands
 
 use crate::services::AppState;
-use tauri::{State, command};
 use anyhow::Result;
+use tauri::{command, State};
 
 #[command]
 pub async fn list_folders(
     state: State<'_, AppState>,
     parent_id: Option<String>,
 ) -> Result<Vec<crate::db::models::Folder>, String> {
-    state.folders.list_folders(parent_id.as_deref())
+    state
+        .folders
+        .list_folders(parent_id.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -20,7 +22,9 @@ pub async fn create_folder(
     name: String,
     parent_id: Option<String>,
 ) -> Result<crate::db::models::Folder, String> {
-    state.folders.create_folder(&name, parent_id, None, None)
+    state
+        .folders
+        .create_folder(&name, parent_id, None, None)
         .await
         .map_err(|e| e.to_string())
 }
@@ -30,7 +34,9 @@ pub async fn update_folder(
     state: State<'_, AppState>,
     folder: crate::db::models::Folder,
 ) -> Result<(), String> {
-    state.folders.update_folder(&folder)
+    state
+        .folders
+        .update_folder(&folder)
         .await
         .map_err(|e| e.to_string())
 }
@@ -41,7 +47,9 @@ pub async fn delete_folder(
     id: String,
     recursive: Option<bool>,
 ) -> Result<(), String> {
-    state.folders.delete_folder(&id, recursive.unwrap_or(false))
+    state
+        .folders
+        .delete_folder(&id, recursive.unwrap_or(false))
         .await
         .map_err(|e| e.to_string())
 }
@@ -50,7 +58,9 @@ pub async fn delete_folder(
 pub async fn get_folder_tree(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::models::FolderTree>, String> {
-    state.folders.get_folder_tree()
+    state
+        .folders
+        .get_folder_tree()
         .await
         .map_err(|e| e.to_string())
 }
@@ -61,7 +71,9 @@ pub async fn move_folder(
     id: String,
     parent_id: Option<String>,
 ) -> Result<(), String> {
-    state.folders.move_folder(&id, parent_id.as_deref())
+    state
+        .folders
+        .move_folder(&id, parent_id.as_deref())
         .await
         .map_err(|e| e.to_string())
 }

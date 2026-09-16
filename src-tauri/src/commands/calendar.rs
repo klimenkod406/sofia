@@ -1,11 +1,11 @@
 //! Calendar commands
 
-use crate::services::AppState;
 use crate::db::repository::{EventFilter, Pagination};
-use tauri::{State, command};
+use crate::services::AppState;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, NaiveDate};
+use chrono::{DateTime, NaiveDate, Utc};
+use serde::Deserialize;
+use tauri::{command, State};
 
 #[derive(Deserialize)]
 pub struct CreateEventRequest {
@@ -77,10 +77,13 @@ pub async fn get_events(
         is_completed: None,
     };
 
-    let pagination = pagination.map(|p| Pagination::new(p.page.unwrap_or(1), p.per_page.unwrap_or(50)))
+    let pagination = pagination
+        .map(|p| Pagination::new(p.page.unwrap_or(1), p.per_page.unwrap_or(50)))
         .unwrap_or_else(|| Pagination::new(1, 500));
 
-    state.calendar.list_events(filter, pagination)
+    state
+        .calendar
+        .list_events(filter, pagination)
         .await
         .map_err(|e| e.to_string())
 }
@@ -94,8 +97,12 @@ pub async fn create_event(
         id: String::new(),
         title: request.title,
         description: request.description.unwrap_or_default(),
-        start_time: DateTime::parse_from_rfc3339(&request.start_time).map_err(|e| e.to_string())?.with_timezone(&Utc),
-        end_time: DateTime::parse_from_rfc3339(&request.end_time).map_err(|e| e.to_string())?.with_timezone(&Utc),
+        start_time: DateTime::parse_from_rfc3339(&request.start_time)
+            .map_err(|e| e.to_string())?
+            .with_timezone(&Utc),
+        end_time: DateTime::parse_from_rfc3339(&request.end_time)
+            .map_err(|e| e.to_string())?
+            .with_timezone(&Utc),
         all_day: request.all_day.unwrap_or(false),
         location: request.location.unwrap_or_default(),
         color: request.color.unwrap_or_else(|| "#00BFA6".to_string()),
@@ -108,7 +115,9 @@ pub async fn create_event(
         updated_at: Utc::now(),
     };
 
-    state.calendar.create_event(event)
+    state
+        .calendar
+        .create_event(event)
         .await
         .map_err(|e| e.to_string())
 }
@@ -118,7 +127,12 @@ pub async fn update_event(
     state: State<'_, AppState>,
     request: UpdateEventRequest,
 ) -> Result<(), String> {
-    if let Some(mut event) = state.calendar.get_event(&request.id).await.map_err(|e| e.to_string())? {
+    if let Some(mut event) = state
+        .calendar
+        .get_event(&request.id)
+        .await
+        .map_err(|e| e.to_string())?
+    {
         if let Some(title) = request.title {
             event.title = title;
         }
@@ -126,10 +140,14 @@ pub async fn update_event(
             event.description = description;
         }
         if let Some(start_time) = request.start_time {
-            event.start_time = DateTime::parse_from_rfc3339(&start_time).map_err(|e| e.to_string())?.with_timezone(&Utc);
+            event.start_time = DateTime::parse_from_rfc3339(&start_time)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc);
         }
         if let Some(end_time) = request.end_time {
-            event.end_time = DateTime::parse_from_rfc3339(&end_time).map_err(|e| e.to_string())?.with_timezone(&Utc);
+            event.end_time = DateTime::parse_from_rfc3339(&end_time)
+                .map_err(|e| e.to_string())?
+                .with_timezone(&Utc);
         }
         if let Some(all_day) = request.all_day {
             event.all_day = all_day;
@@ -153,17 +171,20 @@ pub async fn update_event(
             event.is_completed = is_completed;
         }
         event.updated_at = Utc::now();
-        state.calendar.update_event(&event).await.map_err(|e| e.to_string())?;
+        state
+            .calendar
+            .update_event(&event)
+            .await
+            .map_err(|e| e.to_string())?;
     }
     Ok(())
 }
 
 #[command]
-pub async fn delete_event(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<(), String> {
-    state.calendar.delete_event(&id)
+pub async fn delete_event(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state
+        .calendar
+        .delete_event(&id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -174,7 +195,9 @@ pub async fn get_events_for_date(
     date: String,
 ) -> Result<Vec<crate::db::models::Event>, String> {
     let date = NaiveDate::parse_from_str(&date, "%Y-%m-%d").map_err(|e| e.to_string())?;
-    state.calendar.get_events_for_date(date)
+    state
+        .calendar
+        .get_events_for_date(date)
         .await
         .map_err(|e| e.to_string())
 }
@@ -185,7 +208,9 @@ pub async fn get_upcoming_events(
     limit: Option<i32>,
     days: Option<i32>,
 ) -> Result<Vec<crate::db::models::Event>, String> {
-    state.calendar.get_upcoming_events(limit.unwrap_or(10), days.unwrap_or(7))
+    state
+        .calendar
+        .get_upcoming_events(limit.unwrap_or(10), days.unwrap_or(7))
         .await
         .map_err(|e| e.to_string())
 }
@@ -194,7 +219,9 @@ pub async fn get_upcoming_events(
 pub async fn get_today_events(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::models::Event>, String> {
-    state.calendar.get_today_events()
+    state
+        .calendar
+        .get_today_events()
         .await
         .map_err(|e| e.to_string())
 }
@@ -203,7 +230,9 @@ pub async fn get_today_events(
 pub async fn get_week_events(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::models::Event>, String> {
-    state.calendar.get_week_events()
+    state
+        .calendar
+        .get_week_events()
         .await
         .map_err(|e| e.to_string())
 }
@@ -212,7 +241,9 @@ pub async fn get_week_events(
 pub async fn get_month_events(
     state: State<'_, AppState>,
 ) -> Result<Vec<crate::db::models::Event>, String> {
-    state.calendar.get_month_events()
+    state
+        .calendar
+        .get_month_events()
         .await
         .map_err(|e| e.to_string())
 }
@@ -222,17 +253,18 @@ pub async fn set_reminder(
     state: State<'_, AppState>,
     request: SetReminderRequest,
 ) -> Result<(), String> {
-    state.calendar.set_reminder(&request.event_id, request.minutes_before)
+    state
+        .calendar
+        .set_reminder(&request.event_id, request.minutes_before)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[command]
-pub async fn complete_event(
-    state: State<'_, AppState>,
-    id: String,
-) -> Result<(), String> {
-    state.calendar.complete_event(&id)
+pub async fn complete_event(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    state
+        .calendar
+        .complete_event(&id)
         .await
         .map_err(|e| e.to_string())
 }

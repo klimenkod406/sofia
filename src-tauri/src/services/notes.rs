@@ -1,12 +1,10 @@
 //! Notes service
 
 use crate::db::models::*;
-use crate::db::repository::{NotesRepository, NoteFilter, Pagination};
+use crate::db::repository::{NoteFilter, NotesRepository, Pagination};
 use crate::db::Database;
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use std::sync::Arc;
-use uuid::Uuid;
 
 pub struct NotesService {
     repo: NotesRepository,
@@ -14,15 +12,19 @@ pub struct NotesService {
 
 impl NotesService {
     pub fn new(db: Arc<Database>) -> Self {
-        Self {
-            repo: db.notes(),
-        }
+        Self { repo: db.notes() }
     }
 
-    pub async fn create_note(&self, folder_id: Option<String>, title: Option<String>) -> Result<Note> {
-        let mut note = Note::default();
-        note.folder_id = folder_id;
-        note.title = title.unwrap_or_else(|| "Untitled".to_string());
+    pub async fn create_note(
+        &self,
+        folder_id: Option<String>,
+        title: Option<String>,
+    ) -> Result<Note> {
+        let note = Note {
+            folder_id,
+            title: title.unwrap_or_else(|| "Untitled".to_string()),
+            ..Default::default()
+        };
         self.repo.create(note).await
     }
 
@@ -38,7 +40,13 @@ impl NotesService {
         self.repo.update(note).await
     }
 
-    pub async fn update_content(&self, id: &str, content: &str, content_md: &str, content_html: &str) -> Result<()> {
+    pub async fn update_content(
+        &self,
+        id: &str,
+        content: &str,
+        content_md: &str,
+        content_html: &str,
+    ) -> Result<()> {
         if let Some(mut note) = self.repo.get(id).await? {
             note.content = content.to_string();
             note.content_md = content_md.to_string();
@@ -53,7 +61,11 @@ impl NotesService {
         self.repo.delete(id, permanent).await
     }
 
-    pub async fn list_notes(&self, filter: NoteFilter, pagination: Pagination) -> Result<Vec<Note>> {
+    pub async fn list_notes(
+        &self,
+        filter: NoteFilter,
+        pagination: Pagination,
+    ) -> Result<Vec<Note>> {
         self.repo.list(filter, pagination).await
     }
 
@@ -83,18 +95,29 @@ impl NotesService {
         self.repo.export_note(id, model_format).await
     }
 
-    pub async fn import_note(&self, folder_id: Option<String>, content: &str, format: ImportFormat) -> Result<Note> {
+    pub async fn import_note(
+        &self,
+        folder_id: Option<String>,
+        content: &str,
+        format: ImportFormat,
+    ) -> Result<Note> {
         let (title, content_md, content_html) = match format {
             ImportFormat::Markdown => {
-                let title = extract_title_from_md(content).unwrap_or_else(|| "Imported Note".to_string());
+                let title =
+                    extract_title_from_md(content).unwrap_or_else(|| "Imported Note".to_string());
                 (title, content.to_string(), markdown_to_html(content))
             }
             ImportFormat::HTML => {
-                let title = extract_title_from_html(content).unwrap_or_else(|| "Imported Note".to_string());
+                let title =
+                    extract_title_from_html(content).unwrap_or_else(|| "Imported Note".to_string());
                 (title, html_to_markdown(content), content.to_string())
             }
             ImportFormat::PlainText => {
-                let title = content.lines().next().unwrap_or("Imported Note").to_string();
+                let title = content
+                    .lines()
+                    .next()
+                    .unwrap_or("Imported Note")
+                    .to_string();
                 (title, content.to_string(), text_to_html(content))
             }
             ImportFormat::JSON => {
@@ -103,12 +126,14 @@ impl NotesService {
             }
         };
 
-        let mut note = Note::default();
-        note.folder_id = folder_id;
-        note.title = title;
-        note.content = content_md.clone();
-        note.content_md = content_md;
-        note.content_html = content_html;
+        let mut note = Note {
+            folder_id,
+            title,
+            content: content_md.clone(),
+            content_md,
+            content_html,
+            ..Default::default()
+        };
         note.update_counts();
         self.repo.create(note).await
     }
@@ -176,6 +201,8 @@ impl NotesService {
     }
 }
 
+// Variant names are part of the IPC/JSON contract — keep them.
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "format")]
 pub enum ExportFormat {
@@ -186,6 +213,7 @@ pub enum ExportFormat {
     PlainText,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "format")]
 pub enum ImportFormat {
@@ -209,9 +237,9 @@ fn extract_title_from_html(content: &str) -> Option<String> {
     // Simple extraction - in production use a proper HTML parser
     if let Some(start) = content.find("<h1") {
         if let Some(end) = content[start..].find("</h1>") {
-            let inner = &content[start..start+end];
+            let inner = &content[start..start + end];
             if let Some(gt) = inner.find('>') {
-                return Some(inner[gt+1..].trim().to_string());
+                return Some(inner[gt + 1..].trim().to_string());
             }
         }
     }
@@ -226,7 +254,9 @@ fn markdown_to_html(md: &str) -> String {
 
 fn html_to_markdown(html: &str) -> String {
     // In production, use a proper HTML to markdown converter
-    html.replace("<br>", "\n").replace("<p>", "").replace("</p>", "\n")
+    html.replace("<br>", "\n")
+        .replace("<p>", "")
+        .replace("</p>", "\n")
 }
 
 fn text_to_html(text: &str) -> String {

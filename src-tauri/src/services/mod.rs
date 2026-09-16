@@ -1,28 +1,28 @@
 //! Services layer for Σόφια
 
-pub mod notes;
-pub mod folders;
-pub mod calendar;
-pub mod settings;
 pub mod ai;
-pub mod file_ops;
-pub mod system;
 pub mod backup;
+pub mod calendar;
 pub mod export;
+pub mod file_ops;
+pub mod folders;
+pub mod notes;
+pub mod settings;
+pub mod system;
 pub mod tags;
 
 use crate::db::Database;
 use std::sync::Arc;
 
-pub use notes::NotesService;
-pub use folders::FoldersService;
-pub use calendar::CalendarService;
-pub use settings::SettingsService;
 pub use ai::AIService;
-pub use file_ops::FileOpsService;
-pub use system::SystemService;
 pub use backup::BackupService;
+pub use calendar::CalendarService;
 pub use export::ExportService;
+pub use file_ops::FileOpsService;
+pub use folders::FoldersService;
+pub use notes::NotesService;
+pub use settings::SettingsService;
+pub use system::SystemService;
 pub use tags::TagsService;
 
 pub struct AppState {

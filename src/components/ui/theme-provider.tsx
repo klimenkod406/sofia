@@ -1,18 +1,18 @@
-'use client'
+'use client';
 /* eslint-disable react-refresh/only-export-components */
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
 // Только две темы: светлая и тёмная (тёплые пастельные), без system.
-type Theme = 'light' | 'dark'
+type Theme = 'light' | 'dark';
 
 interface ThemeContextType {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-  resolvedTheme: 'light' | 'dark'
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  resolvedTheme: 'light' | 'dark';
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({
   children,
@@ -20,38 +20,38 @@ export function ThemeProvider({
   defaultTheme = 'light',
   enableSystem = false,
 }: {
-  children: ReactNode
-  attribute?: 'class' | 'data-theme'
-  defaultTheme?: Theme
-  enableSystem?: boolean
+  children: ReactNode;
+  attribute?: 'class' | 'data-theme';
+  defaultTheme?: Theme;
+  enableSystem?: boolean;
 }) {
-  const [theme, setTheme] = useState<Theme>(defaultTheme)
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(defaultTheme)
-  const [mounted, setMounted] = useState(false)
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(defaultTheme);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-    const stored = localStorage.getItem('sofia-theme') as Theme | null
+    setMounted(true);
+    const stored = localStorage.getItem('sofia-theme') as Theme | null;
     if (stored === 'light' || stored === 'dark') {
-      setTheme(stored)
+      setTheme(stored);
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    if (!mounted) return
+    if (!mounted) return;
 
-    const root = window.document.documentElement
-    void enableSystem // проп оставлен для совместимости API
+    const root = window.document.documentElement;
+    void enableSystem; // проп оставлен для совместимости API
 
-    setResolvedTheme(theme)
+    setResolvedTheme(theme);
     if (attribute === 'class') {
-      root.classList.remove('light', 'dark')
-      root.classList.add(theme)
+      root.classList.remove('light', 'dark');
+      root.classList.add(theme);
     } else {
-      root.setAttribute('data-theme', theme)
+      root.setAttribute('data-theme', theme);
     }
-    localStorage.setItem('sofia-theme', theme)
-  }, [theme, enableSystem, mounted, attribute])
+    localStorage.setItem('sofia-theme', theme);
+  }, [theme, enableSystem, mounted, attribute]);
 
   // Важно: Provider рендерится всегда, даже до mount.
   // Иначе дети (напр. SidebarNav → useTheme) падают на первом рендере
@@ -61,13 +61,13 @@ export function ThemeProvider({
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
       {children}
     </ThemeContext.Provider>
-  )
+  );
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext)
+  const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
-  return context
+  return context;
 }

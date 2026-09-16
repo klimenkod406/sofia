@@ -1,61 +1,75 @@
-'use client'
+'use client';
 
-import { cn } from '@/utils/cn'
-import { forwardRef, createContext, useContext } from 'react'
+import { cn } from '@/utils/cn';
+import { forwardRef, createContext, useContext } from 'react';
 
 interface TabsContextValue {
-  value: string
-  onValueChange: (value: string) => void
+  value: string;
+  onValueChange: (value: string) => void;
 }
 
-const TabsContext = createContext<TabsContextValue | undefined>(undefined)
+const TabsContext = createContext<TabsContextValue | undefined>(undefined);
 
 function useTabsContext() {
-  return useContext(TabsContext)
+  return useContext(TabsContext);
 }
 
 export interface TabsProps extends React.HTMLAttributes<HTMLDivElement> {
-  value: string
-  onValueChange: (value: string) => void
-  defaultValue?: string
-  orientation?: 'horizontal' | 'vertical'
+  value: string;
+  onValueChange: (value: string) => void;
+  defaultValue?: string;
+  orientation?: 'horizontal' | 'vertical';
 }
 
 export const Tabs = forwardRef<HTMLDivElement, TabsProps>(
-  ({ className, children, value, onValueChange, defaultValue: _defaultValue, orientation: _orientation = 'horizontal', ...props }, ref) => {
+  (
+    {
+      className,
+      children,
+      value,
+      onValueChange,
+      defaultValue: _defaultValue,
+      orientation: _orientation = 'horizontal',
+      ...props
+    },
+    ref
+  ) => {
     return (
       <TabsContext.Provider value={{ value, onValueChange }}>
         <div ref={ref} className={cn('space-y-4', className)} {...props}>
           {children}
         </div>
       </TabsContext.Provider>
-    )
+    );
   }
-)
-Tabs.displayName = 'Tabs'
+);
+Tabs.displayName = 'Tabs';
 
 export const TabsList = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
   ({ className, children, ...props }, ref) => (
     <div
       ref={ref}
       role="tablist"
-      className={cn('inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground', className)}
+      className={cn(
+        'inline-flex h-10 items-center justify-center rounded-xl bg-muted p-1 text-muted-foreground',
+        className
+      )}
       {...props}
     >
       {children}
     </div>
   )
-)
-TabsList.displayName = 'TabsList'
+);
+TabsList.displayName = 'TabsList';
 
 export interface TabsTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  value: string
+  value: string;
 }
 
 export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
   ({ className, value, disabled, children, onClick, ...props }, ref) => {
-    const ctx = useTabsContext()
-    const isActive = ctx ? ctx.value === value : false
+    const ctx = useTabsContext();
+    const isActive = ctx ? ctx.value === value : false;
     return (
       <button
         ref={ref}
@@ -67,38 +81,42 @@ export const TabsTrigger = forwardRef<HTMLButtonElement, TabsTriggerProps>(
         )}
         data-state={isActive ? 'active' : 'inactive'}
         aria-selected={isActive}
-        onClick={(e) => {
-          onClick?.(e)
-          if (!disabled) ctx?.onValueChange(value)
+        onClick={e => {
+          onClick?.(e);
+          if (!disabled) ctx?.onValueChange(value);
         }}
         disabled={disabled}
         {...props}
       >
         {children}
       </button>
-    )
+    );
   }
-)
-TabsTrigger.displayName = 'TabsTrigger'
+);
+TabsTrigger.displayName = 'TabsTrigger';
 
-export const TabsContent = forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { value: string }>(
-  ({ className, value, children, ...props }, ref) => {
-    const ctx = useTabsContext()
-    // If inside a Tabs provider, only render the active panel; otherwise render always (uncontrolled usage)
-    if (ctx && ctx.value !== value) {
-      return null
-    }
-    return (
-      <div
-        ref={ref}
-        role="tabpanel"
-        className={cn('mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2', className)}
-        data-state={ctx && ctx.value === value ? 'active' : 'inactive'}
-        {...props}
-      >
-        {children}
-      </div>
-    )
+export const TabsContent = forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { value: string }
+>(({ className, value, children, ...props }, ref) => {
+  const ctx = useTabsContext();
+  // If inside a Tabs provider, only render the active panel; otherwise render always (uncontrolled usage)
+  if (ctx && ctx.value !== value) {
+    return null;
   }
-)
-TabsContent.displayName = 'TabsContent'
+  return (
+    <div
+      ref={ref}
+      role="tabpanel"
+      className={cn(
+        'mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        className
+      )}
+      data-state={ctx && ctx.value === value ? 'active' : 'inactive'}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+});
+TabsContent.displayName = 'TabsContent';

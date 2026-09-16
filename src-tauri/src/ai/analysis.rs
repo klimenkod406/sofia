@@ -16,13 +16,15 @@ impl AnalysisEngine {
         // Initialize llama.cpp engine for local LLMs
         let llama = LlamaCppEngine::new().ok();
 
-        Ok(Self {
-            models,
-            llama,
-        })
+        Ok(Self { models, llama })
     }
 
-    pub async fn analyze(&self, text: &str, analysis_type: crate::services::ai::AnalysisType, model_id: Option<&str>) -> Result<crate::services::ai::AnalysisResult> {
+    pub async fn analyze(
+        &self,
+        text: &str,
+        analysis_type: crate::services::ai::AnalysisType,
+        model_id: Option<&str>,
+    ) -> Result<crate::services::ai::AnalysisResult> {
         // Get model to use
         let model = if let Some(id) = model_id {
             self.models.get_model(id).await?
@@ -31,7 +33,7 @@ impl AnalysisEngine {
         };
 
         let prompt = self.build_prompt(text, &analysis_type);
-        
+
         // Try local model first
         if let Some(llama) = &self.llama {
             if model.source == "local" {
@@ -47,7 +49,12 @@ impl AnalysisEngine {
         Err(anyhow::anyhow!("No analysis engine available"))
     }
 
-    pub async fn chat(&self, messages: Vec<crate::services::ai::ChatMessage>, model_id: Option<&str>, options: crate::services::ai::ChatOptions) -> Result<crate::services::ai::ChatCompletion> {
+    pub async fn chat(
+        &self,
+        messages: Vec<crate::services::ai::ChatMessage>,
+        model_id: Option<&str>,
+        options: crate::services::ai::ChatOptions,
+    ) -> Result<crate::services::ai::ChatCompletion> {
         let model = if let Some(id) = model_id {
             self.models.get_model(id).await?
         } else {
@@ -69,7 +76,11 @@ impl AnalysisEngine {
         Err(anyhow::anyhow!("No chat engine available"))
     }
 
-    fn build_prompt(&self, text: &str, analysis_type: &crate::services::ai::AnalysisType) -> String {
+    fn build_prompt(
+        &self,
+        text: &str,
+        analysis_type: &crate::services::ai::AnalysisType,
+    ) -> String {
         match analysis_type {
             crate::services::ai::AnalysisType::Summarize => {
                 format!(
@@ -125,13 +136,21 @@ impl AnalysisEngine {
         }
     }
 
-    async fn analyze_api(&self, text: &str, analysis_type: &crate::services::ai::AnalysisType, model: &AIModel) -> Result<crate::services::ai::AnalysisResult> {
+    async fn analyze_api(
+        &self,
+        text: &str,
+        analysis_type: &crate::services::ai::AnalysisType,
+        model: &AIModel,
+    ) -> Result<crate::services::ai::AnalysisResult> {
         let prompt = self.build_prompt(text, analysis_type);
-        let api_endpoint = model.api_endpoint.as_deref().unwrap_or("https://api.openai.com/v1");
+        let api_endpoint = model
+            .api_endpoint
+            .as_deref()
+            .unwrap_or("https://api.openai.com/v1");
         let api_key = self.models.get_decrypted_api_key(&model.id).await?;
 
         let client = reqwest::Client::new();
-        
+
         #[derive(serde::Serialize)]
         struct ChatRequest {
             model: String,
@@ -147,17 +166,26 @@ impl AnalysisEngine {
         }
 
         let request = ChatRequest {
-            model: model.model_id.clone().unwrap_or_else(|| "gpt-4o-mini".to_string()),
+            model: model
+                .model_id
+                .clone()
+                .unwrap_or_else(|| "gpt-4o-mini".to_string()),
             messages: vec![
-                ChatMessage { role: "system".to_string(), content: "You are a helpful assistant for text analysis.".to_string() },
-                ChatMessage { role: "user".to_string(), content: prompt },
+                ChatMessage {
+                    role: "system".to_string(),
+                    content: "You are a helpful assistant for text analysis.".to_string(),
+                },
+                ChatMessage {
+                    role: "user".to_string(),
+                    content: prompt,
+                },
             ],
             temperature: 0.3,
             max_tokens: 2048,
         };
 
         let response = client
-            .post(&format!("{}/chat/completions", api_endpoint))
+            .post(format!("{}/chat/completions", api_endpoint))
             .bearer_auth(api_key)
             .json(&request)
             .send()
@@ -190,7 +218,9 @@ impl AnalysisEngine {
         }
 
         let api_response: ChatResponse = response.json().await?;
-        let result = api_response.choices.first()
+        let result = api_response
+            .choices
+            .first()
             .map(|c| c.message.content.clone())
             .unwrap_or_default();
 
@@ -203,12 +233,20 @@ impl AnalysisEngine {
         })
     }
 
-    async fn chat_api(&self, messages: Vec<crate::services::ai::ChatMessage>, model: &AIModel, options: crate::services::ai::ChatOptions) -> Result<crate::services::ai::ChatCompletion> {
-        let api_endpoint = model.api_endpoint.as_deref().unwrap_or("https://api.openai.com/v1");
+    async fn chat_api(
+        &self,
+        messages: Vec<crate::services::ai::ChatMessage>,
+        model: &AIModel,
+        options: crate::services::ai::ChatOptions,
+    ) -> Result<crate::services::ai::ChatCompletion> {
+        let api_endpoint = model
+            .api_endpoint
+            .as_deref()
+            .unwrap_or("https://api.openai.com/v1");
         let api_key = self.models.get_decrypted_api_key(&model.id).await?;
 
         let client = reqwest::Client::new();
-        
+
         #[derive(serde::Serialize)]
         struct ChatRequest {
             model: String,
@@ -226,8 +264,17 @@ impl AnalysisEngine {
         }
 
         let request = ChatRequest {
-            model: model.model_id.clone().unwrap_or_else(|| "gpt-4o-mini".to_string()),
-            messages: messages.into_iter().map(|m| ApiMessage { role: m.role, content: m.content }).collect(),
+            model: model
+                .model_id
+                .clone()
+                .unwrap_or_else(|| "gpt-4o-mini".to_string()),
+            messages: messages
+                .into_iter()
+                .map(|m| ApiMessage {
+                    role: m.role,
+                    content: m.content,
+                })
+                .collect(),
             temperature: options.temperature,
             max_tokens: options.max_tokens,
             top_p: options.top_p,
@@ -235,7 +282,7 @@ impl AnalysisEngine {
         };
 
         let response = client
-            .post(&format!("{}/chat/completions", api_endpoint))
+            .post(format!("{}/chat/completions", api_endpoint))
             .bearer_auth(api_key)
             .json(&request)
             .send()
@@ -269,7 +316,9 @@ impl AnalysisEngine {
         }
 
         let api_response: ChatResponse = response.json().await?;
-        let choice = api_response.choices.first()
+        let choice = api_response
+            .choices
+            .first()
             .ok_or_else(|| anyhow::anyhow!("No response from API"))?;
 
         Ok(crate::services::ai::ChatCompletion {

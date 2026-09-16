@@ -1,56 +1,56 @@
-'use client'
+'use client';
 
-import { useEffect, useRef } from 'react'
-import { AIChatPage } from '@/pages/ai-chat'
-import { X, Sparkles } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { useEffect, useRef } from 'react';
+import { AIChatPage } from '@/pages/ai-chat';
+import { X, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AIChatOverlayProps {
-  noteId?: string
-  onClose: () => void
+  noteId?: string;
+  onClose: () => void;
 }
 
 export function AIChatOverlay({ noteId, onClose }: AIChatOverlayProps) {
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [onClose])
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     // Focus trap
     const focusableElements = overlayRef.current?.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-    const firstElement = focusableElements?.[0] as HTMLElement
-    const lastElement = focusableElements?.[focusableElements.length - 1] as HTMLElement
+    );
+    const firstElement = focusableElements?.[0] as HTMLElement;
+    const lastElement = focusableElements?.[focusableElements.length - 1] as HTMLElement;
 
     const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return
+      if (e.key !== 'Tab') return;
       if (e.shiftKey) {
         if (document.activeElement === firstElement) {
-          e.preventDefault()
-          lastElement?.focus()
+          e.preventDefault();
+          lastElement?.focus();
         }
       } else {
         if (document.activeElement === lastElement) {
-          e.preventDefault()
-          firstElement?.focus()
+          e.preventDefault();
+          firstElement?.focus();
         }
       }
-    }
+    };
 
-    document.addEventListener('keydown', handleTab)
-    firstElement?.focus()
-    return () => document.removeEventListener('keydown', handleTab)
-  }, [])
+    document.addEventListener('keydown', handleTab);
+    firstElement?.focus();
+    return () => document.removeEventListener('keydown', handleTab);
+  }, []);
 
   return (
-    <div 
+    <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex flex-col bg-background/98 backdrop-blur-lg animate-fade-in"
       role="dialog"
@@ -64,8 +64,12 @@ export function AIChatOverlay({ noteId, onClose }: AIChatOverlayProps) {
             <Sparkles className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h2 id="ai-chat-title" className="font-semibold">AI Assistant</h2>
-            <p className="text-xs text-muted-foreground">Context: {noteId ? 'Current Note' : 'General'}</p>
+            <h2 id="ai-chat-title" className="font-semibold">
+              AI Assistant
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Context: {noteId ? 'Current Note' : 'General'}
+            </p>
           </div>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
@@ -78,5 +82,5 @@ export function AIChatOverlay({ noteId, onClose }: AIChatOverlayProps) {
         <AIChatPage />
       </div>
     </div>
-  )
+  );
 }

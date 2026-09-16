@@ -1,3 +1,3 @@
-export * from './settings'
-export * from './notes'
-export * from './ai'
+export * from './settings';
+export * from './notes';
+export * from './ai';

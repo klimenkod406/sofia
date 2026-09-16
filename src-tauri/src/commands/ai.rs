@@ -1,10 +1,10 @@
 //! AI commands
 
-use crate::services::AppState;
 use crate::services::ai::{AnalysisType, ChatMessage, ChatOptions};
-use tauri::{State, command};
+use crate::services::AppState;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use tauri::{command, State};
 
 #[derive(Deserialize)]
 pub struct TranscribeRequest {
@@ -38,13 +38,15 @@ pub async fn transcribe_audio(
     state: State<'_, AppState>,
     request: TranscribeRequest,
 ) -> Result<crate::services::ai::TranscriptionResult, String> {
-    state.ai.transcribe_audio(
-        &request.audio_path,
-        request.model_id.as_deref(),
-        request.language.as_deref().unwrap_or("auto"),
-    )
-    .await
-    .map_err(|e| e.to_string())
+    state
+        .ai
+        .transcribe_audio(
+            &request.audio_path,
+            request.model_id.as_deref(),
+            request.language.as_deref().unwrap_or("auto"),
+        )
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[command]
@@ -69,13 +71,19 @@ pub async fn transcribe_stream(
         completed_at: None,
     };
 
-    let job = state.ai.create_transcription_job(job).await.map_err(|e| e.to_string())?;
-    
+    let job = state
+        .ai
+        .create_transcription_job(job)
+        .await
+        .map_err(|e| e.to_string())?;
+
     // Start transcription in background
     let ai_service = state.ai.clone();
     let job_id = job.id.clone();
     tokio::spawn(async move {
-        let _ = ai_service.transcribe_audio(&job.audio_path, job.model_id.as_deref(), &job.language).await;
+        let _ = ai_service
+            .transcribe_audio(&job.audio_path, job.model_id.as_deref(), &job.language)
+            .await;
     });
 
     Ok(job_id)
@@ -86,7 +94,13 @@ pub async fn analyze_text(
     state: State<'_, AppState>,
     request: AnalyzeRequest,
 ) -> Result<crate::services::ai::AnalysisResult, String> {
-    state.ai.analyze_text(&request.text, request.analysis_type, request.model_id.as_deref())
+    state
+        .ai
+        .analyze_text(
+            &request.text,
+            request.analysis_type,
+            request.model_id.as_deref(),
+        )
         .await
         .map_err(|e| e.to_string())
 }
@@ -98,7 +112,9 @@ pub async fn chat_completion(
     model_id: Option<String>,
     options: Option<ChatOptions>,
 ) -> Result<crate::services::ai::ChatCompletion, String> {
-    state.ai.chat_completion(messages, model_id.as_deref(), options.unwrap_or_default())
+    state
+        .ai
+        .chat_completion(messages, model_id.as_deref(), options.unwrap_or_default())
         .await
         .map_err(|e| e.to_string())
 }
@@ -108,28 +124,28 @@ pub async fn get_available_models(
     state: State<'_, AppState>,
     model_type: Option<String>,
 ) -> Result<Vec<crate::db::models::AIModel>, String> {
-    state.ai.get_available_models(model_type.as_deref())
+    state
+        .ai
+        .get_available_models(model_type.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
 
 #[command]
-pub async fn download_model(
-    state: State<'_, AppState>,
-    model_id: String,
-) -> Result<(), String> {
+pub async fn download_model(state: State<'_, AppState>, model_id: String) -> Result<(), String> {
     // This would need progress updates via events
-    state.ai.download_model(&model_id, None)
+    state
+        .ai
+        .download_model(&model_id, None)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[command]
-pub async fn delete_model(
-    state: State<'_, AppState>,
-    model_id: String,
-) -> Result<(), String> {
-    state.ai.delete_model(&model_id)
+pub async fn delete_model(state: State<'_, AppState>, model_id: String) -> Result<(), String> {
+    state
+        .ai
+        .delete_model(&model_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -140,7 +156,9 @@ pub async fn set_api_key(
     model_id: String,
     api_key: String,
 ) -> Result<(), String> {
-    state.ai.set_api_key(&model_id, &api_key)
+    state
+        .ai
+        .set_api_key(&model_id, &api_key)
         .await
         .map_err(|e| e.to_string())
 }
@@ -150,7 +168,9 @@ pub async fn test_api_connection(
     state: State<'_, AppState>,
     model_id: String,
 ) -> Result<bool, String> {
-    state.ai.test_api_connection(&model_id)
+    state
+        .ai
+        .test_api_connection(&model_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -161,7 +181,9 @@ pub async fn create_ai_chat(
     note_id: Option<String>,
     model_id: Option<String>,
 ) -> Result<crate::db::models::AIChat, String> {
-    state.ai.create_chat(note_id.as_deref(), model_id.as_deref())
+    state
+        .ai
+        .create_chat(note_id.as_deref(), model_id.as_deref())
         .await
         .map_err(|e| e.to_string())
 }
@@ -171,9 +193,7 @@ pub async fn get_ai_chat(
     state: State<'_, AppState>,
     id: String,
 ) -> Result<Option<crate::db::models::AIChat>, String> {
-    state.ai.get_chat(&id)
-        .await
-        .map_err(|e| e.to_string())
+    state.ai.get_chat(&id).await.map_err(|e| e.to_string())
 }
 
 #[command]
@@ -181,7 +201,9 @@ pub async fn get_chats_for_note(
     state: State<'_, AppState>,
     note_id: String,
 ) -> Result<Vec<crate::db::models::AIChat>, String> {
-    state.ai.get_chats_for_note(&note_id)
+    state
+        .ai
+        .get_chats_for_note(&note_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -193,7 +215,9 @@ pub async fn add_ai_message(
     role: String,
     content: String,
 ) -> Result<crate::db::models::AIMessage, String> {
-    state.ai.add_message(&chat_id, &role, &content)
+    state
+        .ai
+        .add_message(&chat_id, &role, &content)
         .await
         .map_err(|e| e.to_string())
 }
@@ -204,7 +228,9 @@ pub async fn get_ai_messages(
     chat_id: String,
     limit: Option<i32>,
 ) -> Result<Vec<crate::db::models::AIMessage>, String> {
-    state.ai.get_messages(&chat_id, limit)
+    state
+        .ai
+        .get_messages(&chat_id, limit)
         .await
         .map_err(|e| e.to_string())
 }
@@ -215,7 +241,9 @@ pub async fn update_ai_chat(
     chat_id: String,
     model_id: String,
 ) -> Result<(), String> {
-    state.ai.update_chat_model(&chat_id, &model_id)
+    state
+        .ai
+        .update_chat_model(&chat_id, &model_id)
         .await
         .map_err(|e| e.to_string())
 }
@@ -225,7 +253,9 @@ pub async fn clear_chat_messages(
     state: State<'_, AppState>,
     chat_id: String,
 ) -> Result<(), String> {
-    state.ai.clear_chat_messages(&chat_id)
+    state
+        .ai
+        .clear_chat_messages(&chat_id)
         .await
         .map_err(|e| e.to_string())
 }

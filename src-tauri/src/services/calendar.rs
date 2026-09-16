@@ -1,10 +1,10 @@
 //! Calendar service
 
 use crate::db::models::*;
-use crate::db::repository::{EventsRepository, EventFilter, Pagination};
+use crate::db::repository::{EventFilter, EventsRepository, Pagination};
 use crate::db::Database;
 use anyhow::Result;
-use chrono::{DateTime, Utc, NaiveDate, Duration};
+use chrono::{DateTime, NaiveDate, Utc};
 use std::sync::Arc;
 
 pub struct CalendarService {
@@ -13,12 +13,10 @@ pub struct CalendarService {
 
 impl CalendarService {
     pub fn new(db: Arc<Database>) -> Self {
-        Self {
-            repo: db.events(),
-        }
+        Self { repo: db.events() }
     }
 
-    pub async fn create_event(&self, mut event: Event) -> Result<Event> {
+    pub async fn create_event(&self, event: Event) -> Result<Event> {
         self.repo.create(event).await
     }
 
@@ -38,7 +36,11 @@ impl CalendarService {
         self.repo.delete(id).await
     }
 
-    pub async fn list_events(&self, filter: EventFilter, pagination: Pagination) -> Result<Vec<Event>> {
+    pub async fn list_events(
+        &self,
+        filter: EventFilter,
+        pagination: Pagination,
+    ) -> Result<Vec<Event>> {
         self.repo.list(filter, pagination).await
     }
 
@@ -46,7 +48,11 @@ impl CalendarService {
         self.repo.get_for_date(date).await
     }
 
-    pub async fn get_events_for_range(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<Vec<Event>> {
+    pub async fn get_events_for_range(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<Event>> {
         self.repo.get_for_date_range(start, end).await
     }
 
@@ -94,7 +100,10 @@ impl CalendarService {
 
     pub async fn get_calendar_colors(&self) -> Result<Vec<String>> {
         // Return unique colors used in events
-        let events = self.repo.list(EventFilter::default(), Pagination::default()).await?;
+        let events = self
+            .repo
+            .list(EventFilter::default(), Pagination::default())
+            .await?;
         let mut colors: Vec<String> = events.iter().map(|e| e.color.clone()).collect();
         colors.sort();
         colors.dedup();

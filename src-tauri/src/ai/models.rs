@@ -3,11 +3,11 @@
 use crate::db::models::AIModel;
 use crate::db::repository::ModelsRepository;
 use anyhow::Result;
+use reqwest::Client;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use reqwest::Client;
 
 pub struct ModelManager {
     models_repo: ModelsRepository,
@@ -62,26 +62,38 @@ impl ModelManager {
     }
 
     pub async fn get_model(&self, id: &str) -> Result<AIModel> {
-        self.models_repo.get(id).await?
+        self.models_repo
+            .get(id)
+            .await?
             .ok_or_else(|| anyhow::anyhow!("Model not found: {}", id))
     }
 
     pub async fn get_default_transcription_model(&self) -> Result<AIModel> {
-        self.models_repo.get_default_transcription().await?
+        self.models_repo
+            .get_default_transcription()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No default transcription model"))
     }
 
     pub async fn get_default_analysis_model(&self) -> Result<AIModel> {
-        self.models_repo.get_default_analysis().await?
+        self.models_repo
+            .get_default_analysis()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No default analysis model"))
     }
 
     pub async fn get_default_chat_model(&self) -> Result<AIModel> {
-        self.models_repo.get_default_chat().await?
+        self.models_repo
+            .get_default_chat()
+            .await?
             .ok_or_else(|| anyhow::anyhow!("No default chat model"))
     }
 
-    pub async fn download_model(&self, model_id: &str, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<()> {
+    pub async fn download_model(
+        &self,
+        model_id: &str,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<()> {
         let model = self.get_model(model_id).await?;
 
         if model.is_downloaded {
@@ -91,23 +103,34 @@ impl ModelManager {
         // Initialize download state
         {
             let mut states = self.download_states.write().await;
-            states.insert(model_id.to_string(), DownloadState {
-                model_id: model_id.to_string(),
-                progress: 0.0,
-                status: DownloadStatus::Downloading,
-                error: None,
-                bytes_downloaded: 0,
-                total_bytes: model.size_bytes as u64,
-            });
+            states.insert(
+                model_id.to_string(),
+                DownloadState {
+                    model_id: model_id.to_string(),
+                    progress: 0.0,
+                    status: DownloadStatus::Downloading,
+                    error: None,
+                    bytes_downloaded: 0,
+                    total_bytes: model.size_bytes as u64,
+                },
+            );
         }
 
         // Update database progress
-        self.models_repo.set_download_progress(model_id, 0.0).await?;
+        self.models_repo
+            .set_download_progress(model_id, 0.0)
+            .await?;
 
         let result = match model.source.as_str() {
             "local" => self.download_local_model(&model, progress_callback).await,
-            "huggingface" => self.download_huggingface_model(&model, progress_callback).await,
-            _ => Err(anyhow::anyhow!("Unsupported model source: {}", model.source)),
+            "huggingface" => {
+                self.download_huggingface_model(&model, progress_callback)
+                    .await
+            }
+            _ => Err(anyhow::anyhow!(
+                "Unsupported model source: {}",
+                model.source
+            )),
         };
 
         // Update final state
@@ -129,17 +152,25 @@ impl ModelManager {
         }
 
         if let Ok(local_path) = &result {
-            self.models_repo.mark_downloaded(model_id, &local_path.to_string_lossy()).await?;
-        } else if let Err(e) = &result {
+            self.models_repo
+                .mark_downloaded(model_id, &local_path.to_string_lossy())
+                .await?;
+        } else if let Err(_e) = &result {
             self.models_repo.update(&model).await?;
         }
 
         result.map(|_| ())
     }
 
-    async fn download_local_model(&self, model: &AIModel, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
+    async fn download_local_model(
+        &self,
+        model: &AIModel,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<PathBuf> {
         // For local models (FunASR, etc.), use Python to download
-        if model.model_type == "transcription" && model.model_id.as_deref().unwrap_or("").contains("funasr") {
+        if model.model_type == "transcription"
+            && model.model_id.as_deref().unwrap_or("").contains("funasr")
+        {
             return self.download_funasr_model(model, progress_callback).await;
         }
 
@@ -147,11 +178,21 @@ impl ModelManager {
         self.download_gguf_model(model, progress_callback).await
     }
 
-    async fn download_funasr_model(&self, model: &AIModel, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
+    async fn download_funasr_model(
+        &self,
+        model: &AIModel,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<PathBuf> {
         // Use modelscope or huggingface_hub to download FunASR models
-        let model_id = model.model_id.as_deref().unwrap_or("iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch");
-        let local_dir = self.models_dir.join("funasr").join(model_id.replace('/', "_"));
-        
+        let model_id = model
+            .model_id
+            .as_deref()
+            .unwrap_or("iic/speech_paraformer-large_asr_nat-zh-cn-16k-common-vocab8404-pytorch");
+        let local_dir = self
+            .models_dir
+            .join("funasr")
+            .join(model_id.replace('/', "_"));
+
         std::fs::create_dir_all(&local_dir)?;
 
         // Report progress
@@ -162,10 +203,13 @@ impl ModelManager {
         // Use Python to download via modelscope
         let python = crate::ai::funasr::FunASRTranscriber::find_python()?;
         let output = tokio::process::Command::new(&python)
-            .arg("-m").arg("modelscope.cli")
+            .arg("-m")
+            .arg("modelscope.cli")
             .arg("download")
-            .arg("--model").arg(model_id)
-            .arg("--local_dir").arg(&local_dir)
+            .arg("--model")
+            .arg(model_id)
+            .arg("--local_dir")
+            .arg(&local_dir)
             .output()
             .await?;
 
@@ -185,19 +229,27 @@ impl ModelManager {
         Ok(local_dir)
     }
 
-    async fn download_gguf_model(&self, model: &AIModel, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
-        let repo = model.huggingface_repo.as_deref()
+    async fn download_gguf_model(
+        &self,
+        model: &AIModel,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<PathBuf> {
+        let repo = model
+            .huggingface_repo
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("HuggingFace repo not specified"))?;
-        
-        let filename = model.model_id.as_deref()
+
+        let filename = model
+            .model_id
+            .as_deref()
             .ok_or_else(|| anyhow::anyhow!("Model filename not specified"))?;
 
-        let local_path = self.models_dir.join("gguf").join(&filename);
+        let local_path = self.models_dir.join("gguf").join(filename);
         std::fs::create_dir_all(local_path.parent().unwrap())?;
 
         // Download with progress using reqwest
         let url = format!("https://huggingface.co/{}/resolve/main/{}", repo, filename);
-        
+
         let response = self.client.get(&url).send().await?;
         let total_size = response.content_length().unwrap_or(model.size_bytes as u64);
 
@@ -215,7 +267,9 @@ impl ModelManager {
             cb(progress);
         }
 
-        self.models_repo.set_download_progress(&model.id, progress).await?;
+        self.models_repo
+            .set_download_progress(&model.id, progress)
+            .await?;
 
         if let Some(cb) = &progress_callback {
             cb(1.0);
@@ -224,14 +278,18 @@ impl ModelManager {
         Ok(local_path)
     }
 
-    async fn download_huggingface_model(&self, model: &AIModel, progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>) -> Result<PathBuf> {
+    async fn download_huggingface_model(
+        &self,
+        model: &AIModel,
+        progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
+    ) -> Result<PathBuf> {
         // Similar to GGUF but for other HF model formats
         self.download_gguf_model(model, progress_callback).await
     }
 
     pub async fn delete_model(&self, model_id: &str) -> Result<()> {
         let model = self.get_model(model_id).await?;
-        
+
         if let Some(local_path) = &model.local_path {
             let path = Path::new(local_path);
             if path.exists() {
@@ -255,36 +313,40 @@ impl ModelManager {
 
     pub async fn set_api_key(&self, model_id: &str, api_key: &str) -> Result<()> {
         let mut model = self.get_model(model_id).await?;
-        
+
         // Encrypt API key (in production, use proper encryption)
         let encrypted = encrypt_api_key(api_key)?;
         model.api_key_encrypted = Some(encrypted);
-        
+
         self.models_repo.update(&model).await?;
         Ok(())
     }
 
     pub async fn get_decrypted_api_key(&self, model_id: &str) -> Result<String> {
         let model = self.get_model(model_id).await?;
-        let encrypted = model.api_key_encrypted
+        let encrypted = model
+            .api_key_encrypted
             .ok_or_else(|| anyhow::anyhow!("No API key set for model"))?;
-        
+
         decrypt_api_key(&encrypted)
     }
 
     pub async fn test_connection(&self, model_id: &str) -> Result<bool> {
         let model = self.get_model(model_id).await?;
-        
+
         if model.source != "api" {
             return Ok(true); // Local models don't need connection test
         }
 
         let api_key = self.get_decrypted_api_key(model_id).await?;
-        let api_endpoint = model.api_endpoint.as_deref().unwrap_or("https://api.openai.com/v1");
+        let api_endpoint = model
+            .api_endpoint
+            .as_deref()
+            .unwrap_or("https://api.openai.com/v1");
 
         let client = Client::new();
         let response = client
-            .get(&format!("{}/models", api_endpoint))
+            .get(format!("{}/models", api_endpoint))
             .bearer_auth(api_key)
             .send()
             .await?;
