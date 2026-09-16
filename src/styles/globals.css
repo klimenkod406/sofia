@@ -4,48 +4,57 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 173 80% 40%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 173 80% 40%;
-    --radius: 0.75rem;
+    /* 1. Тихая тёплая пастель — светлая тема («тёплый пергамент»).
+       Только приглушённые тёплые тона, без контрастных акцентов. */
+    --background: 40 33% 97%;
+    --foreground: 24 14% 22%;
+    --card: 42 60% 99%;
+    --card-foreground: 24 14% 22%;
+    --popover: 42 50% 98%;
+    --popover-foreground: 24 14% 22%;
+    --primary: 32 26% 62%;
+    --primary-foreground: 30 20% 16%;
+    --secondary: 38 38% 91%;
+    --secondary-foreground: 26 16% 30%;
+    --muted: 38 30% 91%;
+    --muted-foreground: 28 12% 48%;
+    --accent: 36 36% 89%;
+    --accent-foreground: 26 16% 28%;
+    /* Приглушённая тёплая терракота вместо ярко-красного */
+    --destructive: 14 32% 62%;
+    --destructive-foreground: 40 33% 97%;
+    --border: 36 28% 86%;
+    --input: 36 24% 84%;
+    --ring: 32 26% 62%;
+    --radius: 1.25rem;
+
+    /* Гибкие границы чёлки (п.6): радиус и отступы анимируются */
+    --notch-radius-bottom: 1.5rem;
+    --notch-pad-x: 1rem;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 173 80% 40%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 173 80% 40%;
+    /* 1. Тёплая тёмная тема («тёплая ночь»).
+       Тот же тёплый характер, но на глубоком коричнево-сером. */
+    --background: 24 12% 10%;
+    --foreground: 38 30% 90%;
+    --card: 26 12% 14%;
+    --card-foreground: 38 30% 90%;
+    --popover: 26 12% 15%;
+    --popover-foreground: 38 30% 90%;
+    --primary: 34 28% 68%;
+    --primary-foreground: 24 14% 12%;
+    --secondary: 26 12% 20%;
+    --secondary-foreground: 38 28% 88%;
+    --muted: 26 10% 20%;
+    --muted-foreground: 32 14% 62%;
+    --accent: 26 12% 22%;
+    --accent-foreground: 38 28% 88%;
+    --destructive: 14 28% 52%;
+    --destructive-foreground: 38 30% 92%;
+    --border: 28 12% 22%;
+    --input: 28 12% 24%;
+    --ring: 34 28% 68%;
   }
 }
 
@@ -53,316 +62,530 @@
   * {
     @apply border-border;
   }
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
   body {
     @apply bg-background text-foreground;
+    font-family: 'Onest', 'Manrope', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    font-weight: 400;
+    letter-spacing: 0.002em;
   }
-  
-  /* Custom scrollbar */
+
+  h1, h2, h3, h4,
+  .font-display {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  code, pre, kbd {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Тёплый тонкий скроллбар */
   ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 10px;
+    height: 10px;
   }
-  
+
   ::-webkit-scrollbar-track {
     @apply bg-transparent;
   }
-  
+
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
-  }
-  
-  ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    @apply rounded-full;
+    background: hsl(var(--muted-foreground) / 0.28);
+    border: 3px solid transparent;
+    background-clip: content-box;
   }
 
-  /* Focus styles */
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.45);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
   :focus-visible {
-    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @layer components {
-  /* Glassmorphism cards */
+  /* 4. Жидкое стекло в духе Apple: полупрозрачность + blur + saturate
+     + внутренняя подсветка сверху. Три уровня плотности. */
   .glass-card {
-    @apply bg-surface-light dark:bg-surface-dark backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-glass dark:shadow-glass-dark;
+    background: hsl(var(--card) / 0.68);
+    backdrop-filter: blur(22px) saturate(1.6);
+    -webkit-backdrop-filter: blur(22px) saturate(1.6);
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    box-shadow:
+      0 8px 32px rgba(87, 80, 70, 0.10),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
   }
-  
-  .glass-card-hover {
-    @apply glass-card transition-all duration-200 hover:bg-white/90 dark:hover:bg-slate-900/90 hover:shadow-lg;
+  .dark .glass-card {
+    background: hsl(var(--card) / 0.62);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Button variants */
+  .liquid-glass {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.78),
+      hsl(var(--secondary) / 0.55)
+    );
+    backdrop-filter: blur(28px) saturate(1.8);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8);
+    border: 1px solid hsl(var(--foreground) / 0.09);
+    box-shadow:
+      0 12px 40px rgba(87, 80, 70, 0.14),
+      inset 0 1px 1px rgba(255, 255, 255, 0.55),
+      inset 0 -1px 1px rgba(87, 80, 70, 0.06);
+  }
+  .dark .liquid-glass {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.72),
+      hsl(var(--secondary) / 0.5)
+    );
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      inset 0 1px 1px rgba(255, 255, 255, 0.09);
+  }
+
+  .glass-subtle {
+    background: hsl(var(--card) / 0.5);
+    backdrop-filter: blur(16px) saturate(1.4);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    border: 1px solid hsl(var(--foreground) / 0.06);
+  }
+
+  .glass-card-hover {
+    @apply glass-card transition-all duration-300 hover:shadow-lg;
+  }
+  .glass-card-hover:hover {
+    background: hsl(var(--card) / 0.88);
+    transform: translateY(-2px);
+  }
+
+  /* 6. Навигационная «чёлка»: приклеена к верху без отступа,
+     на всю ширину. Нижние углы и паддинги — через переменные,
+     чтобы будущие hover-анимации кнопок могли их гибко менять. */
+  .top-notch {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    margin: 0;
+    padding-left: var(--notch-pad-x);
+    padding-right: var(--notch-pad-x);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+    border-bottom-left-radius: var(--notch-radius-bottom);
+    border-bottom-right-radius: var(--notch-radius-bottom);
+    background: linear-gradient(
+      180deg,
+      hsl(var(--card) / 0.88),
+      hsl(var(--card) / 0.68)
+    );
+    backdrop-filter: blur(28px) saturate(1.8);
+    -webkit-backdrop-filter: blur(28px) saturate(1.8);
+    box-shadow:
+      0 12px 40px rgba(87, 80, 70, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transition:
+      border-bottom-left-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-bottom-right-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.3s ease,
+      box-shadow 0.3s ease,
+      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .dark .top-notch {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    box-shadow:
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* Состояния чёлки для анимаций раскрытия/сжатия (п.3) */
+  .top-notch[data-collapsed="true"] {
+    --notch-radius-bottom: 1rem;
+  }
+  .top-notch[data-collapsed="true"] .notch-label {
+    max-width: 0;
+    opacity: 0;
+    margin: 0;
+  }
+  .notch-label {
+    max-width: 120px;
+    overflow: hidden;
+    white-space: nowrap;
+    transition:
+      max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 0.3s ease,
+      margin 0.4s ease;
+  }
+
+  .notch-inner {
+    @apply mx-auto flex w-full max-w-5xl items-center gap-3 px-2 py-3;
+  }
+
+  /* Кнопки чёлки: гибкие границы под будущие hover-анимации (п.6).
+     Каждая кнопка анимирует радиус/фон/масштаб независимо. */
+  .notch-btn {
+    @apply relative flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-muted-foreground;
+    font-family: 'Manrope', 'Onest', sans-serif;
+    border: 1px solid transparent;
+    border-radius: 1rem;
+    transition:
+      border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      background 0.25s ease,
+      color 0.25s ease,
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s ease,
+      border-color 0.3s ease;
+  }
+  .notch-btn:hover {
+    @apply text-foreground;
+    background: hsl(var(--accent) / 0.7);
+    border-radius: 1.25rem;
+    transform: translateY(-1px);
+  }
+  .notch-btn:active {
+    transform: translateY(0) scale(0.97);
+    border-radius: 0.9rem;
+  }
+  .notch-btn[data-active="true"] {
+    @apply text-foreground;
+    background: hsl(var(--primary) / 0.22);
+    border-color: hsl(var(--primary) / 0.35);
+    border-radius: 1.25rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  /* 2. Центрированная архитектура: весь контент — в средней колонке */
+  .center-stage {
+    @apply mx-auto w-full max-w-5xl px-4 md:px-8;
+  }
+
+  /* 3. Переходы страниц: отдаление с размытием + появление */
+  .page-viewport {
+    perspective: 1200px;
+  }
+  .page-enter {
+    animation: pageEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+    transform-origin: center center;
+    will-change: transform, opacity, filter;
+  }
+
+  /* 5. Кнопки: крупные закругления, воздушные отступы */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center gap-2.5 rounded-2xl px-5 py-2.5 text-sm font-medium transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    font-family: 'Manrope', 'Onest', sans-serif;
+    letter-spacing: 0.005em;
   }
-  
+
   .btn-primary {
-    @apply btn bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary;
+    @apply btn;
+    background: hsl(var(--primary) / 0.9);
+    color: hsl(var(--primary-foreground));
+    box-shadow: 0 2px 12px rgba(87, 80, 70, 0.18), inset 0 1px 0 rgba(255,255,255,0.35);
   }
-  
+  .btn-primary:hover {
+    background: hsl(var(--primary));
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0) scale(0.98); }
+
   .btn-secondary {
-    @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary;
+    @apply btn glass-subtle text-secondary-foreground hover:shadow-md;
   }
-  
+
   .btn-ghost {
     @apply btn bg-transparent hover:bg-accent active:bg-accent;
   }
-  
+
   .btn-destructive {
-    @apply btn bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive;
+    @apply btn bg-destructive text-destructive-foreground hover:brightness-95 active:brightness-90;
   }
-  
+
   .btn-outline {
-    @apply btn border border-input bg-background hover:bg-accent active:bg-accent;
+    @apply btn border border-input bg-card/60 hover:bg-accent active:bg-accent;
+    backdrop-filter: blur(12px);
   }
 
-  /* Input styles */
+  /* Инпуты: круглые, с воздухом */
   .input {
-    @apply flex h-10 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  
-  .textarea {
-    @apply flex min-h-[80px] w-full rounded-xl border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply flex h-11 w-full rounded-2xl border border-input bg-card/70 px-4 py-2.5 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+    backdrop-filter: blur(12px);
   }
 
-  /* Label */
+  .textarea {
+    @apply flex min-h-[80px] w-full rounded-2xl border border-input bg-card/70 px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
   .label {
     @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
+    font-family: 'Manrope', sans-serif;
   }
 
-  /* Card */
+  /* Карточки: круглые, с воздухом между элементами (п.5) */
   .card {
-    @apply rounded-2xl border bg-card text-card-foreground shadow-sm glass-card;
-  }
-  
-  .card-header {
-    @apply flex flex-col space-y-1.5 p-6;
-  }
-  
-  .card-title {
-    @apply text-2xl font-semibold leading-none tracking-tight;
-  }
-  
-  .card-description {
-    @apply text-sm text-muted-foreground;
-  }
-  
-  .card-content {
-    @apply p-6 pt-0;
-  }
-  
-  .card-footer {
-    @apply flex items-center p-6 pt-0;
+    @apply rounded-3xl border bg-card text-card-foreground glass-card;
   }
 
-  /* Badge */
+  .card-header {
+    @apply flex flex-col space-y-2 p-6 pb-4;
+  }
+
+  .card-title {
+    @apply font-display text-2xl font-bold leading-none tracking-tight;
+  }
+
+  .card-description {
+    @apply text-sm text-muted-foreground leading-relaxed;
+  }
+
+  .card-content {
+    @apply p-6 pt-2;
+  }
+
+  .card-footer {
+    @apply flex items-center gap-3 p-6 pt-2;
+  }
+
   .badge {
-    @apply inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    @apply inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2;
+    font-family: 'Manrope', sans-serif;
   }
-  
+
   .badge-primary {
-    @apply badge border-transparent bg-primary text-primary-foreground hover:bg-primary/80;
+    @apply badge border-transparent;
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
   }
-  
+
   .badge-secondary {
-    @apply badge border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80;
+    @apply badge border-transparent bg-secondary text-secondary-foreground;
   }
-  
+
   .badge-outline {
     @apply badge text-foreground;
+    border-color: hsl(var(--border));
   }
 
-  /* Sidebar navigation */
+  /* Legacy-классы pill-навигации: оставлены как алиасы чёлки,
+     чтобы ничего не сломалось, но визуально это уже чёлка. */
   .sidebar-nav {
-    @apply fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-2xl bg-surface-light dark:bg-surface-dark backdrop-blur-xl border border-white/20 dark:border-white/10 p-1 shadow-glass dark:shadow-glass-dark;
+    @apply top-notch;
   }
-  
-  .sidebar-nav-item {
-    @apply relative flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground transition-all duration-200 hover:text-foreground hover:bg-white/50 dark:hover:bg-white/10;
-  }
-  
-  .sidebar-nav-item-active {
-    @apply sidebar-nav-item text-primary bg-primary/10;
-  }
+  .sidebar-nav-item { @apply notch-btn; }
+  .sidebar-nav-item-active { @apply notch-btn; }
 
   /* Overlay chat */
   .overlay-chat {
-    @apply fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-sm;
+    @apply fixed inset-0 z-50 flex flex-col bg-background/90;
+    backdrop-filter: blur(20px);
   }
-  
+
   .overlay-chat-header {
-    @apply flex items-center justify-between border-b p-4 bg-surface-light dark:bg-surface-dark backdrop-blur-xl;
+    @apply flex items-center justify-between gap-3 border-b p-4 liquid-glass;
   }
-  
+
   .overlay-chat-messages {
     @apply flex-1 overflow-y-auto p-4 space-y-4;
   }
-  
+
   .overlay-chat-input {
-    @apply border-t p-4 bg-surface-light dark:bg-surface-dark backdrop-blur-xl;
+    @apply border-t p-4 liquid-glass;
   }
 
   /* Editor toolbar */
   .editor-toolbar {
-    @apply flex flex-wrap items-center gap-1 p-2 bg-surface-light dark:bg-surface-dark backdrop-blur-xl border-b border-border;
+    @apply flex flex-wrap items-center gap-1.5 p-3 glass-subtle border-b border-border rounded-b-3xl;
   }
-  
+
   .editor-toolbar-btn {
-    @apply flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors;
+    @apply flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200;
   }
-  
+
   .editor-toolbar-btn-active {
-    @apply editor-toolbar-btn text-primary bg-primary/10;
+    @apply editor-toolbar-btn;
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
   }
 
-  /* Note card */
+  /* 5/10. Карточки заметок: круглые, воздушные, единый стиль */
   .note-card {
-    @apply card glass-card-hover relative overflow-hidden;
+    @apply card glass-card-hover relative overflow-hidden rounded-3xl p-5;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
   }
-  
+  .note-card:hover {
+    transform: translateY(-3px);
+  }
+
   .note-card-cover {
-    @apply aspect-video w-full overflow-hidden;
+    @apply w-full overflow-hidden rounded-2xl mb-4;
+    aspect-ratio: 16 / 8;
   }
-  
+
   .note-card-content {
-    @apply p-4;
+    @apply space-y-3;
   }
-  
+
   .note-card-title {
-    @apply font-medium line-clamp-2 transition-colors;
+    @apply font-display font-bold text-[17px] leading-snug line-clamp-2 transition-colors;
   }
 
-  .group:hover .note-card-title {
-    color: hsl(var(--primary));
-  }
-  
   .note-card-excerpt {
-    @apply mt-2 line-clamp-3 text-sm text-muted-foreground;
-  }
-  
-  .note-card-meta {
-    @apply flex items-center justify-between mt-3 text-xs text-muted-foreground;
+    @apply line-clamp-3 text-sm text-muted-foreground leading-relaxed;
+    font-family: 'Onest', sans-serif;
   }
 
-  /* Folder tree */
-  .folder-tree {
-    @apply space-y-1;
+  .note-card-meta {
+    @apply flex items-center justify-between gap-3 pt-1 text-xs text-muted-foreground;
+    font-family: 'Manrope', sans-serif;
   }
-  
+
+  /* Состояние drop-target при перетаскивании заметки на заметку (п.8) */
+  .note-card[data-drop-target="true"] {
+    animation: dropGlow 1.2s ease-in-out infinite;
+    transform: scale(1.04);
+    border-color: hsl(var(--primary) / 0.6);
+  }
+  .note-card[data-dragging="true"] {
+    opacity: 0.55;
+    transform: scale(0.97) rotate(1.5deg);
+  }
+
+  /* Анимация рождения папки (п.8) */
+  .folder-just-created {
+    animation: folderPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Карточка папки в едином пространстве */
+  .folder-card {
+    @apply note-card flex flex-col justify-between gap-4;
+    background: linear-gradient(135deg, hsl(var(--secondary) / 0.85), hsl(var(--card) / 0.7));
+    min-height: 170px;
+  }
+  .folder-card:hover {
+    transform: translateY(-3px);
+  }
+
+  /* Лента папок: горизонтальная, центрированная (не сайдбар) */
+  .folder-dock {
+    @apply liquid-glass flex items-center gap-2 overflow-x-auto rounded-3xl p-2.5;
+  }
+  .folder-chip {
+    @apply flex shrink-0 items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-muted-foreground transition-all duration-300;
+    font-family: 'Manrope', sans-serif;
+    border: 1px solid transparent;
+  }
+  .folder-chip:hover {
+    @apply text-foreground bg-accent/70;
+    border-radius: 1.25rem;
+  }
+  .folder-chip[data-active="true"] {
+    background: hsl(var(--primary) / 0.22);
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--primary) / 0.35);
+  }
+
+  .folder-tree { @apply space-y-1; }
   .folder-item {
-    @apply flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors;
+    @apply flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200;
   }
-  
   .folder-item-active {
-    @apply folder-item text-primary bg-primary/10;
+    @apply folder-item;
+    background: hsl(var(--primary) / 0.2);
+    color: hsl(var(--foreground));
   }
-  
-  .folder-icon {
-    @apply flex-shrink-0 text-base;
-  }
-  
-  .folder-children {
-    @apply ml-4 border-l border-border/50 pl-2;
-  }
+  .folder-icon { @apply flex-shrink-0 text-base; }
+  .folder-children { @apply ml-4 border-l border-border/60 pl-2 space-y-1; }
 
   /* Calendar */
-  .calendar-grid {
-    @apply grid grid-cols-7 gap-px bg-border;
-  }
-  
+  .calendar-grid { @apply grid grid-cols-7 gap-2; }
   .calendar-day {
-    @apply relative min-h-[100px] p-2 bg-card;
+    @apply relative min-h-[100px] p-3 bg-card rounded-2xl border border-border/60;
   }
-  
   .calendar-day-today {
-    @apply calendar-day bg-primary/10;
+    @apply calendar-day;
+    border-color: hsl(var(--primary) / 0.5);
+    background: hsl(var(--primary) / 0.08);
   }
-  
-  .calendar-day-other-month {
-    @apply calendar-day text-muted-foreground/50;
-  }
-  
+  .calendar-day-other-month { @apply calendar-day text-muted-foreground/50; }
   .calendar-event {
-    @apply absolute left-1 right-1 rounded px-1 py-0.5 text-xs font-medium truncate cursor-pointer hover:opacity-90 transition-opacity;
+    @apply rounded-xl px-2 py-1 text-xs font-medium truncate cursor-pointer hover:opacity-90 transition-opacity;
+    background: hsl(var(--primary) / 0.2);
   }
 
-  /* Settings panel */
-  .settings-panel {
-    @apply max-w-3xl mx-auto space-y-6;
-  }
-  
-  .settings-section {
-    @apply space-y-4;
-  }
-  
-  .settings-section-title {
-    @apply text-lg font-semibold;
-  }
-  
-  .settings-item {
-    @apply flex items-center justify-between;
-  }
-  
-  .settings-item-label {
-    @apply flex items-center gap-2;
-  }
+  /* Settings */
+  .settings-panel { @apply max-w-3xl mx-auto space-y-6; }
+  .settings-section { @apply space-y-4; }
+  .settings-section-title { @apply font-display text-lg font-bold; }
+  .settings-item { @apply flex items-center justify-between gap-4; }
+  .settings-item-label { @apply flex items-center gap-3; }
 
-  /* Model card */
-  .model-card {
-    @apply card glass-card-hover p-4;
-  }
-  
-  .model-card-header {
-    @apply flex items-start justify-between gap-4 mb-3;
-  }
-  
-  .model-card-title {
-    @apply font-medium text-lg;
-  }
-  
-  .model-card-badges {
-    @apply flex flex-wrap gap-1.5;
-  }
-  
-  .model-card-progress {
-    @apply h-2 w-full bg-secondary rounded-full overflow-hidden;
-  }
-  
-  .model-card-progress-bar {
-    @apply h-full bg-primary transition-all duration-300;
-  }
+  .model-card { @apply card glass-card-hover p-5 space-y-3; }
+  .model-card-header { @apply flex items-start justify-between gap-4 mb-1; }
+  .model-card-title { @apply font-display font-bold text-lg; }
+  .model-card-badges { @apply flex flex-wrap gap-2; }
+  .model-card-progress { @apply h-2 w-full bg-secondary rounded-full overflow-hidden; }
+  .model-card-progress-bar { @apply h-full transition-all duration-300; background: hsl(var(--primary)); }
 
-  /* Tooltip */
   .tooltip {
-    @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-popover-foreground bg-popover rounded-lg shadow-lg animate-fade-in;
+    @apply absolute z-50 px-3 py-1.5 text-xs font-medium text-popover-foreground bg-popover rounded-xl shadow-lg animate-fade-in border border-border/60;
   }
 
-  /* Dropdown */
   .dropdown {
-    @apply absolute z-50 min-w-[200px] rounded-xl bg-popover text-popover-foreground shadow-lg border animate-scale-in;
+    @apply absolute z-50 min-w-[220px] rounded-2xl text-popover-foreground shadow-xl border animate-scale-in p-1.5 liquid-glass;
   }
-  
+
   .dropdown-item {
-    @apply flex items-center gap-2 w-full px-4 py-2 text-sm text-popover-foreground hover:bg-accent transition-colors;
+    @apply flex items-center gap-2.5 w-full px-3.5 py-2.5 text-sm text-popover-foreground hover:bg-accent/70 transition-all duration-200 rounded-xl;
   }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  .animate-in {
-    animation: fadeIn 0.2s ease-out;
-  }
-  
+  .text-balance { text-wrap: balance; }
+  .animate-in { animation: fadeIn 0.25s ease-out; }
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+  .font-display {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
   }
+}
+
+@keyframes pageEnter {
+  0% { transform: scale(0.94); opacity: 0; filter: blur(14px); }
+  60% { transform: scale(1.005); opacity: 1; filter: blur(0px); }
+  100% { transform: scale(1); opacity: 1; filter: blur(0px); }
+}
+
+@keyframes dropGlow {
+  0%, 100% { box-shadow: 0 0 0 2px hsl(var(--primary) / 0.55), 0 8px 32px rgba(180, 156, 125, 0.35); }
+  50% { box-shadow: 0 0 0 5px hsl(var(--primary) / 0.35), 0 8px 40px rgba(180, 156, 125, 0.5); }
+}
+
+@keyframes folderPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }

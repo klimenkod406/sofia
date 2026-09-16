@@ -236,7 +236,7 @@ export interface Attachment {
 }
 
 export interface Settings {
-  theme: 'light' | 'dark' | 'system'
+  theme: 'light' | 'dark'
   font_family: string
   font_size: number
   line_height: number

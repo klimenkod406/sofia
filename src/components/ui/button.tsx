@@ -11,27 +11,47 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
-    const baseStyles = 'inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none'
+    // Закругления 16px+, воздушные паддинги — ничего не прижато друг к другу.
+    const baseStyles = 'inline-flex items-center justify-center gap-2.5 rounded-2xl font-display font-semibold tracking-[0.005em] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]'
 
     const variants = {
-      primary: 'bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary shadow-sm',
-      secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 active:bg-secondary',
-      ghost: 'bg-transparent hover:bg-accent active:bg-accent',
-      destructive: 'bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive',
-      outline: 'border border-input bg-background hover:bg-accent active:bg-accent',
+      primary: 'shadow-[0_2px_12px_rgba(87,80,70,0.18),inset_0_1px_0_rgba(255,255,255,0.35)] hover:-translate-y-px hover:shadow-lg',
+      secondary: 'glass-subtle hover:shadow-md hover:-translate-y-px',
+      ghost: 'bg-transparent hover:bg-accent/70 active:bg-accent rounded-2xl',
+      destructive: 'hover:brightness-95 active:brightness-90 shadow-sm',
+      outline: 'border border-input bg-card/60 hover:bg-accent/70 active:bg-accent backdrop-blur-xl',
+    }
+
+    const variantBg: Record<string, string> = {
+      primary: 'hsl(var(--primary) / 0.92)',
+      secondary: '',
+      ghost: '',
+      destructive: 'hsl(var(--destructive))',
+      outline: '',
+    }
+    const variantFg: Record<string, string> = {
+      primary: 'hsl(var(--primary-foreground))',
+      secondary: 'hsl(var(--secondary-foreground))',
+      ghost: 'hsl(var(--foreground))',
+      destructive: 'hsl(var(--destructive-foreground))',
+      outline: 'hsl(var(--foreground))',
     }
 
     const sizes = {
-      sm: 'h-8 px-3 text-xs',
-      md: 'h-10 px-4 py-2 text-sm',
-      lg: 'h-12 px-6 text-base',
-      icon: 'h-10 w-10',
+      sm: 'h-9 px-4 text-xs gap-2',
+      md: 'h-11 px-5 py-2.5 text-sm',
+      lg: 'h-[52px] px-7 text-[15px]',
+      icon: 'h-11 w-11',
     }
 
     return (
       <button
         ref={ref}
         className={cn(baseStyles, variants[variant], sizes[size], className)}
+        style={{
+          ...(variantBg[variant] ? { background: variantBg[variant] } : {}),
+          ...(variantFg[variant] ? { color: variantFg[variant] } : {}),
+        }}
         disabled={disabled || isLoading}
         {...props}
       >

@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider'
 import { Separator } from '@/components/ui/separator'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Sun, Moon, Monitor, Type, Palette, Bot, LayoutGrid, Shield, Download, Upload, RotateCcw, Trash2 } from 'lucide-react'
+import { Sun, Moon, Type, Palette, Bot, LayoutGrid, Shield, Download, Upload, RotateCcw, Trash2 } from 'lucide-react'
 
 export function SettingsPage() {
   const { theme, font, editor, ai, setTheme, setFont, setEditor, setAI, resetToDefaults } = useSettings()
@@ -42,15 +42,14 @@ export function SettingsPage() {
               <CardDescription>Choose your preferred color scheme</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 {[
-                  { value: 'light', label: 'Light', icon: Sun, desc: 'Always use light mode' },
-                  { value: 'dark', label: 'Dark', icon: Moon, desc: 'Always use dark mode' },
-                  { value: 'system', label: 'System', icon: Monitor, desc: 'Match system preference' },
+                  { value: 'light', label: 'Light', icon: Sun, desc: 'Warm pastel day' },
+                  { value: 'dark', label: 'Dark', icon: Moon, desc: 'Warm pastel night' },
                 ].map(({ value, label, icon: Icon, desc }) => (
                   <button
                     key={value}
-                    onClick={() => setTheme(value as 'light' | 'dark' | 'system')}
+                    onClick={() => setTheme(value as 'light' | 'dark')}
                     className={cn(
                       'relative p-4 rounded-xl border-2 transition-all',
                       theme === value
@@ -89,8 +88,12 @@ export function SettingsPage() {
                 <Select value={font.family} onValueChange={(v) => setFont({ family: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {['Inter', 'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'IBM Plex Mono', 'DM Sans', 'Geist', 'Space Grotesk'].map(f => (
-                      <SelectItem key={f} value={f}><span style={{ fontFamily: f }}>{f}</span></SelectItem>
+                    {[
+                      { value: 'Onest', hint: 'Текст и интерфейс' },
+                      { value: 'Manrope', hint: 'Заголовки' },
+                      { value: 'JetBrains Mono', hint: 'Код' },
+                    ].map(f => (
+                      <SelectItem key={f.value} value={f.value}><span style={{ fontFamily: f.value }}>{f.value} — {f.hint}</span></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -3,7 +3,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
-type Theme = 'light' | 'dark' | 'system'
+// Только две темы: светлая и тёмная (тёплые пастельные), без system.
+type Theme = 'light' | 'dark'
 
 interface ThemeContextType {
   theme: Theme
@@ -16,8 +17,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 export function ThemeProvider({
   children,
   attribute = 'class',
-  defaultTheme = 'system',
-  enableSystem = true,
+  defaultTheme = 'light',
+  enableSystem = false,
 }: {
   children: ReactNode
   attribute?: 'class' | 'data-theme'
@@ -25,13 +26,13 @@ export function ThemeProvider({
   enableSystem?: boolean
 }) {
   const [theme, setTheme] = useState<Theme>(defaultTheme)
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light')
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(defaultTheme)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
     const stored = localStorage.getItem('sofia-theme') as Theme | null
-    if (stored) {
+    if (stored === 'light' || stored === 'dark') {
       setTheme(stored)
     }
   }, [])
@@ -40,50 +41,22 @@ export function ThemeProvider({
     if (!mounted) return
 
     const root = window.document.documentElement
-    let resolved: 'light' | 'dark' = 'light'
+    void enableSystem // проп оставлен для совместимости API
 
-    if (theme === 'system' && enableSystem) {
-      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-    } else {
-      resolved = theme === 'dark' ? 'dark' : 'light'
-    }
-
-    setResolvedTheme(resolved)
+    setResolvedTheme(theme)
     if (attribute === 'class') {
       root.classList.remove('light', 'dark')
-      root.classList.add(resolved)
+      root.classList.add(theme)
     } else {
-      root.setAttribute('data-theme', resolved)
+      root.setAttribute('data-theme', theme)
     }
     localStorage.setItem('sofia-theme', theme)
   }, [theme, enableSystem, mounted, attribute])
 
-  useEffect(() => {
-    if (!enableSystem) return
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    const handleChange = () => {
-      if (theme === 'system') {
-        const resolved = mediaQuery.matches ? 'dark' : 'light'
-        setResolvedTheme(resolved)
-        const root = window.document.documentElement
-        if (attribute === 'class') {
-          root.classList.remove('light', 'dark')
-          root.classList.add(resolved)
-        } else {
-          root.setAttribute('data-theme', resolved)
-        }
-      }
-    }
-
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [theme, enableSystem, attribute])
-
-  if (!mounted) {
-    return <>{children}</>
-  }
-
+  // Важно: Provider рендерится всегда, даже до mount.
+  // Иначе дети (напр. SidebarNav → useTheme) падают на первом рендере
+  // с "useTheme must be used within a ThemeProvider" и виден белый экран.
+  // Гейт `mounted` остаётся только для записи класса темы в <html>.
   return (
     <ThemeContext.Provider value={{ theme, setTheme, resolvedTheme }}>
       {children}

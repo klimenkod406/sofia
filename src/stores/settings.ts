@@ -34,13 +34,13 @@ export interface UIPreferences {
 }
 
 interface SettingsState {
-  theme: 'light' | 'dark' | 'system'
+  theme: 'light' | 'dark'
   font: FontSettings
   editor: EditorSettings
   ai: AISettings
   uiPreferences: UIPreferences
   
-  setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setTheme: (theme: 'light' | 'dark') => void
   setFont: (font: Partial<FontSettings>) => void
   setEditor: (editor: Partial<EditorSettings>) => void
   setAI: (ai: Partial<AISettings>) => void
@@ -52,9 +52,9 @@ interface SettingsState {
 }
 
 const defaultFont: FontSettings = {
-  family: 'Inter',
-  size: 14,
-  lineHeight: 1.6,
+  family: 'Onest',
+  size: 15,
+  lineHeight: 1.7,
 }
 
 const defaultEditor: EditorSettings = {
@@ -83,7 +83,7 @@ const defaultUI: UIPreferences = {
 export const useSettings = create<SettingsState>()(
   persist(
     (set, get) => ({
-      theme: 'system',
+      theme: 'light',
       font: defaultFont,
       editor: defaultEditor,
       ai: defaultAI,
@@ -92,9 +92,7 @@ export const useSettings = create<SettingsState>()(
       setTheme: (theme) => {
         set({ theme })
         document.documentElement.classList.remove('light', 'dark')
-        document.documentElement.classList.add(theme === 'system' 
-          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-          : theme)
+        document.documentElement.classList.add(theme)
       },
 
       setFont: (font) => set((state) => ({ font: { ...state.font, ...font } })),
@@ -116,7 +114,7 @@ export const useSettings = create<SettingsState>()(
       loadFromBackend: async () => {
         try {
           const settings = await invoke('get_settings') as Record<string, unknown>
-          if (settings.theme) set({ theme: settings.theme as 'light' | 'dark' | 'system' })
+          if (settings.theme === 'light' || settings.theme === 'dark') set({ theme: settings.theme })
           if (settings.font_family || settings.font_size || settings.line_height) {
             set((state) => ({
               font: {
@@ -144,10 +142,11 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'sofia-settings',
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown, version: number) => {
-        if (version === 0) {
-          return { ...(persistedState as Record<string, unknown>), theme: 'system' } as SettingsState
+        const s = persistedState as Record<string, unknown>
+        if (version < 2 && s.theme === 'system') {
+          return { ...s, theme: 'light' } as SettingsState
         }
         return persistedState as SettingsState
       },

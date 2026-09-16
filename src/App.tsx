@@ -14,15 +14,27 @@ const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.
 
 function App() {
   return (
-    <div className="h-full flex flex-col bg-background">
+    <div className="relative flex h-full flex-col bg-background">
+      {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div
+          className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full opacity-60 blur-3xl dark:opacity-30"
+          style={{ background: 'radial-gradient(closest-side, hsl(var(--secondary)), transparent)' }}
+        />
+        <div
+          className="absolute -bottom-40 left-1/2 h-80 w-[50rem] -translate-x-1/2 rounded-full opacity-40 blur-3xl dark:opacity-20"
+          style={{ background: 'radial-gradient(closest-side, hsl(var(--accent)), transparent)' }}
+        />
+      </div>
+
       {/* Custom window controls + drag region (Tauri only) */}
       <TitleBar />
 
-      {/* Top Center Sidebar Navigation */}
+      {/* Верхняя чёлка: без отступа, на всю ширину, сразу под TitleBar */}
       <SidebarNav />
-      
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
+
+      {/* Центральная сцена */}
+      <main className="relative flex-1 overflow-hidden">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
@@ -37,7 +49,7 @@ function App() {
             <Route
               path="/editor/:noteId?"
               element={
-                <PageLayout>
+                <PageLayout width="narrow">
                   <EditorPage />
                 </PageLayout>
               }
@@ -53,7 +65,7 @@ function App() {
             <Route
               path="/settings"
               element={
-                <PageLayout>
+                <PageLayout width="narrow">
                   <SettingsPage />
                 </PageLayout>
               }
@@ -61,7 +73,7 @@ function App() {
             <Route
               path="/ai-chat"
               element={
-                <PageLayout>
+                <PageLayout width="narrow">
                   <AIChatPage />
                 </PageLayout>
               }
