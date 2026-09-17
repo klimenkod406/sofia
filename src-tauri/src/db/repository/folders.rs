@@ -26,7 +26,7 @@ impl FoldersRepository {
             vec![
                 Value::Text(folder.id.clone()),
                 Value::Text(folder.name.clone()),
-                Value::Text(folder.parent_id.clone().unwrap_or_default()),
+                folder.parent_id.clone().map(Value::Text).unwrap_or(Value::Null),
                 Value::Text(folder.color.clone()),
                 Value::Text(folder.icon.clone()),
                 Value::Integer(folder.sort_order as i64),
@@ -65,7 +65,7 @@ impl FoldersRepository {
             "#,
                 vec![
                     Value::Text(folder.name.clone()),
-                    Value::Text(folder.parent_id.clone().unwrap_or_default()),
+                    folder.parent_id.clone().map(Value::Text).unwrap_or(Value::Null),
                     Value::Text(folder.color.clone()),
                     Value::Text(folder.icon.clone()),
                     Value::Integer(folder.sort_order as i64),
@@ -102,13 +102,40 @@ impl FoldersRepository {
                         .execute_with_params(
                             "UPDATE folders SET parent_id = ?, updated_at = ? WHERE parent_id = ?",
                             vec![
-                                Value::Text(folder.parent_id.unwrap_or_default()),
+                                folder.parent_id.map(Value::Text).unwrap_or(Value::Null),
                                 Value::Text(Utc::now().to_rfc3339()),
                                 Value::Text(id.clone()),
                             ],
                         )
                         .await?;
                 }
+            }
+
+            // Заметки папки: при recursive — мягко удаляем вместе с папкой,
+            // иначе — возвращаем на главную (folder_id = NULL).
+            // Ветка выполняется для каждой папки рекурсии, включая вложенные.
+            if recursive {
+                let now = Utc::now().to_rfc3339();
+                self.db
+                    .execute_with_params(
+                        "UPDATE notes SET is_deleted = TRUE, deleted_at = ?, updated_at = ? WHERE folder_id = ?",
+                        vec![
+                            Value::Text(now.clone()),
+                            Value::Text(now),
+                            Value::Text(id.clone()),
+                        ],
+                    )
+                    .await?;
+            } else {
+                self.db
+                    .execute_with_params(
+                        "UPDATE notes SET folder_id = NULL, updated_at = ? WHERE folder_id = ?",
+                        vec![
+                            Value::Text(Utc::now().to_rfc3339()),
+                            Value::Text(id.clone()),
+                        ],
+                    )
+                    .await?;
             }
 
             self.db

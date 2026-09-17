@@ -405,7 +405,7 @@ impl NotesRepository {
             .execute_with_params(
                 "UPDATE notes SET folder_id = ?, updated_at = ? WHERE id = ?",
                 vec![
-                    Value::Text(folder_id.unwrap_or("").to_string()),
+                    folder_id.map(|s| Value::Text(s.to_string())).unwrap_or(Value::Null),
                     Value::Text(Utc::now().to_rfc3339()),
                     Value::Text(note_id.to_string()),
                 ],

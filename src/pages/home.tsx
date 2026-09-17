@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -13,11 +13,15 @@ import {
   Pin,
   Star,
 } from 'lucide-react';
-import { useNotes, type Note } from '@/stores/notes';
+import { useNotes, type Note, type Folder } from '@/stores/notes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { NoteCard } from '@/components/home/note-card';
 import { FolderDock, FolderCrumbs } from '@/components/home/folder-sidebar';
+import {
+  FolderDeleteDialog,
+  type FolderDeleteMode,
+} from '@/components/home/folder-delete-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +29,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { cn } from '@/utils/cn';
+import { cn, truncate } from '@/utils/cn';
+import { filterVisibleNotes, canMergeNotes } from '@/utils/notes-visibility';
 import { toast } from '@/hooks/use-toast';
 
 const sortOptions = [
@@ -53,14 +58,192 @@ export function HomePage() {
     deleteNote,
     moveNote,
     createFolder,
+    deleteFolder,
   } = useNotes();
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
-  // DnD состояние (п.8): перетаскивание заметки на заметку = новая папка
+  // Свободное перетаскивание (п.8): едет САМА карточка за указателем
+  // (transform, layout не трогаем), цель подсвечивается в реальном времени.
+  // Сброс: на заметку — новая папка (обе уходят внутрь), на папку/чип —
+  // переместить, на пустое место — убрать из папки.
+  // Цели в dropTargetId с префиксом: n:<id> заметка, f:<id> папка, d:<id> чип.
   const [draggedNote, setDraggedNote] = useState<Note | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const pressRef = useRef<{
+    note: Note;
+    startX: number;
+    startY: number;
+    active: boolean;
+    session: number;
+  } | null>(null);
+  const cardEls = useRef(new Map<string, HTMLDivElement>());
+  const suppressClickRef = useRef(false);
+  const sessionRef = useRef(0);
+  const DRAG_THRESHOLD = 6;
+
+  const setCardEl = (id: string) => (el: HTMLDivElement | null) => {
+    if (el) cardEls.current.set(id, el);
+    else cardEls.current.delete(id);
+  };
+
+  // Поднять карточку: выше всех, прозрачна для hit-test (цель ищется честно),
+  // без transition — иначе будет отставать от курсора
+  const liftCardEl = (id: string) => {
+    const el = cardEls.current.get(id);
+    if (!el) return;
+    el.style.zIndex = '100';
+    el.style.pointerEvents = 'none';
+    el.style.transition = 'none';
+    el.style.willChange = 'transform';
+  };
+
+  const moveCardEl = (id: string, dx: number, dy: number) => {
+    const el = cardEls.current.get(id);
+    if (el) el.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(1.03) rotate(1.2deg)`;
+  };
+
+  // Опустить карточку: при отмене — плавный возврат на место,
+  // при удачном сбросе — мгновенно (список всё равно перезагрузится)
+  const dropCardEl = (id: string, session: number, animateBack: boolean) => {
+    const el = cardEls.current.get(id);
+    if (!el) return;
+    if (!animateBack) {
+      el.style.cssText = '';
+      return;
+    }
+    el.style.transition = 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1)';
+    el.style.transform = '';
+    el.style.pointerEvents = '';
+    window.setTimeout(() => {
+      // Новая тяга могла начаться за эти 250мс — чужое не трогаем
+      if (pressRef.current?.session !== session) return;
+      cardEls.current.get(id)?.removeAttribute('style');
+    }, 260);
+  };
+
+  // Заметка под курсором (без учёта filed-статуса) — для объясняющего тоста
+  const findNoteUnderCursor = (x: number, y: number, ignoreId: string): string | null => {
+    const el = document.elementFromPoint(x, y);
+    const t = el?.closest?.('[data-note-id]') as HTMLElement | null;
+    if (!t) return null;
+    const id = t.getAttribute('data-note-id')!;
+    return id === ignoreId ? null : id;
+  };
+
+  const isFiled = (id: string): boolean => !!notes.find(n => n.id === id)?.folder_id;
+
+  const pickDropTarget = (x: number, y: number, ignoreId: string): string | null => {
+    const el = document.elementFromPoint(x, y);
+    const t = el?.closest?.(
+      '[data-note-id],[data-folder-id],[data-dock-folder-id]'
+    ) as HTMLElement | null;
+    if (!t) return null;
+    if (t.hasAttribute('data-note-id')) {
+      const id = t.getAttribute('data-note-id')!;
+      if (id === ignoreId) return null;
+      // Слияние — только для заметок на главной: из папки новые не создаём
+      if (isFiled(ignoreId) || isFiled(id)) return null;
+      return `n:${id}`;
+    }
+    if (t.hasAttribute('data-folder-id')) return `f:${t.getAttribute('data-folder-id')}`;
+    return `d:${t.getAttribute('data-dock-folder-id')}`;
+  };
+
+  const detachDragListeners = () => {
+    window.removeEventListener('pointermove', onDragPointerMove);
+    window.removeEventListener('pointerup', onDragPointerUp);
+    window.removeEventListener('pointercancel', onDragCancel);
+  };
+
+  const onCardPointerDown = (e: React.PointerEvent, note: Note) => {
+    suppressClickRef.current = false;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (
+      (e.target as HTMLElement).closest('button, a, input, textarea, [role="menu"]')
+    )
+      return;
+    pressRef.current = {
+      note,
+      startX: e.clientX,
+      startY: e.clientY,
+      active: false,
+      session: ++sessionRef.current,
+    };
+    window.addEventListener('pointermove', onDragPointerMove);
+    window.addEventListener('pointerup', onDragPointerUp);
+    window.addEventListener('pointercancel', onDragCancel);
+  };
+
+  const onDragPointerMove = (e: PointerEvent) => {
+    const press = pressRef.current;
+    if (!press) return;
+    if (!press.active) {
+      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < DRAG_THRESHOLD)
+        return;
+      press.active = true;
+      suppressClickRef.current = true;
+      liftCardEl(press.note.id);
+      setDraggedNote(press.note);
+      setDropTargetId(null);
+    }
+    moveCardEl(press.note.id, e.clientX - press.startX, e.clientY - press.startY);
+    const t = pickDropTarget(e.clientX, e.clientY, press.note.id);
+    setDropTargetId(prev => (prev === t ? prev : t));
+  };
+
+  const onDragPointerUp = (e: PointerEvent) => {
+    detachDragListeners();
+    const press = pressRef.current;
+    pressRef.current = null;
+    setDraggedNote(null);
+    setDropTargetId(null);
+    if (!press?.active) return;
+    const t = pickDropTarget(e.clientX, e.clientY, press.note.id);
+    if (!t) {
+      // Бросок на заметку из папки: слияние запрещено — объясняем и возвращаем
+      const blocked = findNoteUnderCursor(e.clientX, e.clientY, press.note.id);
+      if (blocked) {
+        dropCardEl(press.note.id, press.session, true);
+        toast({
+          title: 'Заметка уже в папке',
+          description:
+            'Новые папки создаются только из заметок на главной — сначала уберите её из папки',
+        });
+        return;
+      }
+      // Мимо целей: внутри папки — убрать из неё, иначе возврат на место
+      dropCardEl(press.note.id, press.session, !filter.folderId);
+      if (filter.folderId) void moveNoteToFolder(press.note.id, null);
+      return;
+    }
+    dropCardEl(press.note.id, press.session, false);
+    const sep = t.indexOf(':');
+    const kind = t.slice(0, sep);
+    const id = t.slice(sep + 1);
+    if (kind === 'n') void mergeNotesToFolder(press.note.id, id);
+    else if (kind === 'f') void moveNoteToFolder(press.note.id, id);
+    else void moveNoteToFolder(press.note.id, id === '__all__' ? null : id);
+  };
+
+  const onDragCancel = () => {
+    detachDragListeners();
+    const press = pressRef.current;
+    pressRef.current = null;
+    setDraggedNote(null);
+    setDropTargetId(null);
+    if (press?.active) dropCardEl(press.note.id, press.session, true);
+  };
+
+  const onCardClick = (note: Note) => {
+    // Клик после перетаскивания — не открывать редактор
+    if (suppressClickRef.current) {
+      suppressClickRef.current = false;
+      return;
+    }
+    navigate(`/editor/${note.id}`);
+  };
   const [justCreatedFolderId, setJustCreatedFolderId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -105,31 +288,48 @@ export function HomePage() {
 
   // 10. Единое пространство: один список, без секций «закреплённые / архив / теги».
   // Закрепы просто всплывают первыми в том же гриде.
-  const visibleNotes = useMemo(() => {
-    let list = notes.filter(n => !n.is_deleted);
-    if (!showArchived) list = list.filter(n => !n.is_archived);
-    if (showFavoritesOnly) list = list.filter(n => n.is_favorite);
-    if (filter.folderId) list = list.filter(n => n.folder_id === filter.folderId);
-    if (filter.searchQuery) {
-      const q = filter.searchQuery.toLowerCase();
-      list = list.filter(
-        n =>
-          n.title.toLowerCase().includes(q) ||
-          (n.content_md || n.content || '').toLowerCase().includes(q)
-      );
-    }
-    return [...list].sort((a, b) => {
-      if (!!a.is_pinned !== !!b.is_pinned) return a.is_pinned ? -1 : 1;
-      return +new Date(b.updated_at) - +new Date(a.updated_at);
-    });
-  }, [notes, showArchived, showFavoritesOnly, filter.folderId, filter.searchQuery]);
+  const visibleNotes = useMemo(
+    () =>
+      filterVisibleNotes(notes, {
+        folderId: filter.folderId,
+        searchQuery: filter.searchQuery,
+        showArchived,
+        showFavoritesOnly,
+      }),
+    [notes, showArchived, showFavoritesOnly, filter.folderId, filter.searchQuery]
+  );
 
   const visibleFolders = useMemo(
     () => (filter.folderId ? [] : folders),
     [folders, filter.folderId]
   );
 
-  // Единственная точка создания (п.9): empty-state + глобальный «+» в чёлке.
+  // Удаление папки: диалог уточняет судьбу заметок внутри
+  const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
+
+  const confirmDeleteFolder = async (mode: FolderDeleteMode) => {
+    const folder = deletingFolder;
+    if (!folder) return;
+    setDeletingFolder(null);
+    try {
+      await deleteFolder(folder.id, mode === 'with-notes');
+      await loadNotes();
+      await loadFolders();
+      toast({
+        title:
+          mode === 'with-notes'
+            ? `Папка «${folder.name}» и заметки удалены`
+            : `Папка «${folder.name}» удалена, заметки вернулись на главную`,
+      });
+    } catch (e) {
+      console.error('delete folder failed', e);
+      toast({
+        title: 'Не получилось удалить папку',
+        description: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+  // Единственная точка создания (п.9): empty-state + «+» в правом углу.
   const [creating, setCreating] = useState(false);
   const handleNewNote = async () => {
     if (creating) return;
@@ -149,34 +349,58 @@ export function HomePage() {
   };
 
   // 8. Слияние двух заметок в новую папку
-  const handleMergeToFolder = async (target: Note) => {
-    if (!draggedNote || draggedNote.id === target.id) return;
+  const mergeNotesToFolder = async (sourceId: string, targetId: string) => {
+    if (sourceId === targetId) return;
+    const source = notes.find(n => n.id === sourceId);
+    const target = notes.find(n => n.id === targetId);
+    if (!source || !target) return;
+    // Из заметок, уже лежащих в папке, новые папки не создаём
+    if (!canMergeNotes(source, target)) {
+      toast({
+        title: 'Заметка уже в папке',
+        description:
+          'Новые папки создаются только из заметок на главной — сначала уберите её из папки',
+      });
+      return;
+    }
     try {
-      const name = `Новая папка ${folders.length + 1}`;
-      const folder = await createFolder(name);
-      await moveNote(draggedNote.id, folder.id);
+      const folder = await createFolder(`Новая папка ${folders.length + 1}`);
+      await moveNote(source.id, folder.id);
       await moveNote(target.id, folder.id);
       setJustCreatedFolderId(folder.id);
       await loadNotes();
       await loadFolders();
+      toast({
+        title: 'Папка создана',
+        description: `«${truncate(source.title, 24)}» + «${truncate(target.title, 24)}» → ${folder.name}`,
+      });
     } catch (e) {
       console.error('merge to folder failed', e);
-    } finally {
-      setDraggedNote(null);
-      setDropTargetId(null);
+      toast({
+        title: 'Не получилось создать папку',
+        description: e instanceof Error ? e.message : String(e),
+      });
+      await loadNotes();
     }
   };
 
-  const handleDropOnFolder = async (folderId: string | null) => {
-    if (!draggedNote) return;
+  const moveNoteToFolder = async (sourceId: string, folderId: string | null) => {
     try {
-      await moveNote(draggedNote.id, folderId);
+      await moveNote(sourceId, folderId);
       await loadNotes();
+      if (folderId) {
+        const dest = folders.find(f => f.id === folderId);
+        toast({ title: `Перемещено в «${dest?.name ?? 'папку'}»` });
+      } else {
+        toast({ title: 'Заметка убрана из папки' });
+      }
     } catch (e) {
       console.error('move to folder failed', e);
-    } finally {
-      setDraggedNote(null);
-      setDropTargetId(null);
+      toast({
+        title: 'Не получилось переместить',
+        description: e instanceof Error ? e.message : String(e),
+      });
+      await loadNotes();
     }
   };
 
@@ -188,8 +412,36 @@ export function HomePage() {
     onDuplicate: (n: Note) => duplicateNote(n.id).then(loadNotes).catch(console.error),
     onDelete: (n: Note) => deleteNote(n.id).then(loadNotes).catch(console.error),
     onMoveToFolder: (n: Note) => {
-      const first = folders[0];
-      if (first) moveNote(n.id, first.id).then(loadNotes).catch(console.error);
+      // Из папки — убрать из неё; без папок — создать новую; иначе — в первую.
+      // Всегда с тостом, молчаливых перемещений больше нет.
+      const done = (title: string) => {
+        loadNotes().catch(console.error);
+        toast({ title });
+      };
+      const fail = (e: unknown) => {
+        console.error('move to folder failed', e);
+        toast({
+          title: 'Не получилось переместить',
+          description: e instanceof Error ? e.message : String(e),
+        });
+        loadNotes().catch(console.error);
+      };
+      if (n.folder_id) {
+        moveNote(n.id, null).then(() => done('Заметка убрана из папки')).catch(fail);
+      } else if (folders.length > 0) {
+        const first = folders[0];
+        moveNote(n.id, first.id)
+          .then(() => done(`Перемещено в «${first.name}»`))
+          .catch(fail);
+      } else {
+        createFolder(`Новая папка ${folders.length + 1}`)
+          .then(f => moveNote(n.id, f.id).then(() => f))
+          .then(f => {
+            loadFolders().catch(console.error);
+            done(`Папка создана: ${f.name}`);
+          })
+          .catch(fail);
+      }
     },
   };
 
@@ -268,8 +520,9 @@ export function HomePage() {
           folders={folders}
           currentFolderId={filter.folderId}
           onSelect={setFilter}
-          onNoteDropOnFolder={handleDropOnFolder}
           counts={counts}
+          dragging={!!draggedNote}
+          dropTargetId={dropTargetId}
         />
         {currentFolder && (
           <div className="mt-3 flex justify-center">
@@ -307,24 +560,20 @@ export function HomePage() {
               return (
                 <button
                   key={folder.id}
+                  data-folder-id={folder.id}
                   onClick={() => setFilter({ folderId: folder.id })}
-                  onDragOver={e => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    setDropTargetId(folder.id);
-                  }}
-                  onDragLeave={() => setDropTargetId(id => (id === folder.id ? null : id))}
-                  onDrop={e => {
+                  onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleDropOnFolder(folder.id);
+                    setDeletingFolder(folder);
                   }}
                   className={cn(
                     'folder-card group text-left',
                     justCreatedFolderId === folder.id && 'folder-just-created',
-                    dropTargetId === folder.id && 'animate-drop-glow'
+                    dropTargetId === `f:${folder.id}` && 'animate-drop-glow'
                   )}
                   aria-label={`Открыть папку ${folder.name}`}
+                  title="Открыть · правый клик — удалить"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span
@@ -350,26 +599,22 @@ export function HomePage() {
               );
             })}
 
-            {/* Заметки — единым потоком */}
+            {/* Заметки — единым потоком; тянутся за указателем */}
             {visibleNotes.map(note => (
-              <div key={note.id} className={cn(note.is_archived && 'opacity-60')}>
+              <div
+                key={note.id}
+                ref={setCardEl(note.id)}
+                data-note-id={note.id}
+                className={cn('select-none', note.is_archived && 'opacity-60')}
+                onPointerDown={e => onCardPointerDown(e, note)}
+                onDragStart={e => e.preventDefault()}
+              >
                 <NoteCard
                   note={note}
-                  onClick={() => navigate(`/editor/${note.id}`)}
+                  onClick={() => onCardClick(note)}
                   variant={note.is_archived ? 'ghost' : 'default'}
-                  draggable
                   isDragging={draggedNote?.id === note.id}
-                  isDropTarget={dropTargetId === note.id}
-                  onNoteDragStart={n => setDraggedNote(n)}
-                  onNoteDragEnd={() => {
-                    setDraggedNote(null);
-                    setDropTargetId(null);
-                  }}
-                  onNoteDragOver={t => {
-                    if (draggedNote && draggedNote.id !== t.id) setDropTargetId(t.id);
-                  }}
-                  onNoteDragLeave={() => setDropTargetId(id => (id === note.id ? null : id))}
-                  onNoteDrop={handleMergeToFolder}
+                  isDropTarget={dropTargetId === `n:${note.id}`}
                   {...cardActions}
                 />
                 {note.is_pinned && (
@@ -384,8 +629,19 @@ export function HomePage() {
 
         {draggedNote && (
           <p className="mt-6 text-center text-xs text-muted-foreground" role="status">
-            Отпустите над другой заметкой, чтобы создать папку, или над папкой, чтобы переместить
+            {draggedNote.folder_id
+              ? 'Заметка уже в папке: её можно переместить на папку, чип вверху или пустое место'
+              : 'На другую заметку — создать папку · на папку или чип вверху — переместить · на пустое место — убрать из папки'}
           </p>
+        )}
+
+        {deletingFolder && (
+          <FolderDeleteDialog
+            folderName={deletingFolder.name}
+            noteCount={counts[deletingFolder.id] ?? 0}
+            onCancel={() => setDeletingFolder(null)}
+            onConfirm={mode => void confirmDeleteFolder(mode)}
+          />
         )}
       </div>
     </div>

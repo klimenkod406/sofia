@@ -28,7 +28,7 @@ export function useAIChat() {
   }, [loadModels]);
 
   const createChat = useCallback(async (noteId?: string, modelId?: string) => {
-    const chat = (await invoke('create_ai_chat', { note_id: noteId, model_id: modelId })) as AIChat;
+    const chat = (await invoke('create_ai_chat', { noteId, modelId })) as AIChat;
     setCurrentChat(chat);
     setMessages([]);
     return chat;
@@ -57,7 +57,7 @@ export function useAIChat() {
 
       try {
         // Add to backend
-        await invoke('add_ai_message', { chat_id: currentChat.id, role: 'user', content: text });
+        await invoke('add_ai_message', { chatId: currentChat.id, role: 'user', content: text });
 
         // Get AI response
         const completion = (await invoke('chat_completion', {
@@ -65,7 +65,7 @@ export function useAIChat() {
             role: m.role,
             content: m.content,
           })),
-          model_id: currentModel?.id,
+          modelId: currentModel?.id,
           options: { temperature: 0.7, max_tokens: 4096, top_p: 0.9, stream: false },
         })) as { message: ChatMessage; tokens_used: number; model: string };
 
@@ -82,7 +82,7 @@ export function useAIChat() {
         };
         setMessages(prev => [...prev, assistantMessage]);
         await invoke('add_ai_message', {
-          chat_id: currentChat.id,
+          chatId: currentChat.id,
           role: 'assistant',
           content: completion.message.content,
         });
@@ -111,7 +111,7 @@ export function useAIChat() {
     (model: AIModel) => {
       setCurrentModel(model);
       if (currentChat) {
-        invoke('update_ai_chat', { chat_id: currentChat.id, model_id: model.id });
+        invoke('update_ai_chat', { chatId: currentChat.id, modelId: model.id });
       }
     },
     [currentChat]
@@ -119,7 +119,7 @@ export function useAIChat() {
 
   const clearChat = useCallback(async () => {
     if (currentChat) {
-      await invoke('clear_chat_messages', { chat_id: currentChat.id });
+      await invoke('clear_chat_messages', { chatId: currentChat.id });
       setMessages([]);
     }
   }, [currentChat]);

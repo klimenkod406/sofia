@@ -1,12 +1,29 @@
 'use client';
 
 import { cn } from '@/utils/cn';
-import { forwardRef, useEffect, useRef, useState, createContext, useContext } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+  createContext,
+  useContext,
+} from 'react';
+import { createPortal } from 'react-dom';
 
 // Лёгкое dropdown-меню на жидком стекле: круглые углы, воздушные отступы.
-const OpenContext = createContext<{ open: boolean; setOpen: (v: boolean) => void }>({
+// Контент живёт в портале (document.body) и позиционируется от триггера —
+// поэтому его не обрезают overflow:hidden ancestors (карточки и т.п.).
+const OpenContext = createContext<{
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  anchor: HTMLElement | null;
+  setAnchor: (el: HTMLElement | null) => void;
+}>({
   open: false,
   setOpen: () => {},
+  anchor: null,
+  setAnchor: () => {},
 });
 
 export interface DropdownMenuProps extends React.HTMLAttributes<HTMLDivElement> {}
@@ -14,6 +31,7 @@ export interface DropdownMenuProps extends React.HTMLAttributes<HTMLDivElement> 
 export const DropdownMenu = forwardRef<HTMLDivElement, DropdownMenuProps>(
   ({ className, children, ...props }, ref) => {
     const [open, setOpen] = useState(false);
+    const [anchor, setAnchor] = useState<HTMLElement | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -33,7 +51,7 @@ export const DropdownMenu = forwardRef<HTMLDivElement, DropdownMenuProps>(
     }, [open]);
 
     return (
-      <OpenContext.Provider value={{ open, setOpen }}>
+      <OpenContext.Provider value={{ open, setOpen, anchor, setAnchor }}>
         <div
           ref={node => {
             (rootRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
@@ -55,9 +73,10 @@ export const DropdownMenuTrigger = forwardRef<
   HTMLButtonElement,
   React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
 >(({ className, children, asChild, onClick, ...props }, ref) => {
-  const { open, setOpen } = useContext(OpenContext);
+  const { open, setOpen, setAnchor } = useContext(OpenContext);
   const toggle = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    setAnchor(e.currentTarget);
     setOpen(!open);
     onClick?.(e);
   };
@@ -68,6 +87,7 @@ export const DropdownMenuTrigger = forwardRef<
         className={cn('inline-flex', className)}
         onClick={e => {
           e.stopPropagation();
+          setAnchor(e.currentTarget as unknown as HTMLElement);
           setOpen(!open);
         }}
       >
@@ -93,17 +113,57 @@ export const DropdownMenuContent = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { align?: 'start' | 'end' }
 >(({ className, align = 'end', children, ...props }, ref) => {
-  const { open, setOpen } = useContext(OpenContext);
+  const { open, setOpen, anchor } = useContext(OpenContext);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Позиция от якоря: справа/слева под триггером, с клампом к вьюпорту
+  // и переворотом вверх, если внизу нет места
+  useEffect(() => {
+    if (!open || !anchor) return;
+    const place = () => {
+      const r = anchor.getBoundingClientRect();
+      const el = innerRef.current;
+      const w = el?.offsetWidth ?? 240;
+      const h = el?.offsetHeight ?? 0;
+      let left = align === 'end' ? r.right - w : r.left;
+      left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+      let top = r.bottom + 8;
+      if (h > 0 && top + h > window.innerHeight - 8) {
+        top = Math.max(8, r.top - h - 8);
+      }
+      setPos(prev => (prev?.top === top && prev?.left === left ? prev : { top, left }));
+    };
+    place();
+    const raf = requestAnimationFrame(place);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open, anchor, align, children]);
+
   if (!open) return null;
-  return (
+  return createPortal(
     <div
-      ref={ref}
+      ref={node => {
+        (innerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        if (typeof ref === 'function') ref(node);
+        else if (ref)
+          (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       className={cn(
-        'liquid-glass absolute z-50 min-w-[220px] rounded-2xl p-1.5 shadow-xl animate-scale-in',
-        align === 'end' ? 'right-0' : 'left-0',
-        'top-[calc(100%+8px)]',
+        'liquid-glass fixed z-[130] min-w-[220px] rounded-2xl p-1.5 shadow-xl animate-scale-in',
         className
       )}
+      style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+      onMouseDown={e => {
+        // Контент в портале (вне rootRef): не даём документному обработчику
+        // закрыть меню до клика по пункту
+        e.stopPropagation();
+      }}
       onClick={e => {
         e.stopPropagation();
         setOpen(false);
@@ -111,7 +171,8 @@ export const DropdownMenuContent = forwardRef<
       {...props}
     >
       {children}
-    </div>
+    </div>,
+    document.body
   );
 });
 DropdownMenuContent.displayName = 'DropdownMenuContent';

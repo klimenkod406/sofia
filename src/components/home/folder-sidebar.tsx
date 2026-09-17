@@ -8,9 +8,10 @@ interface FolderDockProps {
   folders: FolderType[];
   currentFolderId: string | null;
   onSelect: (filter: { folderId: string | null }) => void;
-  /** DnD: сброс заметки на чип папки перемещает её туда */
-  onNoteDropOnFolder?: (folderId: string | null) => void;
   counts?: Record<string, number>;
+  /** Перетаскивание: идёт ли сейчас + какой чип под курсором (d:<id>) */
+  dragging?: boolean;
+  dropTargetId?: string | null;
 }
 
 /**
@@ -21,8 +22,9 @@ export function FolderDock({
   folders,
   currentFolderId,
   onSelect,
-  onNoteDropOnFolder,
   counts,
+  dragging = false,
+  dropTargetId = null,
 }: FolderDockProps) {
   if (folders.length === 0) return null;
 
@@ -39,15 +41,10 @@ export function FolderDock({
       onClick={onClick}
       className="folder-chip"
       data-active={active ? 'true' : 'false'}
-      onDragOver={e => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-      }}
-      onDrop={e => {
-        e.preventDefault();
-        e.stopPropagation();
-        onNoteDropOnFolder?.(folderId);
-      }}
+      data-dock-folder-id={folderId ?? '__all__'}
+      data-drop-target={
+        dragging && dropTargetId === `d:${folderId ?? '__all__'}` ? 'true' : undefined
+      }
       aria-pressed={active}
     >
       {icon}

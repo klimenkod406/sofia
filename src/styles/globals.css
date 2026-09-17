@@ -543,9 +543,10 @@
     transform: scale(1.04);
     border-color: hsl(var(--primary) / 0.6);
   }
+  /* Тянутую карточку не бледним — едет сама, целиком, поверх остальных */
   .note-card[data-dragging='true'] {
-    opacity: 0.55;
-    transform: scale(0.97) rotate(1.5deg);
+    opacity: 1;
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.32);
   }
 
   /* Анимация рождения папки (п.8) */
@@ -580,6 +581,14 @@
     background: hsl(var(--primary) / 0.22);
     color: hsl(var(--foreground));
     border-color: hsl(var(--primary) / 0.35);
+  }
+  /* Чип — цель сброса: пульс + приподнятие, видно издалека */
+  .folder-chip[data-drop-target='true'] {
+    background: hsl(var(--primary) / 0.3);
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--primary) / 0.6);
+    transform: translateY(-2px) scale(1.04);
+    box-shadow: 0 6px 20px rgba(87, 80, 70, 0.25);
   }
 
   .folder-tree {

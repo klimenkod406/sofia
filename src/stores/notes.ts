@@ -3,6 +3,27 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 
+// Tauri v2 маппит аргументы команд: верхнеуровневые ключи — camelCase
+// (noteId, folderId), вложенные структуры (filter, request, options) —
+// как объявлены в Rust (snake_case). snake_case сверху молча дропается:
+// Option становится None, а обязательный String роняет вызов с
+// "missing required key". Не возвращать snake_case!
+function isTauri(): boolean {
+  if (typeof window === 'undefined') return false;
+  const w = window as unknown as Record<string, unknown>;
+  return '__TAURI_INTERNALS__' in w || '__TAURI__' in w;
+}
+
+function localId(prefix: string): string {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+      return `${prefix}-${crypto.randomUUID()}`;
+  } catch {
+    /* ignore */
+  }
+  return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+}
+
 export interface Note {
   id: string;
   folder_id: string | null;
@@ -134,7 +155,7 @@ export const useNotes = create<NotesState>((set, get) => ({
 
   loadFolders: async () => {
     try {
-      const folders = (await invoke('list_folders', { parent_id: null })) as Folder[];
+      const folders = (await invoke('list_folders', { parentId: null })) as Folder[];
       set({ folders });
     } catch (error) {
       console.error('Failed to load folders:', error);
@@ -143,7 +164,7 @@ export const useNotes = create<NotesState>((set, get) => ({
 
   loadTags: async () => {
     try {
-      const tags = (await invoke('list_tags', { include_system: true })) as Tag[];
+      const tags = (await invoke('list_tags', { includeSystem: true })) as Tag[];
       set({ tags });
     } catch (error) {
       console.error('Failed to load tags:', error);
@@ -156,7 +177,7 @@ export const useNotes = create<NotesState>((set, get) => ({
     const folder_id = folderId ?? null;
     const noteTitle = title ?? 'Новая заметка';
     try {
-      const note = (await invoke('create_note', { folder_id, title: noteTitle })) as Note;
+      const note = (await invoke('create_note', { folderId: folder_id, title: noteTitle })) as Note;
       set(state => ({ notes: [note, ...state.notes] }));
       return note;
     } catch (e) {
@@ -283,10 +304,21 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   moveNote: async (noteId, folderId) => {
-    await invoke('move_note', { note_id: noteId, folder_id: folderId });
+    // Оптимистично — перетаскивание должно отзываться сразу.
     set(state => ({
       notes: state.notes.map(n => (n.id === noteId ? { ...n, folder_id: folderId } : n)),
+      currentNote:
+        state.currentNote?.id === noteId
+          ? { ...state.currentNote, folder_id: folderId }
+          : state.currentNote,
     }));
+    if (!isTauri() || noteId.startsWith('local-')) return;
+    try {
+      await invoke('move_note', { noteId, folderId });
+    } catch (e) {
+      console.error('moveNote backend failed (kept locally):', e);
+      throw e;
+    }
   },
 
   duplicateNote: async id => {
@@ -296,9 +328,32 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   createFolder: async (name, parentId) => {
-    const folder = (await invoke('create_folder', { name, parent_id: parentId })) as Folder;
-    set(state => ({ folders: [...state.folders, folder] }));
-    return folder;
+    const parent_id = parentId ?? null;
+    try {
+      const folder = (await invoke('create_folder', { name, parentId: parent_id })) as Folder;
+      set(state => ({ folders: [...state.folders, folder] }));
+      return folder;
+    } catch (e) {
+      // Fallback для чистого браузера: папка живёт в памяти.
+      if (!isTauri()) {
+        const now = new Date().toISOString();
+        const local: Folder = {
+          id: localId('folder'),
+          name,
+          parent_id,
+          color: '#B49C7D',
+          icon: 'folder',
+          sort_order: get().folders.length,
+          is_system: false,
+          created_at: now,
+          updated_at: now,
+        };
+        set(state => ({ folders: [...state.folders, local] }));
+        return local;
+      }
+      console.error('createFolder failed:', e);
+      throw e;
+    }
   },
 
   updateFolder: async folder => {
@@ -309,7 +364,27 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   deleteFolder: async (id, recursive = false) => {
-    await invoke('delete_folder', { id, recursive });
+    try {
+      await invoke('delete_folder', { id, recursive });
+    } catch (e) {
+      // Fallback для чистого браузера: та же семантика локально —
+      // recursive забирает заметки с собой, иначе они возвращаются на главную.
+      if (!isTauri()) {
+        set(state => ({
+          folders: state.folders.filter(f => f.id !== id),
+          notes: recursive
+            ? state.notes.map(n =>
+                n.folder_id === id ? { ...n, is_deleted: true } : n
+              )
+            : state.notes.map(n =>
+                n.folder_id === id ? { ...n, folder_id: null } : n
+              ),
+        }));
+        return;
+      }
+      console.error('deleteFolder failed:', e);
+      throw e;
+    }
     set(state => ({
       folders: state.folders.filter(f => f.id !== id),
     }));
@@ -322,13 +397,13 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   addTagToNote: async (noteId, tagId) => {
-    await invoke('add_tag_to_note', { note_id: noteId, tag_id: tagId });
+    await invoke('add_tag_to_note', { noteId, tagId });
     // Refresh tags
     get().loadTags();
   },
 
   removeTagFromNote: async (noteId, tagId) => {
-    await invoke('remove_tag_from_note', { note_id: noteId, tag_id: tagId });
+    await invoke('remove_tag_from_note', { noteId, tagId });
     get().loadTags();
   },
 }));

@@ -11,6 +11,9 @@ mod commands;
 mod db;
 mod services;
 
+#[cfg(test)]
+mod merge_flow_test;
+
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;

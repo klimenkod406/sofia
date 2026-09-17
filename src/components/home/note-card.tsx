@@ -29,15 +29,9 @@ interface NoteCardProps {
   note: Note;
   onClick: () => void;
   variant?: 'default' | 'ghost';
-  /** HTML5 DnD: карточка перетаскиваемая (п.8) */
-  draggable?: boolean;
+  /** Подсветка: карточку тянут / над ней держат другую карточку */
   isDropTarget?: boolean;
   isDragging?: boolean;
-  onNoteDragStart?: (note: Note) => void;
-  onNoteDragEnd?: () => void;
-  onNoteDragOver?: (note: Note) => void;
-  onNoteDragLeave?: () => void;
-  onNoteDrop?: (target: Note) => void;
   // Действия — единые для «…» и ПКМ-меню (п.10)
   onPin?: (note: Note) => void;
   onFavorite?: (note: Note) => void;
@@ -51,14 +45,8 @@ export function NoteCard({
   note,
   onClick,
   variant = 'default',
-  draggable = false,
   isDropTarget = false,
   isDragging = false,
-  onNoteDragStart,
-  onNoteDragEnd,
-  onNoteDragOver,
-  onNoteDragLeave,
-  onNoteDrop,
   onPin,
   onFavorite,
   onArchive,
@@ -147,39 +135,21 @@ export function NoteCard({
       onKeyDown={e => e.key === 'Enter' && onClick()}
       role="button"
       aria-label={note.title}
-      draggable={draggable}
       data-drop-target={isDropTarget ? 'true' : undefined}
       data-dragging={isDragging ? 'true' : undefined}
-      onDragStart={e => {
-        e.dataTransfer.setData('text/note-id', note.id);
-        e.dataTransfer.effectAllowed = 'move';
-        onNoteDragStart?.(note);
-      }}
-      onDragEnd={onNoteDragEnd}
-      onDragOver={e => {
-        if (!draggable) return;
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        onNoteDragOver?.(note);
-      }}
-      onDragLeave={onNoteDragLeave}
-      onDrop={e => {
-        e.preventDefault();
-        e.stopPropagation();
-        onNoteDrop?.(note);
-      }}
       onContextMenu={e => {
         e.preventDefault();
         e.stopPropagation();
         setCtx({ x: e.clientX, y: e.clientY });
       }}
-      title="Перетащите на другую заметку, чтобы создать папку"
+      title="Потяните, чтобы переместить · отпустите на другой заметке, чтобы создать папку"
     >
       {note.cover_image && (
         <div className="note-card-cover relative">
           <img
             src={note.cover_image}
             alt=""
+            draggable={false}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
