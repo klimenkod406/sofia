@@ -28,8 +28,9 @@
     --ring: 32 26% 62%;
     --radius: 1.25rem;
 
-    /* Гибкие границы чёлки (п.6): радиус и отступы анимируются */
-    --notch-radius-bottom: 1.5rem;
+    /* Гибкие границы шапки (п.6): переменные оставлены под будущие
+       hover-анимации. Сейчас шапка — строгий прямоугольник (радиус 0). */
+    --notch-radius-bottom: 0rem;
     --notch-pad-x: 1rem;
   }
 
@@ -63,10 +64,16 @@
     @apply border-border;
   }
   html {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
   body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
     @apply bg-background text-foreground;
     font-family: 'Onest', 'Manrope', system-ui, sans-serif;
     font-feature-settings:
@@ -181,39 +188,48 @@
     transform: translateY(-2px);
   }
 
-  /* 6. Навигационная «чёлка»: приклеена к верху без отступа,
-     на всю ширину. Нижние углы и паддинги — через переменные,
-     чтобы будущие hover-анимации кнопок могли их гибко менять. */
+  /* Единое стекло верхней зоны: полоса окна (TitleBar, .titlebar-glass)
+     и шапка-плашка (.top-notch) — одна поверхность. Градиенты состыкованы
+     на стыке (0.60 → 0.60), блюр/насыщенность одинаковые — шва не видно. */
+  .titlebar-glass {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.68), hsl(var(--card) / 0.6));
+    backdrop-filter: blur(40px) saturate(1.4);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  }
+
+  /* 6. Верхняя шапка-плашка: прямоугольник строго по центру верха,
+     пришит к верхней кромке (без зазора), по бокам — пусто.
+     Лежит ПОВЕРХ основного контента (fixed): лента при скролле уходит
+     под неё по центру, а слева/справа доходит до самого верха и не
+     обрезается. Верхние углы прямые (пришито), нижние — через переменную. */
   .top-notch {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 50;
-    width: 100%;
-    margin: 0;
+    width: max-content;
+    max-width: calc(100% - 2rem);
     padding-left: var(--notch-pad-x);
     padding-right: var(--notch-pad-x);
-    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
-    border-bottom-left-radius: var(--notch-radius-bottom);
-    border-bottom-right-radius: var(--notch-radius-bottom);
-    background: linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.68));
-    backdrop-filter: blur(28px) saturate(1.8);
-    -webkit-backdrop-filter: blur(28px) saturate(1.8);
-    box-shadow:
-      0 12px 40px rgba(87, 80, 70, 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    border-top: none;
+    border-radius: 0 0 var(--notch-radius-bottom) var(--notch-radius-bottom);
+    /* Слитно с полосой окна: продолжение её градиента (старт 0.60 —
+       ровно там, где полоса заканчивается), тот же блюр. Без тени. */
+    background: linear-gradient(180deg, hsl(var(--card) / 0.6), hsl(var(--card) / 0.52));
+    backdrop-filter: blur(40px) saturate(1.4);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    box-shadow: none;
     transition:
-      border-bottom-left-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      border-bottom-right-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+      border-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
       padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
       background 0.3s ease,
-      box-shadow 0.3s ease,
-      transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow 0.3s ease;
   }
   .dark .top-notch {
-    border-bottom-color: rgba(255, 255, 255, 0.08);
-    box-shadow:
-      0 12px 40px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: none;
   }
 
   /* Оверлейная подпись кнопок чёлки: всплывает под кнопкой при наведении.
@@ -246,7 +262,12 @@
   }
 
   .notch-inner {
-    @apply mx-auto flex w-full max-w-5xl items-center gap-3 px-2 py-3;
+    @apply flex w-max max-w-full items-center gap-2 px-2 py-2;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .notch-inner::-webkit-scrollbar {
+    display: none;
   }
 
   /* Кнопки чёлки: только иконки (квадрат 40px), гибкие границы
@@ -292,6 +313,32 @@
   .notch-btn-accent:hover {
     color: hsl(var(--primary-foreground));
     background: hsl(var(--primary));
+  }
+
+  /* Фиксированный правый угол: тема + создание без подложки и отступов —
+     голые иконки на одном уровне с кнопками шапки. top выставляется
+     инлайном (та же линия, что ряд кнопок в шапке). */
+  .notch-actions {
+    position: fixed;
+    right: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  /* Угол у правого края: подсказки равняем по правому краю кнопки,
+     чтобы не уезжали за экран. */
+  .notch-actions .notch-tip {
+    left: auto;
+    right: 0;
+    transform: translate(0, -4px);
+  }
+  .notch-actions .notch-btn:hover .notch-tip,
+  .notch-actions .notch-btn:focus-visible .notch-tip {
+    transform: translate(0, 0);
   }
 
   /* 2. Центрированная архитектура: весь контент — в средней колонке */

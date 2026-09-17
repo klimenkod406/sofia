@@ -196,7 +196,7 @@ export function HomePage() {
   const activeSort = `${filter.sortBy}:${filter.sortOrder}`;
 
   return (
-    <div className="flex h-full flex-col gap-5">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-5">
       {/* Центрированный заголовок */}
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
@@ -210,8 +210,8 @@ export function HomePage() {
       </div>
 
       {/* Центрированный поиск + меню «…» (п.10: всё второстепенное — в меню) */}
-      <div className="mx-auto flex w-full max-w-xl items-center gap-2.5">
-        <div className="relative flex-1">
+      <div className="mx-auto flex w-full min-w-0 max-w-xl items-center gap-2.5">
+        <div className="relative min-w-0 flex-1">
           <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Найти заметку…"
@@ -300,7 +300,7 @@ export function HomePage() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
             {/* Папки — карточки в том же пространстве */}
             {visibleFolders.map(folder => {
               const count = counts[folder.id] ?? 0;

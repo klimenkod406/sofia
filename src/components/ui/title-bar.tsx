@@ -86,8 +86,7 @@ export function TitleBar() {
     <header
       data-tauri-drag-region
       onDoubleClick={toggleMaximize}
-      className="relative z-40 flex h-9 shrink-0 select-none items-center gap-2 bg-card/60 pl-3 pr-1 backdrop-blur-2xl"
-      style={{ background: 'hsl(var(--card) / 0.6)' }}
+      className="titlebar-glass relative z-40 flex h-9 shrink-0 select-none items-center gap-2 pl-3 pr-1"
       aria-label="Window title bar"
     >
       {/* Left: app mark (draggable) */}

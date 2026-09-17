@@ -18,7 +18,7 @@ const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.
 
 function App() {
   return (
-    <div className="relative flex h-full flex-col bg-background">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background">
       {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
         <div
@@ -40,7 +40,7 @@ function App() {
       <SidebarNav />
 
       {/* Центральная сцена */}
-      <main className="relative flex-1 overflow-hidden">
+      <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />

@@ -238,9 +238,9 @@ export function EditorPage() {
   if (!tiptapEditor || !currentNote || currentNote.id !== noteId) return <LoadingSpinner />;
 
   return (
-    <div className="flex h-full flex-col gap-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
       {/* Возврат домой: единственный путь входа — через главную, туда же и выходим */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Все заметки
@@ -263,9 +263,9 @@ export function EditorPage() {
       <EditorToolbar editor={tiptapEditor} />
 
       {/* Main Editor Area */}
-      <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
             <EditorContent editor={tiptapEditor} />
           </div>
 
