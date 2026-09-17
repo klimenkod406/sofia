@@ -216,33 +216,43 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Состояния чёлки для анимаций раскрытия/сжатия (п.3) */
-  .top-notch[data-collapsed='true'] {
-    --notch-radius-bottom: 1rem;
-  }
-  .top-notch[data-collapsed='true'] .notch-label {
-    max-width: 0;
-    opacity: 0;
-    margin: 0;
-  }
-  .notch-label {
-    max-width: 120px;
-    overflow: hidden;
+  /* Оверлейная подпись кнопок чёлки: всплывает под кнопкой при наведении.
+     В потоке её нет — чёлка всегда компактная (только иконки). */
+  .notch-tip {
+    position: absolute;
+    left: 50%;
+    top: calc(100% + 10px);
+    transform: translate(-50%, -4px);
+    padding: 6px 10px;
+    border-radius: 0.75rem;
+    font-size: 12px;
+    line-height: 1.2;
     white-space: nowrap;
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    box-shadow: 0 8px 24px rgba(87, 80, 70, 0.18);
+    opacity: 0;
+    pointer-events: none;
     transition:
-      max-width 0.4s cubic-bezier(0.22, 1, 0.36, 1),
-      opacity 0.3s ease,
-      margin 0.4s ease;
+      opacity 0.2s ease,
+      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    z-index: 60;
+  }
+  .notch-btn:hover .notch-tip,
+  .notch-btn:focus-visible .notch-tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
   }
 
   .notch-inner {
     @apply mx-auto flex w-full max-w-5xl items-center gap-3 px-2 py-3;
   }
 
-  /* Кнопки чёлки: гибкие границы под будущие hover-анимации (п.6).
-     Каждая кнопка анимирует радиус/фон/масштаб независимо. */
+  /* Кнопки чёлки: только иконки (квадрат 40px), гибкие границы
+     под будущие hover-анимации (п.6). Подпись — оверлей .notch-tip. */
   .notch-btn {
-    @apply relative flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium text-muted-foreground;
+    @apply relative flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground;
     font-family: 'Manrope', 'Onest', sans-serif;
     border: 1px solid transparent;
     border-radius: 1rem;
@@ -270,6 +280,18 @@
     border-color: hsl(var(--primary) / 0.35);
     border-radius: 1.25rem;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  /* Акцентная кнопка создания: тёплая заливка вместо inline-стилей */
+  .notch-btn-accent {
+    background: hsl(var(--primary) / 0.9);
+    color: hsl(var(--primary-foreground));
+    box-shadow:
+      0 2px 12px rgba(87, 80, 70, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .notch-btn-accent:hover {
+    color: hsl(var(--primary-foreground));
+    background: hsl(var(--primary));
   }
 
   /* 2. Центрированная архитектура: весь контент — в средней колонке */

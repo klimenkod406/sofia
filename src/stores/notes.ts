@@ -70,7 +70,7 @@ interface NotesState {
   loadNotes: () => Promise<void>;
   loadFolders: () => Promise<void>;
   loadTags: () => Promise<void>;
-  createNote: (folderId?: string, title?: string) => Promise<Note>;
+  createNote: (folderId?: string | null, title?: string) => Promise<Note>;
   getNote: (id: string) => Promise<Note | null>;
   updateNote: (note: Partial<Note> & { id: string }) => Promise<void>;
   deleteNote: (id: string, permanent?: boolean) => Promise<void>;
@@ -151,9 +151,55 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   createNote: async (folderId, title) => {
-    const note = (await invoke('create_note', { folder_id: folderId, title })) as Note;
-    set(state => ({ notes: [note, ...state.notes] }));
-    return note;
+    // Backend ждёт Option<String> — шлём явный null, а не undefined,
+    // иначе Tauri-сериализация может дропнуть ключ и поведение нестабильно.
+    const folder_id = folderId ?? null;
+    const noteTitle = title ?? 'Новая заметка';
+    try {
+      const note = (await invoke('create_note', { folder_id, title: noteTitle })) as Note;
+      set(state => ({ notes: [note, ...state.notes] }));
+      return note;
+    } catch (e) {
+      // Fallback для чистого браузера (`npm run dev` без Tauri):
+      // backend недоступен, но кнопка обязана работать — создаём локальную заметку.
+      if (typeof window !== 'undefined') {
+        const w = window as unknown as Record<string, unknown>;
+        const inTauri = '__TAURI_INTERNALS__' in w || '__TAURI__' in w;
+        if (!inTauri) {
+          const now = new Date().toISOString();
+          const local: Note = {
+            id:
+              typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                ? crypto.randomUUID()
+                : `local-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            folder_id,
+            title: noteTitle,
+            content: '',
+            content_md: '',
+            content_html: '',
+            excerpt: '',
+            word_count: 0,
+            char_count: 0,
+            reading_time: 0,
+            is_pinned: false,
+            is_archived: false,
+            is_deleted: false,
+            is_favorite: false,
+            cover_image: null,
+            cover_color: null,
+            template_id: null,
+            created_at: now,
+            updated_at: now,
+            deleted_at: null,
+            last_edited_at: now,
+          };
+          set(state => ({ notes: [local, ...state.notes] }));
+          return local;
+        }
+      }
+      console.error('createNote failed:', e);
+      throw e;
+    }
   },
 
   getNote: async id => {
@@ -161,12 +207,32 @@ export const useNotes = create<NotesState>((set, get) => ({
   },
 
   updateNote: async note => {
-    await invoke('update_note', { request: note });
+    const now = new Date().toISOString();
+    // Оптимистично обновляем локально, чтобы автосейв никогда не терял ввод,
+    // даже если backend недоступен или медленный.
     set(state => ({
-      notes: state.notes.map(n => (n.id === note.id ? { ...n, ...note } : n)),
+      notes: state.notes.map(n =>
+        n.id === note.id ? { ...n, ...note, updated_at: now, last_edited_at: now } : n
+      ),
       currentNote:
-        state.currentNote?.id === note.id ? { ...state.currentNote, ...note } : state.currentNote,
+        state.currentNote?.id === note.id
+          ? { ...state.currentNote, ...note, updated_at: now, last_edited_at: now }
+          : state.currentNote,
     }));
+    // Локальные заметки браузерного fallback (npm run dev без Tauri) живут
+    // только в памяти — вызывать backend для них не нужно.
+    if (note.id.startsWith('local-')) return;
+    if (typeof window !== 'undefined') {
+      const w = window as unknown as Record<string, unknown>;
+      const inTauri = '__TAURI_INTERNALS__' in w || '__TAURI__' in w;
+      if (!inTauri) return;
+    }
+    try {
+      await invoke('update_note', { request: note });
+    } catch (e) {
+      console.error('updateNote backend failed (kept locally):', e);
+      throw e;
+    }
   },
 
   deleteNote: async (id, permanent = false) => {

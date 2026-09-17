@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/utils/cn';
+import { toast } from '@/hooks/use-toast';
 
 const sortOptions = [
   { value: 'updated_at:desc', label: 'Сначала недавние' },
@@ -134,8 +135,14 @@ export function HomePage() {
     if (creating) return;
     setCreating(true);
     try {
-      const note = await createNote(filter.folderId ?? undefined, 'Новая заметка');
+      const note = await createNote(filter.folderId ?? null, 'Новая заметка');
       navigate(`/editor/${note.id}`);
+    } catch (e) {
+      console.error('create note failed', e);
+      toast({
+        title: 'Не получилось создать заметку',
+        description: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setCreating(false);
     }

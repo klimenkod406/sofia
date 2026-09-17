@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -22,16 +22,75 @@ import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import { EditorStatusBar } from '@/components/editor/editor-status-bar';
 import { AIChatOverlay } from '@/components/ai/ai-chat-overlay';
 import { Button } from '@/components/ui/button';
-import { Sparkles, Mic } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Sparkles, Mic, ArrowLeft } from 'lucide-react';
 
 export function EditorPage() {
-  const { noteId } = useParams<{ noteId?: string }>();
+  const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
-  const { currentNote, setCurrentNote, createNote, updateNote } = useNotes();
+  const { currentNote, setCurrentNote, updateNote } = useNotes();
   const { font, editor: editorSettings } = useSettings();
   const [isSaving, setIsSaving] = useState(false);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [notFound, setNotFound] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const isSavingRef = useRef(false);
+  // Всё изменяемое — через ref'ы: onUpdate в useEditor регистрируется один раз
+  // при монтировании, замыкание на state было бы протухшим (это и ломало сейв).
+  const noteRef = useRef<Note | null>(null);
+  const settingsRef = useRef(editorSettings);
+  const updateRef = useRef(updateNote);
+  const pendingRef = useRef<{ html: string; text: string } | null>(null);
+  const loadedIdRef = useRef<string | null>(null);
+  noteRef.current = currentNote;
+  settingsRef.current = editorSettings;
+  updateRef.current = updateNote;
+
+  const doSave = async (html: string, text: string) => {
+    const note = noteRef.current;
+    if (!note || isSavingRef.current) return;
+    isSavingRef.current = true;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      await updateRef.current({
+        id: note.id,
+        content: text,
+        content_md: text,
+        content_html: html,
+      });
+    } catch (e) {
+      console.error('autosave failed', e);
+      setSaveError(e instanceof Error ? e.message : String(e));
+    } finally {
+      isSavingRef.current = false;
+      setIsSaving(false);
+    }
+  };
+
+  const scheduleSave = (html: string, text: string) => {
+    pendingRef.current = { html, text };
+    if (!settingsRef.current.autoSave) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    const delay = Math.max(500, settingsRef.current.autoSaveInterval || 2000);
+    saveTimeoutRef.current = setTimeout(() => {
+      const p = pendingRef.current;
+      pendingRef.current = null;
+      if (p) void doSave(p.html, p.text);
+    }, delay);
+  };
+
+  const flushSave = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = undefined;
+    }
+    const p = pendingRef.current;
+    pendingRef.current = null;
+    if (p) void doSave(p.html, p.text);
+  };
 
   // Initialize Tiptap editor
   const tiptapEditor = useEditor({
@@ -68,64 +127,56 @@ export function EditorPage() {
       },
     },
     onUpdate: ({ editor }) => {
-      // Auto-save
-      if (editorSettings.autoSave && currentNote) {
-        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-        saveTimeoutRef.current = setTimeout(() => {
-          void handleSave(editor.getHTML(), editor.getText(), editor.getText());
-        }, editorSettings.autoSaveInterval);
-      }
+      // Колбэк живёт с монтирования — внутри только ref-безопасный scheduleSave.
+      scheduleSave(editor.getHTML(), editor.getText());
     },
     onCreate: ({ editor }) => {
       editor.commands.focus();
     },
   });
 
-  // Load note when noteId changes
+  // Вход в редактор — только с существующим id (создание происходит
+  // на главной / в чёлке с немедленным переходом на /editor/:id).
+  // Пустой «области для печати» без заметки больше нет.
   useEffect(() => {
-    if (noteId) {
-      if (noteId === 'new') {
-        void handleNewNote();
-      } else {
-        void loadNote(noteId);
-      }
-    }
+    if (!noteId) return;
+    setNotFound(false);
+    setLoadError(null);
+    setSaveError(null);
+    loadedIdRef.current = null;
+    void loadNote(noteId);
+    return () => {
+      // Уходим со страницы — досохраняем недосохранённое.
+      flushSave();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
 
-  const loadNote = async (id: string) => {
-    const note = (await invoke('get_note', { id })) as unknown as Note | null;
-    if (note) {
-      setCurrentNote(note);
-      tiptapEditor?.commands.setContent(
-        (note as unknown as Record<string, string>).content_html || '',
-        false
-      );
+  // Контент подставляем, когда ГОТОВЫ ОБА: редактор и загруженная заметка
+  // (раньше loadNote мог сработать до готовности редактора и текст терялся).
+  useEffect(() => {
+    if (
+      tiptapEditor &&
+      currentNote &&
+      currentNote.id === noteId &&
+      loadedIdRef.current !== currentNote.id
+    ) {
+      loadedIdRef.current = currentNote.id;
+      tiptapEditor.commands.setContent(currentNote.content_html || '', false);
     }
-  };
+  }, [tiptapEditor, currentNote, noteId]);
 
-  const handleNewNote = async () => {
-    const note = await createNote();
-    setCurrentNote(note);
-    navigate(`/editor/${note.id}`, { replace: true });
-    tiptapEditor?.commands.setContent('', false);
-  };
-
-  const handleSave = async (html: string, text: string, markdown: string) => {
-    if (!currentNote || isSaving) return;
-
-    setIsSaving(true);
+  const loadNote = async (id: string) => {
     try {
-      await updateNote({
-        id: currentNote.id,
-        content: text,
-        content_md: markdown,
-        content_html: html,
-      });
-    } catch (error) {
-      console.error('Failed to save note:', error);
-    } finally {
-      setIsSaving(false);
+      const note = (await invoke('get_note', { id })) as unknown as Note | null;
+      if (note) {
+        setCurrentNote(note);
+      } else {
+        setNotFound(true);
+      }
+    } catch (e) {
+      console.error('load note failed', e);
+      setLoadError(e instanceof Error ? e.message : String(e));
     }
   };
 
@@ -134,8 +185,14 @@ export function EditorPage() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        if (tiptapEditor && currentNote) {
-          void handleSave(tiptapEditor.getHTML(), tiptapEditor.getText(), tiptapEditor.getText());
+        if (tiptapEditor && noteRef.current) {
+          // Ctrl+S — сохранить немедленно, не ждать дебаунс
+          if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+            saveTimeoutRef.current = undefined;
+          }
+          pendingRef.current = null;
+          void doSave(tiptapEditor.getHTML(), tiptapEditor.getText());
         }
       }
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -146,13 +203,62 @@ export function EditorPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tiptapEditor, currentNote]);
+  }, [tiptapEditor]);
 
-  if (!tiptapEditor) return null;
+  if (!noteId) return <Navigate to="/home" replace />;
+
+  if (notFound) {
+    return (
+      <div className="liquid-glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl p-10 text-center">
+        <h3 className="font-display text-lg font-bold">Заметка не найдена</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Возможно, она была удалена. Вернитесь на главную и откройте другую.
+        </p>
+        <Button onClick={() => navigate('/home')} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          На главную
+        </Button>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="liquid-glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl p-10 text-center">
+        <h3 className="font-display text-lg font-bold">Не получилось открыть заметку</h3>
+        <p className="text-sm leading-relaxed text-muted-foreground">{loadError}</p>
+        <Button onClick={() => navigate('/home')} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          На главную
+        </Button>
+      </div>
+    );
+  }
+
+  if (!tiptapEditor || !currentNote || currentNote.id !== noteId) return <LoadingSpinner />;
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="flex h-full flex-col gap-3">
+      {/* Возврат домой: единственный путь входа — через главную, туда же и выходим */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Все заметки
+        </Button>
+        <span className="truncate font-display text-sm font-bold text-muted-foreground">
+          {currentNote.title || 'Без названия'}
+        </span>
+        {isSaving && (
+          <span className="text-xs text-muted-foreground" role="status">
+            Сохранение…
+          </span>
+        )}
+        {saveError && (
+          <span className="truncate text-xs text-destructive" role="alert" title={saveError}>
+            Не сохранилось: {saveError}
+          </span>
+        )}
+      </div>
       {/* Editor Toolbar */}
       <EditorToolbar editor={tiptapEditor} />
 

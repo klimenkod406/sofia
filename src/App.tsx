@@ -53,13 +53,17 @@ function App() {
               }
             />
             <Route
-              path="/editor/:noteId?"
+              path="/editor/:noteId"
               element={
                 <PageLayout width="narrow">
                   <EditorPage />
                 </PageLayout>
               }
             />
+            {/* Пустого редактора больше нет: вход в заметку только через
+                главную (создание → /editor/:id). Легаси-ссылки уводим домой. */}
+            <Route path="/editor" element={<Navigate to="/home" replace />} />
+            <Route path="/editor/new" element={<Navigate to="/home" replace />} />
             <Route
               path="/calendar"
               element={
