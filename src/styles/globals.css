@@ -29,8 +29,8 @@
     --radius: 1.25rem;
 
     /* Гибкие границы шапки (п.6): переменные оставлены под будущие
-       hover-анимации. Сейчас шапка — строгий прямоугольник (радиус 0). */
-    --notch-radius-bottom: 0rem;
+       hover-анимации. Низ скруглён, верх пришит к кромке. */
+    --notch-radius-bottom: 1.5rem;
     --notch-pad-x: 1rem;
   }
 
@@ -339,6 +339,59 @@
   .notch-actions .notch-btn:hover .notch-tip,
   .notch-actions .notch-btn:focus-visible .notch-tip {
     transform: translate(0, 0);
+  }
+
+  /* Мини-поиск слева от шапки, на одной линии с её кнопками.
+     Живёт в портале (вне трансформируемых предков), top — инлайном. */
+  .home-search {
+    position: fixed;
+    left: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .home-search-box {
+    position: relative;
+  }
+  .home-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+  .home-search-input {
+    height: 40px;
+    width: 9rem;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--card) / 0.6);
+    backdrop-filter: blur(40px);
+    -webkit-backdrop-filter: blur(40px);
+    padding: 0 12px 0 32px;
+    font-size: 13px;
+    color: hsl(var(--foreground));
+  }
+  .home-search-input::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+  .home-search-input:focus {
+    outline: none;
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  @media (min-width: 640px) {
+    .home-search-input {
+      width: 11rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    .home-search-input {
+      width: 14rem;
+    }
   }
 
   /* 2. Центрированная архитектура: весь контент — в средней колонке */

@@ -47,7 +47,7 @@ function App() {
             <Route
               path="/home"
               element={
-                <PageLayout>
+                <PageLayout width="wide">
                   <HomePage />
                 </PageLayout>
               }

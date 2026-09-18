@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
   MoreVertical,
   ArrowUpDown,
+  ArrowLeft,
   Archive,
   FileText,
   Folder as FolderIcon,
@@ -15,9 +17,7 @@ import {
 } from 'lucide-react';
 import { useNotes, type Note, type Folder } from '@/stores/notes';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NoteCard } from '@/components/home/note-card';
-import { FolderDock, FolderCrumbs } from '@/components/home/folder-sidebar';
 import {
   FolderDeleteDialog,
   type FolderDeleteMode,
@@ -63,6 +63,12 @@ export function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  // Мини-поиск живёт слева от шапки (портал): оффсет под TitleBar как у неё
+  const [tauriOffset, setTauriOffset] = useState(0);
+  useEffect(() => {
+    const w = window as unknown as Record<string, unknown>;
+    if ('__TAURI_INTERNALS__' in w || '__TAURI__' in w) setTauriOffset(36);
+  }, []);
 
   // Свободное перетаскивание (п.8): едет САМА карточка за указателем
   // (transform, layout не трогаем), цель подсвечивается в реальном времени.
@@ -136,9 +142,7 @@ export function HomePage() {
 
   const pickDropTarget = (x: number, y: number, ignoreId: string): string | null => {
     const el = document.elementFromPoint(x, y);
-    const t = el?.closest?.(
-      '[data-note-id],[data-folder-id],[data-dock-folder-id]'
-    ) as HTMLElement | null;
+    const t = el?.closest?.('[data-note-id],[data-folder-id]') as HTMLElement | null;
     if (!t) return null;
     if (t.hasAttribute('data-note-id')) {
       const id = t.getAttribute('data-note-id')!;
@@ -147,8 +151,7 @@ export function HomePage() {
       if (isFiled(ignoreId) || isFiled(id)) return null;
       return `n:${id}`;
     }
-    if (t.hasAttribute('data-folder-id')) return `f:${t.getAttribute('data-folder-id')}`;
-    return `d:${t.getAttribute('data-dock-folder-id')}`;
+    return `f:${t.getAttribute('data-folder-id')}`;
   };
 
   const detachDragListeners = () => {
@@ -223,8 +226,7 @@ export function HomePage() {
     const kind = t.slice(0, sep);
     const id = t.slice(sep + 1);
     if (kind === 'n') void mergeNotesToFolder(press.note.id, id);
-    else if (kind === 'f') void moveNoteToFolder(press.note.id, id);
-    else void moveNoteToFolder(press.note.id, id === '__all__' ? null : id);
+    else void moveNoteToFolder(press.note.id, id);
   };
 
   const onDragCancel = () => {
@@ -426,82 +428,22 @@ export function HomePage() {
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
           {currentFolder ? currentFolder.name : 'Мои заметки'}
         </h1>
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
-          {currentFolder
-            ? `${visibleNotes.length} заметок в папке · перетащите заметку сюда или друг на друга`
-            : 'Одно спокойное пространство · перетащите заметку на другую, чтобы создать папку'}
-        </p>
       </div>
 
-      {/* Центрированный поиск + меню «…» (п.10: всё второстепенное — в меню) */}
-      <div className="mx-auto flex w-full min-w-0 max-w-xl items-center gap-2.5">
-        <div className="relative min-w-0 flex-1">
-          <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Найти заметку…"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="!pl-11"
-            aria-label="Поиск заметок"
-          />
+      {/* Лента папок убрана: папки живут карточками в пространстве ниже.
+          Внутри папки — только тонкий возврат назад. */}
+      {currentFolder && (
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-center gap-1.5 text-sm">
+          <button
+            onClick={() => setFilter({ folderId: null })}
+            className="flex items-center gap-1.5 rounded-2xl px-3 py-2 text-muted-foreground transition-all duration-300 hover:bg-accent/70 hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Все заметки
+          </button>
+          <span className="font-display font-bold">{currentFolder.name}</span>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <span>
-              <Button variant="outline" size="icon" aria-label="Вид и сортировка">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </span>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <div className="px-3.5 py-2 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Сортировка
-            </div>
-            {sortOptions.map(o => (
-              <DropdownMenuItem
-                key={o.value}
-                onClick={() => {
-                  const [sortBy, sortOrder] = o.value.split(':');
-                  setFilter({ sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
-                  loadNotes();
-                }}
-              >
-                <ArrowUpDown className="mr-1 h-4 w-4" />
-                {o.label}
-                {activeSort === o.value && <span className="ml-auto">✓</span>}
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setShowArchived(v => !v)}>
-              <Archive className="mr-1 h-4 w-4" />
-              {showArchived ? 'Скрыть архив' : 'Показать архив'}
-              {showArchived && <span className="ml-auto">✓</span>}
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setShowFavoritesOnly(v => !v)}>
-              <Star className="mr-1 h-4 w-4" />
-              {showFavoritesOnly ? 'Все заметки' : 'Только избранное'}
-              {showFavoritesOnly && <span className="ml-auto">✓</span>}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {/* Лента папок по центру (не сайдбар) */}
-      <div className="mx-auto w-full max-w-3xl">
-        <FolderDock
-          folders={folders}
-          currentFolderId={filter.folderId}
-          onSelect={setFilter}
-          counts={counts}
-          dragging={!!draggedNote}
-          dropTargetId={dropTargetId}
-        />
-        {currentFolder && (
-          <div className="mt-3 flex justify-center">
-            <FolderCrumbs folder={currentFolder} onHome={() => setFilter({ folderId: null })} />
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Единое пространство */}
       <div className="flex-1">
@@ -525,7 +467,7 @@ export function HomePage() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [&>*]:min-w-0">
             {/* Папки — карточки в том же пространстве */}
             {visibleFolders.map(folder => {
               const count = counts[folder.id] ?? 0;
@@ -604,8 +546,8 @@ export function HomePage() {
         {draggedNote && (
           <p className="mt-6 text-center text-xs text-muted-foreground" role="status">
             {draggedNote.folder_id
-              ? 'Заметка уже в папке: её можно переместить на папку, чип вверху или пустое место'
-              : 'На другую заметку — создать папку · на папку или чип вверху — переместить · на пустое место — убрать из папки'}
+              ? 'Заметка уже в папке: её можно переместить на папку или пустое место'
+              : 'На другую заметку — создать папку · на папку — переместить · на пустое место — убрать из папки'}
           </p>
         )}
 
@@ -616,6 +558,65 @@ export function HomePage() {
             onCancel={() => setDeletingFolder(null)}
             onConfirm={mode => void confirmDeleteFolder(mode)}
           />
+        )}
+
+        {/* Мини-поиск слева от шапки, на её уровне (портал поверх всего) */}
+        {createPortal(
+          <div className="home-search" style={{ top: tauriOffset + 8 }} role="search">
+            <div className="home-search-box">
+              <Search className="home-search-icon" aria-hidden="true" />
+              <input
+                className="home-search-input"
+                placeholder="Найти…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                aria-label="Поиск заметок"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <span>
+                  <button className="notch-btn group" aria-label="Вид и сортировка">
+                    <MoreVertical className="h-[18px] w-[18px]" aria-hidden="true" />
+                    <span className="notch-tip" aria-hidden="true">
+                      Вид и сортировка
+                    </span>
+                  </button>
+                </span>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                <div className="px-3.5 py-2 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Сортировка
+                </div>
+                {sortOptions.map(o => (
+                  <DropdownMenuItem
+                    key={o.value}
+                    onClick={() => {
+                      const [sortBy, sortOrder] = o.value.split(':');
+                      setFilter({ sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
+                      loadNotes();
+                    }}
+                  >
+                    <ArrowUpDown className="mr-1 h-4 w-4" />
+                    {o.label}
+                    {activeSort === o.value && <span className="ml-auto">✓</span>}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowArchived(v => !v)}>
+                  <Archive className="mr-1 h-4 w-4" />
+                  {showArchived ? 'Скрыть архив' : 'Показать архив'}
+                  {showArchived && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowFavoritesOnly(v => !v)}>
+                  <Star className="mr-1 h-4 w-4" />
+                  {showFavoritesOnly ? 'Все заметки' : 'Только избранное'}
+                  {showFavoritesOnly && <span className="ml-auto">✓</span>}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>,
+          document.body
         )}
       </div>
     </div>
