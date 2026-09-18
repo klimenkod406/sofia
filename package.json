@@ -1,6 +1,6 @@
 {
   "name": "sofia",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Σόφια - Modern note-taking app with AI-powered transcription and analysis",
   "type": "module",
   "scripts": {
