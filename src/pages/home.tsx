@@ -411,37 +411,9 @@ export function HomePage() {
     onArchive: (n: Note) => archiveNote(n.id, !n.is_archived).then(loadNotes).catch(console.error),
     onDuplicate: (n: Note) => duplicateNote(n.id).then(loadNotes).catch(console.error),
     onDelete: (n: Note) => deleteNote(n.id).then(loadNotes).catch(console.error),
-    onMoveToFolder: (n: Note) => {
-      // Из папки — убрать из неё; без папок — создать новую; иначе — в первую.
-      // Всегда с тостом, молчаливых перемещений больше нет.
-      const done = (title: string) => {
-        loadNotes().catch(console.error);
-        toast({ title });
-      };
-      const fail = (e: unknown) => {
-        console.error('move to folder failed', e);
-        toast({
-          title: 'Не получилось переместить',
-          description: e instanceof Error ? e.message : String(e),
-        });
-        loadNotes().catch(console.error);
-      };
-      if (n.folder_id) {
-        moveNote(n.id, null).then(() => done('Заметка убрана из папки')).catch(fail);
-      } else if (folders.length > 0) {
-        const first = folders[0];
-        moveNote(n.id, first.id)
-          .then(() => done(`Перемещено в «${first.name}»`))
-          .catch(fail);
-      } else {
-        createFolder(`Новая папка ${folders.length + 1}`)
-          .then(f => moveNote(n.id, f.id).then(() => f))
-          .then(f => {
-            loadFolders().catch(console.error);
-            done(`Папка создана: ${f.name}`);
-          })
-          .catch(fail);
-      }
+    onPickFolder: (n: Note, folderId: string | null) => {
+      if (folderId === n.folder_id) return;
+      void moveNoteToFolder(n.id, folderId);
     },
   };
 
@@ -615,6 +587,8 @@ export function HomePage() {
                   variant={note.is_archived ? 'ghost' : 'default'}
                   isDragging={draggedNote?.id === note.id}
                   isDropTarget={dropTargetId === `n:${note.id}`}
+                  folders={folders}
+                  folderCounts={counts}
                   {...cardActions}
                 />
                 {note.is_pinned && (

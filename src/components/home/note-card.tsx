@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import {
   MoreHorizontal,
@@ -13,9 +13,13 @@ import {
   Tag,
   Clock,
   FolderInput,
+  Folder as FolderIcon,
+  LayoutGrid,
+  ArrowLeft,
+  Check,
 } from 'lucide-react';
 import { cn, formatRelativeTime, truncate } from '@/utils/cn';
-import { Note } from '@/stores/notes';
+import { Note, type Folder } from '@/stores/notes';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -23,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  useDropdownMenu,
 } from '@/components/ui/dropdown-menu';
 
 interface NoteCardProps {
@@ -38,7 +43,222 @@ interface NoteCardProps {
   onArchive?: (note: Note) => void;
   onDuplicate?: (note: Note) => void;
   onDelete?: (note: Note) => void;
-  onMoveToFolder?: (note: Note) => void;
+  /** Выбор папки из подменю (null — убрать из папки) */
+  onPickFolder?: (note: Note, folderId: string | null) => void;
+  /** Папки для подменю выбора */
+  folders?: Folder[];
+  folderCounts?: Record<string, number>;
+}
+
+/** Строки подменю «Куда переместить»: только существующие папки + убрать. */
+function FolderPickRows({
+  note,
+  folders,
+  counts,
+  onPick,
+  onBack,
+}: {
+  note: Note;
+  folders: Folder[];
+  counts: Record<string, number>;
+  onPick: (folderId: string | null) => void;
+  /** Назад к действиям — только во встраиваемом виде; в боковом окне нет */
+  onBack?: () => void;
+}) {
+  return (
+    <>
+      {onBack && (
+        <>
+          <DropdownMenuItem onClick={onBack}>
+            <ArrowLeft className="w-4 h-4 mr-1" />
+            Все действия
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+        </>
+      )}
+      {note.folder_id && (
+        <DropdownMenuItem onClick={() => onPick(null)}>
+          <LayoutGrid className="w-4 h-4 mr-1" />
+          Убрать из папки
+        </DropdownMenuItem>
+      )}
+      {folders.map(f => (
+        <DropdownMenuItem key={f.id} onClick={() => onPick(f.id)}>
+          <FolderIcon className="w-4 h-4 mr-1 shrink-0" style={{ color: f.color }} />
+          <span className="min-w-0 flex-1 truncate text-left">{f.name}</span>
+          <span className="text-xs text-muted-foreground">{counts[f.id] ?? 0}</span>
+          {f.id === note.folder_id && <Check className="w-4 h-4 shrink-0" />}
+        </DropdownMenuItem>
+      ))}
+      {folders.length === 0 && !note.folder_id && (
+        <div className="px-3.5 py-2 text-sm text-muted-foreground">Папок пока нет</div>
+      )}
+    </>
+  );
+}
+
+/** Ховер-состояние бокового подменю: якорь-строка + ленивое закрытие. */
+function useSubmenu() {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const timer = useRef<number | null>(null);
+
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    []
+  );
+
+  const cancelSubClose = useCallback(() => {
+    if (timer.current !== null) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+  }, []);
+
+  /** Только по нажатию: повторный клик по той же строке закрывает. */
+  const toggleSub = useCallback(
+    (el: HTMLElement) => {
+      cancelSubClose();
+      setAnchor(prev => (prev === el ? null : el));
+    },
+    [cancelSubClose]
+  );
+
+  const scheduleSubClose = useCallback(() => {
+    cancelSubClose();
+    timer.current = window.setTimeout(() => {
+      timer.current = null;
+      setAnchor(null);
+    }, 150);
+  }, [cancelSubClose]);
+
+  const closeSub = useCallback(() => {
+    cancelSubClose();
+    setAnchor(null);
+  }, [cancelSubClose]);
+
+  return useMemo(
+    () => ({ anchor, toggleSub, scheduleSubClose, cancelSubClose, closeSub }),
+    [anchor, toggleSub, scheduleSubClose, cancelSubClose, closeSub]
+  );
+}
+
+/** Второе окно рядом со строкой: первое остаётся открытым. */
+function FolderSubmenu({
+  sub,
+  note,
+  folders,
+  counts,
+  onPick,
+}: {
+  sub: ReturnType<typeof useSubmenu>;
+  note: Note;
+  folders: Folder[];
+  counts: Record<string, number>;
+  onPick: (folderId: string | null) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const { anchor } = sub;
+
+  useEffect(() => {
+    if (!anchor) return;
+    const place = () => {
+      const r = anchor.getBoundingClientRect();
+      const el = ref.current;
+      const w = el?.offsetWidth ?? 240;
+      const h = el?.offsetHeight ?? 0;
+      // Справа от строки с зазором, если не влезает — слева
+      let left = r.right + 12;
+      if (left + w > window.innerWidth - 8) left = Math.max(8, r.left - w - 12);
+      let top = r.top;
+      if (h > 0) top = Math.max(8, Math.min(top, window.innerHeight - h - 8));
+      setPos(prev => (prev?.top === top && prev?.left === left ? prev : { top, left }));
+    };
+    place();
+    const raf = requestAnimationFrame(place);
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [anchor]);
+
+  if (!anchor) return null;
+  return createPortal(
+    <div
+      ref={ref}
+      className="liquid-glass fixed z-[140] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
+      style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
+      role="menu"
+      aria-label="Выбрать папку"
+      onMouseEnter={sub.cancelSubClose}
+      onMouseLeave={sub.scheduleSubClose}
+      onMouseDown={e => e.stopPropagation()}
+    >
+      <FolderPickRows note={note} folders={folders} counts={counts} onPick={onPick} />
+    </div>,
+    document.body
+  );
+}
+
+/** Меню «…» с каскадным подменю выбора папки. */
+function NoteDotsMenu({
+  note,
+  folders,
+  folderCounts,
+  onPickFolder,
+  renderMenuItems,
+}: {
+  note: Note;
+  folders: Folder[];
+  folderCounts: Record<string, number>;
+  onPickFolder: (folderId: string | null) => void;
+  renderMenuItems: (controls: {
+    toggleSub: (anchor: HTMLElement) => void;
+    scheduleSubClose: () => void;
+  }) => ReactNode;
+}) {
+  const { open, setOpen } = useDropdownMenu();
+  const sub = useSubmenu();
+
+  useEffect(() => {
+    if (!open) sub.closeSub();
+  }, [open, sub]);
+
+  return (
+    <>
+      <DropdownMenuTrigger asChild>
+        <span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="!h-8 !w-8 !rounded-xl opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
+            aria-label="Меню заметки"
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </Button>
+        </span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        {renderMenuItems({ toggleSub: sub.toggleSub, scheduleSubClose: sub.scheduleSubClose })}
+      </DropdownMenuContent>
+      <FolderSubmenu
+        sub={sub}
+        note={note}
+        folders={folders}
+        counts={folderCounts}
+        onPick={id => {
+          onPickFolder(id);
+          sub.closeSub();
+          setOpen(false);
+        }}
+      />
+    </>
+  );
 }
 
 export function NoteCard({
@@ -52,18 +272,26 @@ export function NoteCard({
   onArchive,
   onDuplicate,
   onDelete,
-  onMoveToFolder,
+  onPickFolder,
+  folders = [],
+  folderCounts = {},
 }: NoteCardProps) {
   const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
+  const ctxSub = useSubmenu();
   const ctxRef = useRef<HTMLDivElement>(null);
+
+  const closeCtx = useCallback(() => {
+    setCtx(null);
+    ctxSub.closeSub();
+  }, [ctxSub]);
 
   useEffect(() => {
     if (!ctx) return;
     const close = (e: MouseEvent) => {
-      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) setCtx(null);
+      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) closeCtx();
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCtx(null);
+      if (e.key === 'Escape') closeCtx();
     };
     document.addEventListener('mousedown', close);
     document.addEventListener('keydown', onKey);
@@ -71,9 +299,16 @@ export function NoteCard({
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onKey);
     };
-  }, [ctx]);
+  }, [ctx, closeCtx]);
 
-  const menuItems = (
+  const pickFolder = (folderId: string | null) => {
+    onPickFolder?.(note, folderId);
+  };
+
+  const renderMenuItems = (controls: {
+    toggleSub: (anchor: HTMLElement) => void;
+    scheduleSubClose: () => void;
+  }) => (
     <>
       <DropdownMenuItem onClick={() => onClick()}>
         <Edit className="w-4 h-4 mr-1" />
@@ -83,9 +318,12 @@ export function NoteCard({
         <Copy className="w-4 h-4 mr-1" />
         Дублировать
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => onMoveToFolder?.(note)}>
+      <DropdownMenuItem
+        onMouseLeave={() => controls.scheduleSubClose()}
+        onClick={e => controls.toggleSub(e.currentTarget)}
+      >
         <FolderInput className="w-4 h-4 mr-1" />
-        Переместить в папку
+        Переместить в папку…
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={() => onPin?.(note)}>
@@ -168,21 +406,13 @@ export function NoteCard({
               <Star className="w-3.5 h-3.5 opacity-70 fill-current" aria-label="В избранном" />
             )}
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="!h-8 !w-8 !rounded-xl opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-                    aria-label="Меню заметки"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-60">
-                {menuItems}
-              </DropdownMenuContent>
+              <NoteDotsMenu
+                note={note}
+                folders={folders}
+                folderCounts={folderCounts}
+                onPickFolder={pickFolder}
+                renderMenuItems={renderMenuItems}
+              />
             </DropdownMenu>
           </div>
         </div>
@@ -211,12 +441,25 @@ export function NoteCard({
               top: Math.min(ctx.y, window.innerHeight - 320),
             }}
             role="menu"
-            onClickCapture={() => setCtx(null)}
+            onClickCapture={() => closeCtx()}
           >
-            {menuItems}
+            {renderMenuItems({
+              toggleSub: ctxSub.toggleSub,
+              scheduleSubClose: ctxSub.scheduleSubClose,
+            })}
           </div>,
           document.body
         )}
+      <FolderSubmenu
+        sub={ctxSub}
+        note={note}
+        folders={folders}
+        counts={folderCounts}
+        onPick={id => {
+          pickFolder(id);
+          closeCtx();
+        }}
+      />
     </article>
   );
 }

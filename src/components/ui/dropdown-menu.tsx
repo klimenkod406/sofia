@@ -1,4 +1,5 @@
 'use client';
+/* eslint-disable react-refresh/only-export-components */
 
 import { cn } from '@/utils/cn';
 import {
@@ -25,6 +26,11 @@ const OpenContext = createContext<{
   anchor: null,
   setAnchor: () => {},
 });
+
+/** Доступ к состоянию меню изнутри (закрыть после выбора в подменю и т.п.). */
+export function useDropdownMenu() {
+  return useContext(OpenContext);
+}
 
 export interface DropdownMenuProps extends React.HTMLAttributes<HTMLDivElement> {}
 
