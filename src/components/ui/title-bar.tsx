@@ -18,9 +18,10 @@ async function appWindow() {
 /**
  * Custom frameless-window title bar.
  * Rendered only inside Tauri (hidden in plain browser dev).
- * The container is a drag region (`data-tauri-drag-region`) so the
- * borderless window can be moved; buttons opt out implicitly as
- * separate hit-test targets.
+ * Полностью прозрачная: ни заливки, ни названия — только кнопки окна
+ * справа с лёгкой подложкой, чтобы были видны. Вся свободная зона —
+ * drag-регион (`data-tauri-drag-region`), окно таскается за неё;
+ * кнопки — отдельные hit-test цели.
  */
 export function TitleBar() {
   const [tauri, setTauri] = useState(false);
@@ -80,26 +81,17 @@ export function TitleBar() {
   };
 
   const btn =
-    'flex items-center justify-center w-10 h-9 text-muted-foreground transition-colors hover:text-foreground hover:bg-accent focus-visible:outline-none';
+    'flex items-center justify-center w-10 h-9 rounded-lg bg-card/50 text-muted-foreground backdrop-blur-md transition-colors hover:text-foreground hover:bg-accent focus-visible:outline-none';
 
   return (
     <header
       data-tauri-drag-region
       onDoubleClick={toggleMaximize}
-      className="titlebar-glass relative z-40 flex h-9 shrink-0 select-none items-center gap-2 pl-3 pr-1"
+      className="relative z-40 flex h-9 shrink-0 select-none items-center justify-end bg-transparent pr-1"
       aria-label="Window title bar"
     >
-      {/* Left: app mark (draggable) */}
-      <div className="flex items-center gap-2 text-xs font-semibold tracking-wide">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" />
-        <span className="text-muted-foreground">Σόφια</span>
-      </div>
-
-      {/* Center spacer keeps the floating nav pill visually clear */}
-      <div className="flex-1" />
-
-      {/* Window controls */}
-      <div className="flex items-center">
+      {/* Только кнопки окна с лёгкой заливкой */}
+      <div className="flex items-center gap-1">
         <button className={btn} onClick={minimize} title="Свернуть" aria-label="Minimize window">
           <Minus className="h-4 w-4" />
         </button>

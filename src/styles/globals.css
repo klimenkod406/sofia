@@ -188,48 +188,54 @@
     transform: translateY(-2px);
   }
 
-  /* Единое стекло верхней зоны: полоса окна (TitleBar, .titlebar-glass)
-     и шапка-плашка (.top-notch) — одна поверхность. Градиенты состыкованы
-     на стыке (0.60 → 0.60), блюр/насыщенность одинаковые — шва не видно. */
-  .titlebar-glass {
-    background: linear-gradient(180deg, hsl(var(--card) / 0.68), hsl(var(--card) / 0.6));
-    backdrop-filter: blur(40px) saturate(1.4);
-    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+  /* Верхняя зона: два парящих стеклянных островка с отступом от края.
+     - .logo-island — логотип, отдельным островком слева;
+     - .top-notch — навигация по центру: иконки разделов, поиск, тема.
+     Островки видны всегда, никакого разворачивания. Морф-стекло:
+     blur + saturate, градиентная подложка, мягкая тень и внутренняя
+     подсветка сверху. Лежат поверх контента (fixed): лента при скролле
+     уходит под них. */
+  /* Логотип слева — просто надпись без подложек и эффектов. */
+  .logo-island {
+    position: fixed;
+    top: 12px;
+    left: 16px;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
-
-  /* 6. Верхняя шапка-плашка: прямоугольник строго по центру верха,
-     пришит к верхней кромке (без зазора), по бокам — пусто.
-     Лежит ПОВЕРХ основного контента (fixed): лента при скролле уходит
-     под неё по центру, а слева/справа доходит до самого верха и не
-     обрезается. Верхние углы прямые (пришито), нижние — через переменную. */
+  .logo-island .notch-logo:hover {
+    background: transparent;
+  }
   .top-notch {
     position: fixed;
-    top: 0;
+    top: 12px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 50;
     width: max-content;
     max-width: calc(100% - 2rem);
-    padding-left: var(--notch-pad-x);
-    padding-right: var(--notch-pad-x);
+    padding: 0.5rem var(--notch-pad-x);
     border: 1px solid hsl(var(--foreground) / 0.08);
-    border-top: none;
-    border-radius: 0 0 var(--notch-radius-bottom) var(--notch-radius-bottom);
-    /* Слитно с полосой окна: продолжение её градиента (старт 0.60 —
-       ровно там, где полоса заканчивается), тот же блюр. Без тени. */
-    background: linear-gradient(180deg, hsl(var(--card) / 0.6), hsl(var(--card) / 0.52));
-    backdrop-filter: blur(40px) saturate(1.4);
-    -webkit-backdrop-filter: blur(40px) saturate(1.4);
-    box-shadow: none;
+    border-radius: 1.5rem;
+    background: linear-gradient(135deg, hsl(var(--card) / 0.75), hsl(var(--secondary) / 0.5));
+    backdrop-filter: blur(28px) saturate(1.6);
+    -webkit-backdrop-filter: blur(28px) saturate(1.6);
+    box-shadow:
+      0 12px 36px rgba(87, 80, 70, 0.14),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
     transition:
-      border-radius 0.45s cubic-bezier(0.22, 1, 0.36, 1),
-      padding 0.45s cubic-bezier(0.22, 1, 0.36, 1),
       background 0.3s ease,
       box-shadow 0.3s ease;
   }
   .dark .top-notch {
-    border-color: rgba(255, 255, 255, 0.08);
-    box-shadow: none;
+    border-color: rgba(255, 255, 255, 0.09);
+    box-shadow:
+      0 12px 36px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.09);
   }
 
   /* Оверлейная подпись кнопок чёлки: всплывает под кнопкой при наведении.
@@ -262,12 +268,107 @@
   }
 
   .notch-inner {
-    @apply flex w-max max-w-full items-center gap-2 px-2 py-2;
+    position: relative;
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.5rem;
+    /* На узких экранах содержимое прокручивается внутри островка */
     overflow-x: auto;
     scrollbar-width: none;
   }
   .notch-inner::-webkit-scrollbar {
     display: none;
+  }
+  /* Кнопка-название проекта в островке логотипа. */
+  .notch-logo {
+    position: relative;
+    flex-shrink: 0;
+    border-radius: 1rem;
+    padding: 0.5rem 0.75rem;
+    transition:
+      background 0.25s ease,
+      border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .notch-logo:hover {
+    background: hsl(var(--accent) / 0.7);
+    border-radius: 1.25rem;
+  }
+  .notch-logo:active {
+    transform: scale(0.97);
+  }
+
+  /* Тонкий вертикальный разделитель между зонами островка. */
+  .notch-divider {
+    width: 1px;
+    flex-shrink: 0;
+    align-self: stretch;
+    min-height: 1.75rem;
+    margin: 0.375rem 0.25rem;
+    background: hsl(var(--foreground) / 0.1);
+  }
+
+  /* Поиск в островке: фиксированная ширина поля. */
+  .notch-search {
+    flex-shrink: 0;
+    min-width: 0;
+  }
+  .notch-search-box {
+    position: relative;
+    width: 12rem;
+  }
+  @media (max-width: 640px) {
+    .notch-search-box {
+      width: 8rem;
+    }
+  }
+  .notch-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    color: hsl(var(--muted-foreground));
+    pointer-events: none;
+  }
+  .notch-search-input {
+    height: 40px;
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    background: hsl(var(--card) / 0.6);
+    padding: 0 30px 0 32px;
+    font-size: 13px;
+    color: hsl(var(--foreground));
+    transition: border-color 0.25s ease;
+  }
+  .notch-search-input::placeholder {
+    color: hsl(var(--muted-foreground));
+  }
+  .notch-search-input:focus {
+    outline: none;
+    border-color: hsl(var(--primary) / 0.5);
+  }
+  .notch-search-clear {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 0.6rem;
+    color: hsl(var(--muted-foreground));
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
+  }
+  .notch-search-clear:hover {
+    background: hsl(var(--accent) / 0.7);
+    color: hsl(var(--foreground));
   }
 
   /* Кнопки чёлки: только иконки (квадрат 40px), гибкие границы
@@ -315,84 +416,9 @@
     background: hsl(var(--primary));
   }
 
-  /* Фиксированный правый угол: тема + создание без подложки и отступов —
-     голые иконки на одном уровне с кнопками шапки. top выставляется
-     инлайном (та же линия, что ряд кнопок в шапке). */
-  .notch-actions {
-    position: fixed;
-    right: 16px;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    background: transparent;
-    border: none;
-    padding: 0;
-  }
-  /* Угол у правого края: подсказки равняем по правому краю кнопки,
-     чтобы не уезжали за экран. */
-  .notch-actions .notch-tip {
-    left: auto;
-    right: 0;
-    transform: translate(0, -4px);
-  }
-  .notch-actions .notch-btn:hover .notch-tip,
-  .notch-actions .notch-btn:focus-visible .notch-tip {
-    transform: translate(0, 0);
-  }
-
-  /* Мини-поиск слева от шапки, на одной линии с её кнопками.
-     Живёт в портале (вне трансформируемых предков), top — инлайном. */
-  .home-search {
-    position: fixed;
-    left: 16px;
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .home-search-box {
-    position: relative;
-  }
-  .home-search-icon {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 14px;
-    height: 14px;
-    color: hsl(var(--muted-foreground));
-    pointer-events: none;
-  }
-  .home-search-input {
-    height: 40px;
-    width: 9rem;
-    border-radius: 1rem;
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(40px);
-    -webkit-backdrop-filter: blur(40px);
-    padding: 0 12px 0 32px;
-    font-size: 13px;
-    color: hsl(var(--foreground));
-  }
-  .home-search-input::placeholder {
-    color: hsl(var(--muted-foreground));
-  }
-  .home-search-input:focus {
-    outline: none;
-    border-color: hsl(var(--primary) / 0.5);
-  }
-  @media (min-width: 640px) {
-    .home-search-input {
-      width: 11rem;
-    }
-  }
-  @media (min-width: 1024px) {
-    .home-search-input {
-      width: 14rem;
-    }
-  }
+  /* Панель вида на главной (сортировка / архив / избранное) живёт
+     в контенте под заголовком — см. HomePage. Отдельных фиксированных
+     углов и портального поиска больше нет: всё собрано в единой шапке. */
 
   /* 2. Центрированная архитектура: весь контент — в средней колонке */
   .center-stage {
@@ -617,6 +643,233 @@
     transform: translateY(-3px);
   }
 
+  /* Иллюстрация папки с торчащими БЕЛЫМИ листами (чистый CSS).
+     Цвет задаётся через --folder-color. Слои снизу вверх:
+     ярлык + задняя стенка (темнее) → два белых листа → передняя стенка.
+     При наведении листы чуть высовываются наружу. */
+  .folder-illus {
+    --folder-color: #b49c7d;
+    position: relative;
+    display: block;
+    width: 124px;
+    height: 100px;
+    flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .group:hover .folder-illus {
+    transform: translateY(-2px) scale(1.05);
+  }
+  .folder-tab {
+    position: absolute;
+    left: 8px;
+    top: 6px;
+    width: 50px;
+    height: 24px;
+    border-radius: 14px 16px 0 0;
+    background: var(--folder-color);
+    /* Тот же тон, что у задней стенки, и низ утоплен в неё с запасом —
+       ярлык сливается со стенкой в одну деталь без видимого шва */
+    filter: brightness(0.82) saturate(0.92);
+  }
+  .folder-back {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 16px;
+    bottom: 0;
+    border-radius: 18px;
+    background: var(--folder-color);
+    filter: brightness(0.82) saturate(0.92);
+  }
+  .folder-paper {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: 6px;
+    height: 56px;
+    border-radius: 6px;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 8px, rgba(60, 50, 35, 0.1) 8px 9px),
+      #ffffff;
+    background-position:
+      0 10px,
+      0 0;
+    border: 1px solid rgba(60, 50, 35, 0.16);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .folder-paper-1 {
+    transform: rotate(-5deg);
+  }
+  .folder-paper-2 {
+    transform: rotate(4deg) translateY(2px);
+  }
+  .group:hover .folder-paper-1 {
+    transform: rotate(-8deg) translateY(-6px);
+  }
+  .group:hover .folder-paper-2 {
+    transform: rotate(7deg) translateY(-4px);
+  }
+  .folder-front {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 33px;
+    bottom: 0;
+    border-radius: 8px 18px 20px 20px;
+    background: linear-gradient(180deg, var(--folder-color), var(--folder-color));
+    filter: saturate(1.05);
+    box-shadow:
+      0 5px 12px rgba(0, 0, 0, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .dark .folder-front {
+    box-shadow:
+      0 5px 12px rgba(0, 0, 0, 0.45),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  /* Объекты вместо прямоугольных карточек: иллюстрация + подпись снизу.
+     Тянущийся объект едет целиком за счёт inline-трансформа на обёртке
+     (см. home.tsx) — здесь только внешний вид и подсветка целей сброса. */
+  .folder-object,
+  .note-object {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 2px 10px;
+    background: transparent;
+    /* Прозрачная рамка держит геометрию, чтобы подсветка цели сброса
+       при перетаскивании не дёргала layout. Ховер-обводки нет. */
+    border: 1px solid transparent;
+    border-radius: 1.5rem;
+  }
+  .note-object {
+    cursor: pointer;
+  }
+  .folder-object-caption {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    text-align: center;
+  }
+  .folder-object-name {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+  .note-object-caption {
+    /* Слой выше иконки: тени листов не затемняют текст подписи */
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+  }
+  .note-object-name {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* Цель сброса при перетаскивании: только пульс-свечение вокруг
+     самой иллюстрации — без подложек и рамок */
+  .folder-object-drop .folder-illus,
+  .note-object[data-drop-target='true'] .page-illus {
+    animation: objectDropPulse 1.2s ease-in-out infinite;
+  }
+  /* Тянущийся лист едет сам, без названия: подпись прячется мгновенно */
+  .note-object[data-dragging='true'] .note-object-caption {
+    opacity: 0;
+  }
+  .note-object[data-dragging='true'] .page-illus {
+    filter: drop-shadow(0 20px 26px rgba(0, 0, 0, 0.4));
+  }
+
+  /* Иллюстрация заметки: несколько листиков стопкой.
+     В покое — слегка развёрнуты веером. При наведении задние листики
+     немного разъезжаются в стороны. Листы белые. */
+  .page-illus {
+    position: relative;
+    display: block;
+    width: 92px;
+    height: 116px;
+    flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .group:hover .page-illus {
+    transform: translateY(-3px);
+  }
+  .page-sheet {
+    position: absolute;
+    inset: 0;
+    background: #ffffff;
+    border: 1px solid rgba(60, 50, 35, 0.14);
+    border-radius: 8px;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.2);
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .dark .page-sheet {
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+  }
+  .page-sheet-3 {
+    transform: rotate(7deg) translate(7px, 2px);
+    background: #ece6d9;
+  }
+  .page-sheet-2 {
+    transform: rotate(-4deg) translate(-6px, 1px);
+    background: #f6f1e7;
+  }
+  .page-sheet-1 {
+    overflow: hidden;
+  }
+  .group:hover .page-sheet-2 {
+    transform: rotate(-6deg) translate(-13px, 2px);
+  }
+  .group:hover .page-sheet-3 {
+    transform: rotate(9deg) translate(14px, 3px);
+  }
+  .page-title-line {
+    position: absolute;
+    top: 20px;
+    left: 15px;
+    width: 42%;
+    height: 7px;
+    border-radius: 4px;
+    background: rgba(90, 75, 55, 0.5);
+  }
+  .page-lines {
+    position: absolute;
+    top: 36px;
+    left: 15px;
+    right: 15px;
+    bottom: 15px;
+    background: repeating-linear-gradient(
+      180deg,
+      rgba(90, 75, 55, 0.35) 0 2px,
+      transparent 2px 9px
+    );
+  }
+  .page-fold {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 24px;
+    height: 24px;
+    background: #ddd5c5;
+    clip-path: polygon(0 0, 100% 0, 100% 100%);
+    filter: drop-shadow(-2px 2px 2px rgba(0, 0, 0, 0.18));
+  }
+
   /* Лента папок: горизонтальная, центрированная (не сайдбар) */
   .folder-dock {
     @apply liquid-glass flex items-center gap-2 overflow-x-auto rounded-3xl p-2.5;
@@ -781,6 +1034,16 @@
     box-shadow:
       0 0 0 5px hsl(var(--primary) / 0.35),
       0 8px 40px rgba(180, 156, 125, 0.5);
+  }
+}
+
+@keyframes objectDropPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.65));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px hsl(var(--primary) / 0.95));
   }
 }
 

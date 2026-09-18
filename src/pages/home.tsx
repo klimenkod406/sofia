@@ -1,19 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
-  MoreVertical,
   ArrowUpDown,
   ArrowLeft,
   Archive,
   FileText,
-  Folder as FolderIcon,
   Plus,
   Pin,
   Star,
+  X,
 } from 'lucide-react';
 import { useNotes, type Note, type Folder } from '@/stores/notes';
 import { Button } from '@/components/ui/button';
@@ -60,15 +57,10 @@ export function HomePage() {
     createFolder,
     deleteFolder,
   } = useNotes();
-  const [searchQuery, setSearchQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  // Мини-поиск живёт слева от шапки (портал): оффсет под TitleBar как у неё
-  const [tauriOffset, setTauriOffset] = useState(0);
-  useEffect(() => {
-    const w = window as unknown as Record<string, unknown>;
-    if ('__TAURI_INTERNALS__' in w || '__TAURI__' in w) setTauriOffset(36);
-  }, []);
+  // Поиск живёт в шапке (SidebarNav) и пишет прямо в store.filter.searchQuery —
+  // лента ниже перезагружается по нему сама (см. эффекты loadNotes).
 
   // Свободное перетаскивание (п.8): едет САМА карточка за указателем
   // (transform, layout не трогаем), цель подсвечивается в реальном времени.
@@ -254,14 +246,6 @@ export function HomePage() {
   }, []);
 
   useEffect(() => {
-    const debounce = setTimeout(() => {
-      setFilter({ searchQuery });
-    }, 300);
-    return () => clearTimeout(debounce);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery]);
-
-  useEffect(() => {
     loadNotes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter.folderId, filter.searchQuery, filter.sortBy, filter.sortOrder]);
@@ -423,11 +407,42 @@ export function HomePage() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-5">
-      {/* Центрированный заголовок */}
-      <div className="flex flex-col items-center gap-2 text-center">
+      {/* Центрированный заголовок + бейджи активных фильтров */}
+      <div className="flex flex-col items-center gap-3 text-center">
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
           {currentFolder ? currentFolder.name : 'Мои заметки'}
         </h1>
+        {(showArchived || showFavoritesOnly || filter.searchQuery) && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {showArchived && (
+              <button
+                onClick={() => setShowArchived(false)}
+                className="badge badge-secondary gap-1.5 transition-all hover:bg-accent"
+                aria-label="Скрыть архив"
+              >
+                <Archive className="h-3 w-3" aria-hidden="true" />
+                Архив
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            )}
+            {showFavoritesOnly && (
+              <button
+                onClick={() => setShowFavoritesOnly(false)}
+                className="badge badge-secondary gap-1.5 transition-all hover:bg-accent"
+                aria-label="Показать все заметки"
+              >
+                <Star className="h-3 w-3" aria-hidden="true" />
+                Избранное
+                <X className="h-3 w-3" aria-hidden="true" />
+              </button>
+            )}
+            {filter.searchQuery && (
+              <span className="badge badge-primary gap-1.5">
+                Поиск: «{truncate(filter.searchQuery, 20)}»
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Лента папок убрана: папки живут карточками в пространстве ниже.
@@ -444,6 +459,51 @@ export function HomePage() {
           <span className="font-display font-bold">{currentFolder.name}</span>
         </div>
       )}
+
+      {/* Тулбар рабочей зоны: вид и сортировка — справа, только иконка
+          с подписью при наведении */}
+      <div className="flex items-center justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="notch-btn group" aria-label="Вид и сортировка">
+              <ArrowUpDown className="h-[18px] w-[18px]" aria-hidden="true" />
+              <span className="notch-tip" aria-hidden="true">
+                Вид и сортировка
+              </span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <div className="px-3.5 py-2 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Сортировка
+            </div>
+            {sortOptions.map(o => (
+              <DropdownMenuItem
+                key={o.value}
+                onClick={() => {
+                  const [sortBy, sortOrder] = o.value.split(':');
+                  setFilter({ sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
+                  loadNotes();
+                }}
+              >
+                <ArrowUpDown className="mr-1 h-4 w-4" />
+                {o.label}
+                {activeSort === o.value && <span className="ml-auto">✓</span>}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShowArchived(v => !v)}>
+              <Archive className="mr-1 h-4 w-4" />
+              {showArchived ? 'Скрыть архив' : 'Показать архив'}
+              {showArchived && <span className="ml-auto">✓</span>}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowFavoritesOnly(v => !v)}>
+              <Star className="mr-1 h-4 w-4" />
+              {showFavoritesOnly ? 'Все заметки' : 'Только избранное'}
+              {showFavoritesOnly && <span className="ml-auto">✓</span>}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* Единое пространство */}
       <div className="flex-1">
@@ -467,8 +527,8 @@ export function HomePage() {
             </Button>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 [&>*]:min-w-0">
-            {/* Папки — карточки в том же пространстве */}
+          <div className="grid grid-cols-2 gap-x-1 gap-y-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 [&>*]:min-w-0">
+            {/* Папки — объекты в том же пространстве */}
             {visibleFolders.map(folder => {
               const count = counts[folder.id] ?? 0;
               return (
@@ -482,44 +542,49 @@ export function HomePage() {
                     setDeletingFolder(folder);
                   }}
                   className={cn(
-                    'folder-card group text-left',
+                    'folder-object group',
                     justCreatedFolderId === folder.id && 'folder-just-created',
-                    dropTargetId === `f:${folder.id}` && 'animate-drop-glow'
+                    dropTargetId === `f:${folder.id}` && 'folder-object-drop'
                   )}
                   aria-label={`Открыть папку ${folder.name}`}
-                  title="Открыть · правый клик — удалить"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
-                      style={{ background: `${folder.color}26` }}
-                    >
-                      <FolderIcon className="h-5 w-5" style={{ color: folder.color }} />
-                    </span>
-                    <span className="badge badge-secondary">{count}</span>
-                  </div>
-                  <div className="space-y-1">
-                    <div className="font-display text-[17px] font-bold leading-snug">
+                  {/* Большая папка (в пустой листиков нет), название — подписью снизу */}
+                  <span
+                    className="folder-illus"
+                    style={{ ['--folder-color' as string]: folder.color }}
+                    aria-hidden="true"
+                  >
+                    <span className="folder-tab" />
+                    <span className="folder-back" />
+                    {count > 0 && (
+                      <>
+                        <span className="folder-paper folder-paper-1" />
+                        <span className="folder-paper folder-paper-2" />
+                      </>
+                    )}
+                    <span className="folder-front" />
+                  </span>
+                  <span className="folder-object-caption">
+                    <span className="folder-object-name">
                       {folder.name}
                       {justCreatedFolderId === folder.id && (
                         <span className="badge badge-primary ml-2 align-middle">новая</span>
                       )}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {draggedNote ? 'Отпустите, чтобы переместить сюда' : 'Нажмите, чтобы открыть'}
-                    </div>
-                  </div>
+                    </span>
+                  </span>
                 </button>
               );
             })}
 
-            {/* Заметки — единым потоком; тянутся за указателем */}
+            {/* Заметки-листы — единым потоком; тянутся за указателем.
+                Обёртка едет целиком (transform ставит drag-логика выше),
+                внутри — объект NoteCard: лист + подпись снизу. */}
             {visibleNotes.map(note => (
               <div
                 key={note.id}
                 ref={setCardEl(note.id)}
                 data-note-id={note.id}
-                className={cn('select-none', note.is_archived && 'opacity-60')}
+                className="flex min-w-0 flex-col items-center select-none"
                 onPointerDown={e => onCardPointerDown(e, note)}
                 onDragStart={e => e.preventDefault()}
               >
@@ -534,7 +599,7 @@ export function HomePage() {
                   {...cardActions}
                 />
                 {note.is_pinned && (
-                  <div className="mt-1.5 flex items-center gap-1 pl-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Pin className="h-3 w-3" /> закреплена
                   </div>
                 )}
@@ -558,65 +623,6 @@ export function HomePage() {
             onCancel={() => setDeletingFolder(null)}
             onConfirm={mode => void confirmDeleteFolder(mode)}
           />
-        )}
-
-        {/* Мини-поиск слева от шапки, на её уровне (портал поверх всего) */}
-        {createPortal(
-          <div className="home-search" style={{ top: tauriOffset + 8 }} role="search">
-            <div className="home-search-box">
-              <Search className="home-search-icon" aria-hidden="true" />
-              <input
-                className="home-search-input"
-                placeholder="Найти…"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                aria-label="Поиск заметок"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <span>
-                  <button className="notch-btn group" aria-label="Вид и сортировка">
-                    <MoreVertical className="h-[18px] w-[18px]" aria-hidden="true" />
-                    <span className="notch-tip" aria-hidden="true">
-                      Вид и сортировка
-                    </span>
-                  </button>
-                </span>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-64">
-                <div className="px-3.5 py-2 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Сортировка
-                </div>
-                {sortOptions.map(o => (
-                  <DropdownMenuItem
-                    key={o.value}
-                    onClick={() => {
-                      const [sortBy, sortOrder] = o.value.split(':');
-                      setFilter({ sortBy, sortOrder: sortOrder as 'asc' | 'desc' });
-                      loadNotes();
-                    }}
-                  >
-                    <ArrowUpDown className="mr-1 h-4 w-4" />
-                    {o.label}
-                    {activeSort === o.value && <span className="ml-auto">✓</span>}
-                  </DropdownMenuItem>
-                ))}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowArchived(v => !v)}>
-                  <Archive className="mr-1 h-4 w-4" />
-                  {showArchived ? 'Скрыть архив' : 'Показать архив'}
-                  {showArchived && <span className="ml-auto">✓</span>}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowFavoritesOnly(v => !v)}>
-                  <Star className="mr-1 h-4 w-4" />
-                  {showFavoritesOnly ? 'Все заметки' : 'Только избранное'}
-                  {showFavoritesOnly && <span className="ml-auto">✓</span>}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>,
-          document.body
         )}
       </div>
     </div>

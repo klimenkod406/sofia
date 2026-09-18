@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  MoreHorizontal,
   Pin,
   Archive,
   Star,
@@ -11,23 +10,17 @@ import {
   Edit,
   Copy,
   Tag,
-  Clock,
   FolderInput,
   Folder as FolderIcon,
   LayoutGrid,
   ArrowLeft,
   Check,
 } from 'lucide-react';
-import { cn, formatRelativeTime, truncate } from '@/utils/cn';
+import { cn } from '@/utils/cn';
 import { Note, type Folder } from '@/stores/notes';
-import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  useDropdownMenu,
 } from '@/components/ui/dropdown-menu';
 
 interface NoteCardProps {
@@ -205,62 +198,6 @@ function FolderSubmenu({
   );
 }
 
-/** Меню «…» с каскадным подменю выбора папки. */
-function NoteDotsMenu({
-  note,
-  folders,
-  folderCounts,
-  onPickFolder,
-  renderMenuItems,
-}: {
-  note: Note;
-  folders: Folder[];
-  folderCounts: Record<string, number>;
-  onPickFolder: (folderId: string | null) => void;
-  renderMenuItems: (controls: {
-    toggleSub: (anchor: HTMLElement) => void;
-    scheduleSubClose: () => void;
-  }) => ReactNode;
-}) {
-  const { open, setOpen } = useDropdownMenu();
-  const sub = useSubmenu();
-
-  useEffect(() => {
-    if (!open) sub.closeSub();
-  }, [open, sub]);
-
-  return (
-    <>
-      <DropdownMenuTrigger asChild>
-        <span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="!h-8 !w-8 !rounded-xl opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100"
-            aria-label="Меню заметки"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
-        </span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-60">
-        {renderMenuItems({ toggleSub: sub.toggleSub, scheduleSubClose: sub.scheduleSubClose })}
-      </DropdownMenuContent>
-      <FolderSubmenu
-        sub={sub}
-        note={note}
-        folders={folders}
-        counts={folderCounts}
-        onPick={id => {
-          onPickFolder(id);
-          sub.closeSub();
-          setOpen(false);
-        }}
-      />
-    </>
-  );
-}
-
 export function NoteCard({
   note,
   onClick,
@@ -366,8 +303,8 @@ export function NoteCard({
   );
 
   return (
-    <article
-      className={cn('note-card group', variant === 'ghost' && 'opacity-70 hover:opacity-100')}
+    <div
+      className={cn('note-object group', variant === 'ghost' && 'opacity-60')}
       onClick={onClick}
       tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onClick()}
@@ -380,55 +317,32 @@ export function NoteCard({
         e.stopPropagation();
         setCtx({ x: e.clientX, y: e.clientY });
       }}
-      title="Потяните, чтобы переместить · отпустите на другой заметке, чтобы создать папку"
     >
-      {note.cover_image && (
-        <div className="note-card-cover relative">
-          <img
-            src={note.cover_image}
-            alt=""
-            draggable={false}
-            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+      {/* Несколько листиков: верхний при наведении перелистывается */}
+      <span className="page-illus" aria-hidden="true">
+        <span className="page-sheet page-sheet-3" />
+        <span className="page-sheet page-sheet-2" />
+        <span className="page-sheet page-sheet-1">
+          <span className="page-title-line" />
+          <span className="page-lines" />
+          <span className="page-fold" />
+        </span>
+      </span>
+
+      {/* Подпись строго по центру под иконкой: только название.
+          Меню действий открывается правым кликом (см. onContextMenu выше). */}
+      <span className="note-object-caption">
+        {note.is_pinned && (
+          <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 opacity-60" aria-label="Закреплена" />
+        )}
+        {note.is_favorite && (
+          <Star
+            className="mt-0.5 h-3.5 w-3.5 shrink-0 fill-current opacity-70"
+            aria-label="В избранном"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
-        </div>
-      )}
-      {note.cover_color && !note.cover_image && (
-        <div className="note-card-cover" style={{ backgroundColor: note.cover_color }} />
-      )}
-
-      <div className="note-card-content">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="note-card-title flex-1 min-w-0">{note.title}</h3>
-          <div className="flex shrink-0 items-center gap-1">
-            {note.is_pinned && <Pin className="w-3.5 h-3.5 opacity-60" aria-label="Закреплена" />}
-            {note.is_favorite && (
-              <Star className="w-3.5 h-3.5 opacity-70 fill-current" aria-label="В избранном" />
-            )}
-            <DropdownMenu>
-              <NoteDotsMenu
-                note={note}
-                folders={folders}
-                folderCounts={folderCounts}
-                onPickFolder={pickFolder}
-                renderMenuItems={renderMenuItems}
-              />
-            </DropdownMenu>
-          </div>
-        </div>
-
-        <p className="note-card-excerpt">{truncate(note.content_md || note.content || '', 120)}</p>
-
-        <div className="note-card-meta">
-          <span className="flex items-center gap-1.5">
-            <Clock className="w-3 h-3" />
-            {formatRelativeTime(note.updated_at)}
-          </span>
-          <span>
-            {note.word_count} слов · {note.reading_time} мин
-          </span>
-        </div>
-      </div>
+        )}
+        <span className="note-object-name line-clamp-2">{note.title}</span>
+      </span>
 
       {/* ПКМ-меню: те же действия, что и в «…» (п.10) */}
       {ctx &&
@@ -460,6 +374,6 @@ export function NoteCard({
           closeCtx();
         }}
       />
-    </article>
+    </div>
   );
 }

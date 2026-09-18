@@ -2,78 +2,63 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Calendar, Settings, Bot, Plus, Sun, Moon } from 'lucide-react';
-import { cn } from '@/utils/cn';
-import { useTheme } from '@/components/ui/theme-provider';
+import { Home, Calendar, Bot, Settings, Search, X } from 'lucide-react';
 import { useNotes } from '@/stores/notes';
-import { toast } from '@/hooks/use-toast';
 
 // Навигация верхнего уровня. Редактора здесь нет осознанно:
-// заметка создаётся (кнопка «Новая» / empty-state на главной) и открывается
-// сразу по id; вход в существующую — только через домашний экран.
+// заметка создаётся (empty-state на главной) и открывается сразу по id;
+// вход в существующую — только через домашний экран.
 const navItems = [
   { path: '/home', label: 'Главная', icon: Home },
   { path: '/calendar', label: 'Календарь', icon: Calendar },
   { path: '/ai-chat', label: 'ИИ-чат', icon: Bot },
-  { path: '/settings', label: 'Настройки', icon: Settings },
 ] as const;
 
 /**
- * Верхняя шапка-плашка: прямоугольник строго по центру верха, пришит
- * к верхней кромке, по бокам пусто. Лежит поверх контента (fixed):
- * при скролле лента уходит под неё, слева/справа доходит до верха.
- * Все кнопки — только иконки; подпись всплывает оверлейным окном
- * при наведении (.notch-tip). Логотип — только надпись без иконки.
+ * Верхняя зона: два элемента с отступом от края.
+ * - Слева — просто надпись-логотип (клик ведёт домой).
+ * - По центру — стеклянный островок: иконки разделов, поиск, настройки.
+ * Островок виден всегда, никакого разворачивания.
+ * Поиск — глобальный: печатаешь где угодно, фильтр применяется и ведёт на /home.
  */
 export function SidebarNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { resolvedTheme, setTheme } = useTheme();
-  const { createNote } = useNotes();
-  const [creating, setCreating] = useState(false);
-  // В Tauri сверху системный TitleBar (h-9 = 36px) — плашка пришивается под ним,
-  // в обычном браузере TitleBar нет — пришивается к самому верху.
-  const [tauriOffset, setTauriOffset] = useState(0);
-  useEffect(() => {
-    const w = window as unknown as Record<string, unknown>;
-    if ('__TAURI_INTERNALS__' in w || '__TAURI__' in w) setTauriOffset(36);
-  }, []);
+  const { filter, setFilter } = useNotes();
+  const [searchQuery, setSearchQuery] = useState(filter.searchQuery ?? '');
 
-  const handleNewNote = async () => {
-    if (creating) return;
-    setCreating(true);
-    try {
-      const note = await createNote(null, 'Новая заметка');
-      navigate(`/editor/${note.id}`);
-    } catch (e) {
-      console.error('create note failed', e);
-      toast({
-        title: 'Не получилось создать заметку',
-        description: e instanceof Error ? e.message : String(e),
-      });
-    } finally {
-      setCreating(false);
-    }
-  };
+  // Поиск с дебаунсом: фильтр живёт в сторе, лента главной перезагружается сама.
+  // Если печатаем не на главной — уводим туда, чтобы результат был виден.
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      setFilter({ searchQuery });
+      if (searchQuery && location.pathname !== '/home') navigate('/home');
+    }, 300);
+    return () => clearTimeout(debounce);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const isSettingsActive = location.pathname.startsWith('/settings');
 
   return (
     <>
-      <header className="top-notch shrink-0" style={{ top: tauriOffset }} role="banner">
-        <div className="notch-inner">
-          {/* Левая зона: только надпись, без иконки */}
-          <div className="flex items-center">
-            <button
-              onClick={() => navigate('/home')}
-              className="rounded-2xl px-3 py-2 transition-all duration-300 hover:bg-accent/70"
-              aria-label="На главную"
-            >
-              <span className="font-display text-[17px] font-bold tracking-tight">Σόφια</span>
-            </button>
-          </div>
+      {/* Логотип — просто надпись слева */}
+      <div className="logo-island">
+        <button
+          onClick={() => navigate('/home')}
+          className="notch-logo"
+          aria-label="На главную"
+          title="На главную"
+        >
+          <span className="font-display text-[17px] font-bold tracking-tight">Σόφια</span>
+        </button>
+      </div>
 
-          {/* Центр: навигация — только иконки, подпись оверлеем при наведении */}
+      {/* Островок навигации — по центру */}
+      <header className="top-notch" role="banner">
+        <div className="notch-inner">
           <nav
-            className="flex flex-1 items-center justify-center gap-1.5"
+            className="flex shrink-0 items-center gap-1.5"
             role="navigation"
             aria-label="Основная навигация"
           >
@@ -96,42 +81,49 @@ export function SidebarNav() {
               );
             })}
           </nav>
+
+          <div className="notch-divider" aria-hidden="true" />
+
+          <div className="notch-search" role="search">
+            <div className="notch-search-box">
+              <Search className="notch-search-icon" aria-hidden="true" />
+              <input
+                className="notch-search-input"
+                placeholder="Найти…"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                aria-label="Поиск заметок"
+              />
+              {searchQuery && (
+                <button
+                  className="notch-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Очистить поиск"
+                >
+                  <X className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="notch-divider" aria-hidden="true" />
+
+          <div className="flex shrink-0 items-center gap-1.5" role="group" aria-label="Настройки">
+            <button
+              onClick={() => navigate('/settings')}
+              className="notch-btn group"
+              data-active={isSettingsActive ? 'true' : 'false'}
+              aria-current={isSettingsActive ? 'page' : undefined}
+              aria-label="Настройки"
+            >
+              <Settings className="h-[18px] w-[18px] shrink-0" aria-hidden="true" />
+              <span className="notch-tip" aria-hidden="true">
+                Настройки
+              </span>
+            </button>
+          </div>
         </div>
       </header>
-
-      {/* Правый угол: тема + создание без подложки, на одной линии с шапкой */}
-      <div
-        className="notch-actions"
-        style={{ top: tauriOffset + 8 }}
-        role="group"
-        aria-label="Быстрые действия"
-      >
-        <button
-          onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-          className="notch-btn group"
-          aria-label={resolvedTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-        >
-          {resolvedTheme === 'dark' ? (
-            <Sun className="h-[18px] w-[18px]" aria-hidden="true" />
-          ) : (
-            <Moon className="h-[18px] w-[18px]" aria-hidden="true" />
-          )}
-          <span className="notch-tip" aria-hidden="true">
-            {resolvedTheme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-          </span>
-        </button>
-        <button
-          onClick={handleNewNote}
-          disabled={creating}
-          className={cn('notch-btn notch-btn-accent group', creating && 'animate-pulse')}
-          aria-label="Новая заметка"
-        >
-          <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
-          <span className="notch-tip" aria-hidden="true">
-            {creating ? 'Создание…' : 'Новая заметка'}
-          </span>
-        </button>
-      </div>
     </>
   );
 }
