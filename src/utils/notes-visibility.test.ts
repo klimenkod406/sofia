@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  filterVisibleNotes,
-  canMergeNotes,
-  type HomeVisibility,
-} from './notes-visibility';
+import { filterVisibleNotes, canMergeNotes, type HomeVisibility } from './notes-visibility';
 import type { Note } from '@/stores/notes';
 
 const base: HomeVisibility = {
@@ -53,7 +49,9 @@ describe('filterVisibleNotes', () => {
       note({ id: 'd', folder_id: 'f2' }),
     ];
     expect(
-      filterVisibleNotes(notes, { ...base, folderId: 'f1' }).map(n => n.id).sort()
+      filterVisibleNotes(notes, { ...base, folderId: 'f1' })
+        .map(n => n.id)
+        .sort()
     ).toEqual(['a', 'b']);
   });
 
@@ -64,7 +62,9 @@ describe('filterVisibleNotes', () => {
     ];
     expect(filterVisibleNotes(notes, base)).toEqual([]);
     expect(
-      filterVisibleNotes(notes, { ...base, folderId: 'new-folder' }).map(n => n.id).sort()
+      filterVisibleNotes(notes, { ...base, folderId: 'new-folder' })
+        .map(n => n.id)
+        .sort()
     ).toEqual(['a', 'b']);
   });
 

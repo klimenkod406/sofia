@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, Calendar, Bot, Settings, Search, X } from 'lucide-react';
+import { Home, Calendar, Settings, Search, X } from 'lucide-react';
 import { useNotes } from '@/stores/notes';
 
 // Навигация верхнего уровня. Редактора здесь нет осознанно:
 // заметка создаётся (empty-state на главной) и открывается сразу по id;
 // вход в существующую — только через домашний экран.
+// ИИ-чат временно убран с навигации (функция ещё сырая), роут /ai-chat жив.
 const navItems = [
   { path: '/home', label: 'Главная', icon: Home },
   { path: '/calendar', label: 'Календарь', icon: Calendar },
-  { path: '/ai-chat', label: 'ИИ-чат', icon: Bot },
 ] as const;
 
 /**

@@ -15,13 +15,11 @@ import {
   LayoutGrid,
   ArrowLeft,
   Check,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Note, type Folder } from '@/stores/notes';
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
+import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 interface NoteCardProps {
   note: Note;
@@ -38,6 +36,8 @@ interface NoteCardProps {
   onDelete?: (note: Note) => void;
   /** Выбор папки из подменю (null — убрать из папки) */
   onPickFolder?: (note: Note, folderId: string | null) => void;
+  /** Переименование: инлайн-инпут под именем (ПКМ → Переименовать) */
+  onRename?: (note: Note, title: string) => void;
   /** Папки для подменю выбора */
   folders?: Folder[];
   folderCounts?: Record<string, number>;
@@ -210,12 +210,23 @@ export function NoteCard({
   onDuplicate,
   onDelete,
   onPickFolder,
+  onRename,
   folders = [],
   folderCounts = {},
 }: NoteCardProps) {
   const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
   const ctxSub = useSubmenu();
   const ctxRef = useRef<HTMLDivElement>(null);
+
+  // Инлайн-переименование названия (ПКМ → Переименовать или клик по имени)
+  const [renaming, setRenaming] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(note.title);
+  // Escape ставит флаг <отменить>, чтобы поздний blur не закоммитил
+  const skipRenameRef = useRef(false);
+
+  useEffect(() => {
+    setDraftTitle(note.title);
+  }, [note.title]);
 
   const closeCtx = useCallback(() => {
     setCtx(null);
@@ -242,6 +253,18 @@ export function NoteCard({
     onPickFolder?.(note, folderId);
   };
 
+  const startRename = () => {
+    skipRenameRef.current = false;
+    setDraftTitle(note.title);
+    setRenaming(true);
+  };
+
+  const finishRename = () => {
+    setRenaming(false);
+    const t = draftTitle.trim();
+    if (t && t !== note.title) onRename?.(note, t);
+  };
+
   const renderMenuItems = (controls: {
     toggleSub: (anchor: HTMLElement) => void;
     scheduleSubClose: () => void;
@@ -250,6 +273,10 @@ export function NoteCard({
       <DropdownMenuItem onClick={() => onClick()}>
         <Edit className="w-4 h-4 mr-1" />
         Открыть
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={startRename}>
+        <Pencil className="w-4 h-4 mr-1" />
+        Переименовать
       </DropdownMenuItem>
       <DropdownMenuItem onClick={() => onDuplicate?.(note)}>
         <Copy className="w-4 h-4 mr-1" />
@@ -341,7 +368,40 @@ export function NoteCard({
             aria-label="В избранном"
           />
         )}
-        <span className="note-object-name line-clamp-2">{note.title}</span>
+        {renaming ? (
+          <input
+            className="object-name-input"
+            value={draftTitle}
+            autoFocus
+            onChange={e => setDraftTitle(e.target.value)}
+            onFocus={e => e.target.select()}
+            onKeyDown={e => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                finishRename();
+                // blur при размонтировании не должен коммитить повторно
+                skipRenameRef.current = true;
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                skipRenameRef.current = true;
+                setRenaming(false);
+              }
+            }}
+            onBlur={() => {
+              if (skipRenameRef.current) {
+                skipRenameRef.current = false;
+                return;
+              }
+              finishRename();
+            }}
+            onClick={e => e.stopPropagation()}
+            onMouseDown={e => e.stopPropagation()}
+            aria-label="Название заметки"
+          />
+        ) : (
+          <span className="note-object-name line-clamp-2">{note.title}</span>
+        )}
       </span>
 
       {/* ПКМ-меню: те же действия, что и в «…» (п.10) */}

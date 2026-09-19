@@ -654,6 +654,8 @@
     width: 124px;
     height: 100px;
     flex-shrink: 0;
+    /* Для эффекта открывания передней стенки (rotateX на .folder-front) */
+    perspective: 900px;
     transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
   .group:hover .folder-illus {
@@ -689,8 +691,7 @@
     height: 56px;
     border-radius: 6px;
     background:
-      repeating-linear-gradient(180deg, transparent 0 8px, rgba(60, 50, 35, 0.1) 8px 9px),
-      #ffffff;
+      repeating-linear-gradient(180deg, transparent 0 8px, rgba(60, 50, 35, 0.1) 8px 9px), #ffffff;
     background-position:
       0 10px,
       0 0;
@@ -719,6 +720,11 @@
     border-radius: 8px 18px 20px 20px;
     background: linear-gradient(180deg, var(--folder-color), var(--folder-color));
     filter: saturate(1.05);
+    transform: rotateX(0deg);
+    transform-origin: 50% 100%;
+    transition:
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.3s ease;
     box-shadow:
       0 5px 12px rgba(0, 0, 0, 0.18),
       inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -727,6 +733,25 @@
     box-shadow:
       0 5px 12px rgba(0, 0, 0, 0.45),
       inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+  /* Drop-цель: папка приоткрывается — передняя стенка откидывается вперёд,
+     листы чуть приподнимаются, будто папка готова принять файл.
+     Действует только пока над ней висит перетаскиваемая заметка
+     (класс folder-object-drop ставит drag-логика в home.tsx). */
+  .folder-object-drop .folder-illus {
+    transform: translateY(-4px) scale(1.08);
+  }
+  .folder-object.folder-object-drop .folder-front {
+    transform: rotateX(-38deg);
+    box-shadow:
+      0 10px 20px rgba(0, 0, 0, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  .folder-object.folder-object-drop .folder-paper-1 {
+    transform: rotate(-8deg) translateY(-10px);
+  }
+  .folder-object.folder-object-drop .folder-paper-2 {
+    transform: rotate(5deg) translateY(-7px);
   }
 
   /* Объекты вместо прямоугольных карточек: иллюстрация + подпись снизу.
@@ -780,10 +805,30 @@
     text-align: center;
     overflow-wrap: anywhere;
   }
+  /* Инлайн-инпут переименования (заметка — в подписи, папка — в подписи) */
+  .object-name-input {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    width: 100%;
+    min-width: 0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid hsl(var(--primary) / 0.45);
+    background: hsl(var(--card) / 0.9);
+    color: hsl(var(--foreground));
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--primary) / 0.12);
+  }
+  .object-name-input:focus {
+    border-color: hsl(var(--primary) / 0.7);
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
+  }
 
-  /* Цель сброса при перетаскивании: только пульс-свечение вокруг
-     самой иллюстрации — без подложек и рамок */
-  .folder-object-drop .folder-illus,
+  /* Цель сброса при перетаскивании: у папки свечения нет — только само
+     открывание; у заметки — пульс-свечение вокруг иллюстрации */
   .note-object[data-drop-target='true'] .page-illus {
     animation: objectDropPulse 1.2s ease-in-out infinite;
   }
@@ -837,6 +882,12 @@
   }
   .group:hover .page-sheet-3 {
     transform: rotate(9deg) translate(14px, 3px);
+  }
+  /* Тянущийся лист: задние бумажки заходят за передний и собираются
+     в ровную стопку (вместо веера на hover) — виден один лист. */
+  .note-object[data-dragging='true'] .page-sheet-2,
+  .note-object[data-dragging='true'] .page-sheet-3 {
+    transform: rotate(0deg) translate(0, 0);
   }
   .page-title-line {
     position: absolute;

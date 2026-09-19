@@ -2,14 +2,7 @@
 /* eslint-disable react-refresh/only-export-components */
 
 import { cn } from '@/utils/cn';
-import {
-  forwardRef,
-  useEffect,
-  useRef,
-  useState,
-  createContext,
-  useContext,
-} from 'react';
+import { forwardRef, useEffect, useRef, useState, createContext, useContext } from 'react';
 import { createPortal } from 'react-dom';
 
 // Лёгкое dropdown-меню на жидком стекле: круглые углы, воздушные отступы.
@@ -157,8 +150,7 @@ export const DropdownMenuContent = forwardRef<
       ref={node => {
         (innerRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
         if (typeof ref === 'function') ref(node);
-        else if (ref)
-          (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
       }}
       className={cn(
         'liquid-glass fixed z-[130] min-w-[220px] rounded-2xl p-1.5 shadow-xl animate-scale-in',

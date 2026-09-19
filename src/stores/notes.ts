@@ -373,12 +373,8 @@ export const useNotes = create<NotesState>((set, get) => ({
         set(state => ({
           folders: state.folders.filter(f => f.id !== id),
           notes: recursive
-            ? state.notes.map(n =>
-                n.folder_id === id ? { ...n, is_deleted: true } : n
-              )
-            : state.notes.map(n =>
-                n.folder_id === id ? { ...n, folder_id: null } : n
-              ),
+            ? state.notes.map(n => (n.folder_id === id ? { ...n, is_deleted: true } : n))
+            : state.notes.map(n => (n.folder_id === id ? { ...n, folder_id: null } : n)),
         }));
         return;
       }

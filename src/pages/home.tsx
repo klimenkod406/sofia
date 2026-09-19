@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowUpDown,
@@ -11,14 +12,13 @@ import {
   Pin,
   Star,
   X,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { useNotes, type Note, type Folder } from '@/stores/notes';
 import { Button } from '@/components/ui/button';
 import { NoteCard } from '@/components/home/note-card';
-import {
-  FolderDeleteDialog,
-  type FolderDeleteMode,
-} from '@/components/home/folder-delete-dialog';
+import { FolderDeleteDialog, type FolderDeleteMode } from '@/components/home/folder-delete-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -37,6 +37,47 @@ const sortOptions = [
   { value: 'title:desc', label: 'По названию (Я–А)' },
 ] as const;
 
+/** Инлайн-переименование папки: инпут в подписи (ПКМ → Переименовать).
+ *  Enter — сохранить, Escape — отменить, blur — сохранить (doneRef
+ *  отсекает двойной коммит от размонтирования). */
+function FolderRenameInput({
+  folder,
+  onDone,
+}: {
+  folder: Folder;
+  onDone: (name: string | null) => void;
+}) {
+  const [draft, setDraft] = useState(folder.name);
+  const doneRef = useRef(false);
+
+  const commit = (v: string | null) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    onDone(v ? v.trim() : v);
+  };
+
+  return (
+    <input
+      className="object-name-input"
+      value={draft}
+      autoFocus
+      onChange={e => setDraft(e.target.value)}
+      onFocus={e => e.target.select()}
+      onKeyDown={e => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.key === 'Enter') commit(draft);
+        else if (e.key === 'Escape') commit(null);
+      }}
+      onBlur={() => commit(draft)}
+      onClick={e => e.stopPropagation()}
+      onMouseDown={e => e.stopPropagation()}
+      onPointerDown={e => e.stopPropagation()}
+      aria-label="Название папки"
+    />
+  );
+}
+
 export function HomePage() {
   const navigate = useNavigate();
   const {
@@ -54,8 +95,10 @@ export function HomePage() {
     duplicateNote,
     deleteNote,
     moveNote,
+    updateNote,
     createFolder,
     deleteFolder,
+    updateFolder,
   } = useNotes();
   const [showArchived, setShowArchived] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
@@ -155,10 +198,7 @@ export function HomePage() {
   const onCardPointerDown = (e: React.PointerEvent, note: Note) => {
     suppressClickRef.current = false;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
-    if (
-      (e.target as HTMLElement).closest('button, a, input, textarea, [role="menu"]')
-    )
-      return;
+    if ((e.target as HTMLElement).closest('button, a, input, textarea, [role="menu"]')) return;
     pressRef.current = {
       note,
       startX: e.clientX,
@@ -175,8 +215,7 @@ export function HomePage() {
     const press = pressRef.current;
     if (!press) return;
     if (!press.active) {
-      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < DRAG_THRESHOLD)
-        return;
+      if (Math.hypot(e.clientX - press.startX, e.clientY - press.startY) < DRAG_THRESHOLD) return;
       press.active = true;
       suppressClickRef.current = true;
       liftCardEl(press.note.id);
@@ -293,6 +332,32 @@ export function HomePage() {
   // Удаление папки: диалог уточняет судьбу заметок внутри
   const [deletingFolder, setDeletingFolder] = useState<Folder | null>(null);
 
+  // Переименование папки: пункт «Переименовать» в ПКМ-меню открывает
+  // инлайн-инпут прямо в подписи (folder-object-name → input)
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+
+  // ПКМ-меню папки: открыть / переименовать / удалить
+  const [folderCtx, setFolderCtx] = useState<{
+    folder: Folder;
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const finishFolderRename = async (folder: Folder, name: string | null) => {
+    setRenamingFolderId(null);
+    if (!name || name === folder.name) return;
+    try {
+      await updateFolder({ ...folder, name });
+      await loadFolders();
+    } catch (e) {
+      console.error('rename folder failed', e);
+      toast({
+        title: 'Не получилось переименовать папку',
+        description: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
   const confirmDeleteFolder = async (mode: FolderDeleteMode) => {
     const folder = deletingFolder;
     if (!folder) return;
@@ -397,6 +462,17 @@ export function HomePage() {
     onArchive: (n: Note) => archiveNote(n.id, !n.is_archived).then(loadNotes).catch(console.error),
     onDuplicate: (n: Note) => duplicateNote(n.id).then(loadNotes).catch(console.error),
     onDelete: (n: Note) => deleteNote(n.id).then(loadNotes).catch(console.error),
+    onRename: (n: Note, title: string) => {
+      updateNote({ id: n.id, title })
+        .then(loadNotes)
+        .catch((e: unknown) => {
+          console.error('rename note failed', e);
+          toast({
+            title: 'Не получилось переименовать заметку',
+            description: e instanceof Error ? e.message : String(e),
+          });
+        });
+    },
     onPickFolder: (n: Note, folderId: string | null) => {
       if (folderId === n.folder_id) return;
       void moveNoteToFolder(n.id, folderId);
@@ -539,7 +615,7 @@ export function HomePage() {
                   onContextMenu={e => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setDeletingFolder(folder);
+                    setFolderCtx({ folder, x: e.clientX, y: e.clientY });
                   }}
                   className={cn(
                     'folder-object group',
@@ -565,12 +641,19 @@ export function HomePage() {
                     <span className="folder-front" />
                   </span>
                   <span className="folder-object-caption">
-                    <span className="folder-object-name">
-                      {folder.name}
-                      {justCreatedFolderId === folder.id && (
-                        <span className="badge badge-primary ml-2 align-middle">новая</span>
-                      )}
-                    </span>
+                    {renamingFolderId === folder.id ? (
+                      <FolderRenameInput
+                        folder={folder}
+                        onDone={name => void finishFolderRename(folder, name)}
+                      />
+                    ) : (
+                      <span className="folder-object-name">
+                        {folder.name}
+                        {justCreatedFolderId === folder.id && (
+                          <span className="badge badge-primary ml-2 align-middle">новая</span>
+                        )}
+                      </span>
+                    )}
                   </span>
                 </button>
               );
@@ -624,6 +707,37 @@ export function HomePage() {
             onConfirm={mode => void confirmDeleteFolder(mode)}
           />
         )}
+
+        {folderCtx &&
+          createPortal(
+            <div
+              className="liquid-glass fixed z-[100] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
+              style={{
+                left: Math.min(folderCtx.x, window.innerWidth - 250),
+                top: Math.min(folderCtx.y, window.innerHeight - 180),
+              }}
+              role="menu"
+              onClickCapture={() => setFolderCtx(null)}
+            >
+              <DropdownMenuItem onClick={() => setFilter({ folderId: folderCtx.folder.id })}>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Открыть
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setRenamingFolderId(folderCtx.folder.id)}>
+                <Pencil className="w-4 h-4 mr-1" />
+                Переименовать
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="!text-[hsl(var(--destructive))]"
+                onClick={() => setDeletingFolder(folderCtx.folder)}
+              >
+                <Trash2 className="w-4 h-4 mr-1" />
+                Удалить
+              </DropdownMenuItem>
+            </div>,
+            document.body
+          )}
       </div>
     </div>
   );

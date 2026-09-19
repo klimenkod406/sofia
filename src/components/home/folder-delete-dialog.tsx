@@ -58,9 +58,7 @@ export function FolderDeleteDialog({
             <FolderIcon className="h-5 w-5 text-destructive" />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate font-display text-lg font-bold">
-              Удалить «{folderName}»?
-            </h3>
+            <h3 className="truncate font-display text-lg font-bold">Удалить «{folderName}»?</h3>
             <p className="text-sm text-muted-foreground">
               Внутри: {noteCount} {pluralNotes(noteCount)}
             </p>
