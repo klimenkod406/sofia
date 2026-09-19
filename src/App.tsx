@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
-import { SidebarNav } from '@/components/ui/sidebar-nav';
 import { TitleBar } from '@/components/ui/title-bar';
 import { PageLayout } from '@/components/ui/page-layout';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -33,13 +32,12 @@ function App() {
         />
       </div>
 
-      {/* Custom window controls + drag region (Tauri only) */}
+      {/* Custom window controls + drag region + хлебные крошки + поиск.
+          Шапка-оверлей: висит поверх контента, контент скроллится под ней
+          до самого верха (элементы шапки поверх него). */}
       <TitleBar />
 
-      {/* Верхняя чёлка: без отступа, на всю ширину, сразу под TitleBar */}
-      <SidebarNav />
-
-      {/* Центральная сцена */}
+      {/* Центральная сцена: скроллится до верха окна, под прозрачной шапкой */}
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>

@@ -7,6 +7,7 @@ import {
   ArrowUpDown,
   ArrowLeft,
   Archive,
+  Calendar,
   FileText,
   Plus,
   Pin,
@@ -102,7 +103,7 @@ export function HomePage() {
   } = useNotes();
   const [showArchived, setShowArchived] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
-  // Поиск живёт в шапке (SidebarNav) и пишет прямо в store.filter.searchQuery —
+  // Поиск живёт в шапке (TitleBar) и пишет прямо в store.filter.searchQuery —
   // лента ниже перезагружается по нему сама (см. эффекты loadNotes).
 
   // Свободное перетаскивание (п.8): едет САМА карточка за указателем
@@ -536,16 +537,25 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Тулбар рабочей зоны: вид и сортировка — справа, только иконка
-          с подписью при наведении */}
-      <div className="flex items-center justify-end">
+      {/* Тулбар рабочей зоны: календарь СЛЕВА рядом с сортировкой — только
+          иконки, без подписей. Сортировка — только иконка (без текста). */}
+      <div className="flex items-center justify-end gap-1.5">
+        <button
+          onClick={() => navigate('/calendar')}
+          className="toolbar-icon-btn"
+          aria-label="Календарь"
+          title="Календарь"
+        >
+          <Calendar className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="notch-btn group" aria-label="Вид и сортировка">
+            <button
+              className="toolbar-icon-btn"
+              aria-label="Вид и сортировка"
+              title="Вид и сортировка"
+            >
               <ArrowUpDown className="h-[18px] w-[18px]" aria-hidden="true" />
-              <span className="notch-tip" aria-hidden="true">
-                Вид и сортировка
-              </span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">

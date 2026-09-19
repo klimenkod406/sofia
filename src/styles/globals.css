@@ -188,83 +188,21 @@
     transform: translateY(-2px);
   }
 
-  /* Верхняя зона: два парящих стеклянных островка с отступом от края.
-     - .logo-island — логотип, отдельным островком слева;
-     - .top-notch — навигация по центру: иконки разделов, поиск, тема.
-     Островки видны всегда, никакого разворачивания. Морф-стекло:
-     blur + saturate, градиентная подложка, мягкая тень и внутренняя
-     подсветка сверху. Лежат поверх контента (fixed): лента при скролле
-     уходит под них. */
-  /* Логотип слева — просто надпись без подложек и эффектов. */
-  .logo-island {
-    position: fixed;
-    top: 12px;
-    left: 16px;
-    z-index: 50;
+  /* Верхняя панель: плоская и прозрачная — ни подложки, ни бортиков.
+     Навигация/настройки ушли из неё (остался только поиск), поэтому
+     цветная заливка и нижняя граница больше не нужны. */
+  .top-notch {
     display: flex;
     align-items: center;
+    width: 100%;
+    min-height: 4.5rem;
+    padding: 0.75rem var(--notch-pad-x);
     background: transparent;
     border: none;
-    box-shadow: none;
-  }
-  .logo-island .notch-logo:hover {
-    background: transparent;
-  }
-  .top-notch {
-    position: fixed;
-    top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 50;
-    width: max-content;
-    max-width: calc(100% - 2rem);
-    padding: 0.5rem var(--notch-pad-x);
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    border-radius: 1.5rem;
-    background: linear-gradient(135deg, hsl(var(--card) / 0.75), hsl(var(--secondary) / 0.5));
-    backdrop-filter: blur(28px) saturate(1.6);
-    -webkit-backdrop-filter: blur(28px) saturate(1.6);
-    box-shadow:
-      0 12px 36px rgba(87, 80, 70, 0.14),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
-    transition:
-      background 0.3s ease,
-      box-shadow 0.3s ease;
-  }
-  .dark .top-notch {
-    border-color: rgba(255, 255, 255, 0.09);
-    box-shadow:
-      0 12px 36px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.09);
   }
 
-  /* Оверлейная подпись кнопок чёлки: всплывает под кнопкой при наведении.
-     В потоке её нет — чёлка всегда компактная (только иконки). */
-  .notch-tip {
-    position: absolute;
-    left: 50%;
-    top: calc(100% + 10px);
-    transform: translate(-50%, -4px);
-    padding: 6px 10px;
-    border-radius: 0.75rem;
-    font-size: 12px;
-    line-height: 1.2;
-    white-space: nowrap;
-    background: hsl(var(--popover));
-    color: hsl(var(--popover-foreground));
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    box-shadow: 0 8px 24px rgba(87, 80, 70, 0.18);
-    opacity: 0;
-    pointer-events: none;
-    transition:
-      opacity 0.2s ease,
-      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
-    z-index: 60;
-  }
-  .notch-btn:hover .notch-tip,
-  .notch-btn:focus-visible .notch-tip {
-    opacity: 1;
-    transform: translate(-50%, 0);
+  .notch-label {
+    display: inline;
   }
 
   .notch-inner {
@@ -280,23 +218,6 @@
   .notch-inner::-webkit-scrollbar {
     display: none;
   }
-  /* Кнопка-название проекта в островке логотипа. */
-  .notch-logo {
-    position: relative;
-    flex-shrink: 0;
-    border-radius: 1rem;
-    padding: 0.5rem 0.75rem;
-    transition:
-      background 0.25s ease,
-      border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-  }
-  .notch-logo:hover {
-    background: hsl(var(--accent) / 0.7);
-    border-radius: 1.25rem;
-  }
-  .notch-logo:active {
-    transform: scale(0.97);
-  }
 
   /* Тонкий вертикальный разделитель между зонами островка. */
   .notch-divider {
@@ -308,18 +229,22 @@
     background: hsl(var(--foreground) / 0.1);
   }
 
-  /* Поиск в островке: фиксированная ширина поля. */
+  /* Поиск в верхней панели: широкий, но с фиксированным комфортным максимумом. */
   .notch-search {
-    flex-shrink: 0;
+    flex: 1 1 auto;
     min-width: 0;
+    padding: 0 1rem;
   }
   .notch-search-box {
     position: relative;
-    width: 12rem;
+    width: min(100%, 34rem);
   }
   @media (max-width: 640px) {
+    .notch-search {
+      padding: 0 0.25rem;
+    }
     .notch-search-box {
-      width: 8rem;
+      width: 100%;
     }
   }
   .notch-search-icon {
@@ -336,12 +261,26 @@
     height: 40px;
     width: 100%;
     border-radius: 1rem;
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    background: hsl(var(--card) / 0.6);
+    border: 1px solid hsl(var(--foreground) / 0.09);
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card) / 0.72),
+      hsl(var(--secondary) / 0.5)
+    );
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.5),
+      0 6px 20px rgba(87, 80, 70, 0.1);
     padding: 0 30px 0 32px;
     font-size: 13px;
     color: hsl(var(--foreground));
     transition: border-color 0.25s ease;
+  }
+  .dark .notch-search-input {
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.08),
+      0 6px 20px rgba(0, 0, 0, 0.35);
   }
   .notch-search-input::placeholder {
     color: hsl(var(--muted-foreground));
@@ -371,37 +310,30 @@
     color: hsl(var(--foreground));
   }
 
-  /* Кнопки чёлки: только иконки (квадрат 40px), гибкие границы
-     под будущие hover-анимации (п.6). Подпись — оверлей .notch-tip. */
+  /* Навигация в стиле Claude: компактные текстовые пункты без плиток. */
   .notch-btn {
-    @apply relative flex h-10 w-10 items-center justify-center rounded-2xl text-muted-foreground;
+    @apply relative flex h-10 items-center justify-center gap-2 rounded-xl px-3 text-sm font-medium text-muted-foreground;
     font-family: 'Manrope', 'Onest', sans-serif;
     border: 1px solid transparent;
-    border-radius: 1rem;
     transition:
-      border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      background 0.25s ease,
-      color 0.25s ease,
-      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-      box-shadow 0.3s ease,
-      border-color 0.3s ease;
+      background 0.2s ease,
+      color 0.2s ease,
+      border-color 0.2s ease;
   }
   .notch-btn:hover {
     @apply text-foreground;
-    background: hsl(var(--accent) / 0.7);
-    border-radius: 1.25rem;
-    transform: translateY(-1px);
+    background: hsl(var(--accent) / 0.65);
+    transform: none;
   }
   .notch-btn:active {
-    transform: translateY(0) scale(0.97);
-    border-radius: 0.9rem;
+    transform: scale(0.98);
   }
   .notch-btn[data-active='true'] {
     @apply text-foreground;
-    background: hsl(var(--primary) / 0.22);
-    border-color: hsl(var(--primary) / 0.35);
-    border-radius: 1.25rem;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    background: hsl(var(--accent) / 0.8);
+    border-color: hsl(var(--foreground) / 0.08);
+    border-radius: 0.75rem;
+    box-shadow: none;
   }
   /* Акцентная кнопка создания: тёплая заливка вместо inline-стилей */
   .notch-btn-accent {
@@ -414,6 +346,29 @@
   .notch-btn-accent:hover {
     color: hsl(var(--primary-foreground));
     background: hsl(var(--primary));
+  }
+
+  /* Компактные иконки-кнопки на тулбаре главной (календарь, сортировка):
+     плоские, без подложки и бортиков, только мягкая заливка при наведении. */
+  .toolbar-icon-btn {
+    position: relative;
+    display: flex;
+    height: 2.25rem;
+    width: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.75rem;
+    color: hsl(var(--muted-foreground));
+    transition:
+      background 0.2s ease,
+      color 0.2s ease;
+  }
+  .toolbar-icon-btn:hover {
+    background: hsl(var(--accent) / 0.65);
+    color: hsl(var(--foreground));
+  }
+  .toolbar-icon-btn:active {
+    transform: scale(0.96);
   }
 
   /* Панель вида на главной (сортировка / архив / избранное) живёт

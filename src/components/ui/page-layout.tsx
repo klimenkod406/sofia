@@ -30,10 +30,10 @@ export function PageLayout({ children, className, width = 'default' }: PageLayou
   return (
     <div className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>
       <div className="page-viewport min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-        {/* Шапка лежит поверх контента (fixed): стартовый отступ, чтобы
-            первый экран не прятался под плашкой; при скролле лента свободно
-            уходит под неё по центру и доходит до верха по бокам. */}
-        <div className={cn('mx-auto w-full px-4 pb-16 pt-20 md:px-8 md:pt-24', widths[width])}>
+        {/* Верхний отступ учитывает высоту шапки-оверлея (лого/кнопки ~48px
+            + поиск на 40px ниже, ~40px) — контент начинается под ней и
+            при скролле уходит под матовый поиск, а не обрезается. */}
+        <div className={cn('mx-auto w-full px-4 pb-8 pt-28 md:px-8', widths[width])}>
           <div key={location.pathname} className="page-enter">
             {children}
           </div>
