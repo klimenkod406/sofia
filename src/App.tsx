@@ -19,7 +19,7 @@ function App() {
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background">
       {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden print:hidden">
         <div
           className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full opacity-60 blur-3xl dark:opacity-30"
           style={{
@@ -53,7 +53,7 @@ function App() {
             <Route
               path="/editor/:noteId"
               element={
-                <PageLayout width="narrow">
+                <PageLayout fill>
                   <EditorPage />
                 </PageLayout>
               }

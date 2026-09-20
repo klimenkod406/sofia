@@ -520,19 +520,458 @@
     @apply border-t p-4 liquid-glass;
   }
 
-  /* Editor toolbar */
-  .editor-toolbar {
-    @apply flex flex-wrap items-center gap-1.5 p-3 glass-subtle border-b border-border rounded-b-3xl;
+  /* Тело редактора: рейки по краям, «лист» по центру на тёплом фоне. */
+  .editor-stage {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1;
+  }
+
+  /* Статусная строка над редактором: тонкая, плоская. Отрицательный верх
+     поднимает первую строку выше — почти под прозрачную шапку-оверлей. */
+  .editor-statusbar {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: -2.75rem;
+    padding: 0.25rem 1.25rem;
+  }
+
+  /* В браузере (dev без Tauri) TitleBar рендерит пустоту и оверлейной шапки
+     нет — приподнимать некуда, возвращаем обычный поток. Пометку вешает
+     TitleBar при запуске внутри нативного окна. */
+  body:not([data-tauri-window]) .editor-statusbar {
+    margin-top: 0;
+  }
+
+  /* Центральная колонка: прокрутка + поля. Текст идёт прямо на фоне,
+     без «листа», без обводок, без зон для печати. */
+  .editor-column {
+    display: flex;
+    min-height: 0;
+    min-width: 0;
+    flex: 1;
+    justify-content: center;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 clamp(1.75rem, 4vw, 3rem) 6rem;
+  }
+
+  /* Курсор-текст на всей колонке — клик в любое место ставит курсор на строку. */
+  .editor-column {
+    cursor: text;
+  }
+
+  /* Полосатая линовка убрана — письменная зона чистая, без линий.
+     Текст живёт прямо на фоне приложения, без карточки-листа. */
+  .editor-prose {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    outline: none;
+    padding: 1.5rem 0 0;
+    color: hsl(var(--foreground));
+    background-color: transparent;
+    font-kerning: normal;
+    font-variant-ligatures: common-ligatures contextual;
+    hanging-punctuation: first;
+  }
+  .dark .editor-prose {
+    background-color: transparent;
+  }
+  .editor-rail {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    width: 3.25rem;
+    flex-shrink: 0;
+    align-self: flex-start;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0.75rem 0.375rem;
+    scrollbar-width: none;
+  }
+  .editor-rail::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Тонкий разделитель групп инструментов внутри рейки. */
+  .editor-rail-divider {
+    width: 1.25rem;
+    height: 1px;
+    margin: 0.375rem 0;
+    flex-shrink: 0;
+    background: hsl(var(--foreground) / 0.12);
   }
 
   .editor-toolbar-btn {
-    @apply flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200;
+    @apply flex items-center justify-center w-9 h-9 rounded-xl text-muted-foreground hover:text-foreground transition-all duration-200;
+  }
+  .editor-toolbar-btn:hover:not(:disabled) {
+    background: hsl(var(--card) / 0.85);
+    box-shadow:
+      0 2px 10px -2px rgba(87, 80, 70, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    color: hsl(var(--foreground));
+    transform: translateY(-1px);
+  }
+  .dark .editor-toolbar-btn:hover:not(:disabled) {
+    background: hsl(var(--accent) / 0.8);
+    box-shadow: 0 2px 10px -2px rgba(0, 0, 0, 0.5);
+  }
+  .editor-toolbar-btn:active:not(:disabled) {
+    transform: scale(0.95);
   }
 
+  /* Активное форматирование: мягкая песочная заливка + акцентный текст. */
   .editor-toolbar-btn-active {
     @apply editor-toolbar-btn;
-    background: hsl(var(--primary) / 0.2);
+    background: hsl(var(--primary) / 0.16);
     color: hsl(var(--foreground));
+  }
+
+  .editor-search-panel {
+    position: fixed;
+    top: 4.5rem;
+    right: 4.5rem;
+    z-index: 50;
+    display: flex;
+    width: min(22rem, calc(100vw - 2rem));
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 0.875rem;
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    border-radius: 1rem;
+    background: hsl(var(--card) / 0.94);
+    backdrop-filter: blur(18px);
+    box-shadow: 0 12px 32px hsl(var(--foreground) / 0.12);
+  }
+  .editor-search-close {
+    display: inline-flex;
+    height: 1.75rem;
+    width: 1.75rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.5rem;
+    color: hsl(var(--muted-foreground));
+  }
+  .editor-search-close:hover {
+    background: hsl(var(--accent) / 0.7);
+    color: hsl(var(--foreground));
+  }
+
+  /* Контент занимает всю колонку — клик в любом месте (включая первые строки)
+     попадает в редактор и ставит курсор. */
+  .editor-prose > * {
+    flex: 0 0 auto;
+  }
+  .editor-prose > *:last-child {
+    flex: 1 1 auto;
+  }
+  .editor-prose.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    pointer-events: none;
+    color: hsl(var(--muted-foreground) / 0.65);
+  }
+
+  .editor-prose > * {
+    margin-top: 0;
+  }
+  .editor-prose > * + * {
+    margin-top: 0;
+  }
+  .editor-prose p {
+    margin: 0;
+  }
+  .editor-prose :is(h1, h2, h3, h4, h5, h6) {
+    font-family: 'Manrope', 'Onest', system-ui, sans-serif;
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  .editor-prose :is(h1, h2, h3, h4, h5, h6) + * {
+    margin-top: 0;
+  }
+  .editor-prose h1 {
+    font-size: 1.75em;
+    margin-top: 2.5rem;
+  }
+  .editor-prose h2 {
+    font-size: 1.4em;
+    margin-top: 2.5rem;
+  }
+  .editor-prose h3 {
+    font-size: 1.18em;
+    margin-top: 1.5rem;
+  }
+  .editor-prose h4 {
+    font-size: 1.05em;
+    margin-top: 1.5rem;
+  }
+  .editor-prose ul,
+  .editor-prose ol {
+    padding-left: 1.5em;
+  }
+  .editor-prose li {
+    margin: 0;
+  }
+  .editor-prose li::marker {
+    color: hsl(var(--muted-foreground) / 0.8);
+  }
+  .editor-prose ul[data-type='taskList'] {
+    list-style: none;
+    padding-left: 0.25em;
+  }
+  .editor-prose ul[data-type='taskList'] li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6em;
+  }
+  .editor-prose ul[data-type='taskList'] li > label {
+    margin-top: 0.3em;
+    flex-shrink: 0;
+    user-select: none;
+  }
+  .editor-prose ul[data-type='taskList'] li > div {
+    flex: 1;
+    min-width: 0;
+  }
+  .editor-prose ul[data-type='taskList'] input[type='checkbox'] {
+    appearance: none;
+    width: 1.05em;
+    height: 1.05em;
+    border-radius: 0.35em;
+    border: 1.5px solid hsl(var(--foreground) / 0.3);
+    background: transparent;
+    cursor: pointer;
+    display: grid;
+    place-content: center;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+  }
+  .editor-prose ul[data-type='taskList'] input[type='checkbox']:hover {
+    border-color: hsl(var(--primary) / 0.7);
+  }
+  .editor-prose ul[data-type='taskList'] input[type='checkbox']:checked {
+    background: hsl(var(--primary) / 0.85);
+    border-color: hsl(var(--primary) / 0.85);
+  }
+  .editor-prose ul[data-type='taskList'] input[type='checkbox']:checked::before {
+    content: '';
+    width: 0.5em;
+    height: 0.28em;
+    border-left: 2px solid hsl(var(--primary-foreground));
+    border-bottom: 2px solid hsl(var(--primary-foreground));
+    transform: rotate(-45deg) translateY(-0.08em);
+  }
+  .editor-prose blockquote {
+    border-left: 3px solid hsl(var(--primary) / 0.55);
+    border-radius: 0 0.5rem 0.5rem 0;
+    background: hsl(var(--secondary) / 0.4);
+    padding: 0.5em 1.1em;
+    color: hsl(var(--muted-foreground));
+    font-style: italic;
+  }
+  .dark .editor-prose blockquote {
+    background: hsl(var(--secondary) / 0.35);
+  }
+  .editor-prose hr {
+    border: none;
+    height: 1px;
+    width: 34%;
+    margin: 2.25em auto;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(var(--foreground) / 0.28),
+      transparent
+    );
+  }
+  .editor-prose code:not(pre code) {
+    border-radius: 0.45em;
+    background: hsl(var(--secondary) / 0.75);
+    box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.06);
+    padding: 0.12em 0.4em;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.86em;
+  }
+  .editor-prose a {
+    color: inherit;
+    text-decoration-color: hsl(var(--primary) / 0.6);
+    text-underline-offset: 0.18em;
+    transition: text-decoration-color 0.15s ease;
+  }
+  .editor-prose a:hover {
+    text-decoration-color: hsl(var(--primary));
+  }
+  .editor-prose img {
+    border-radius: 0.9rem;
+    box-shadow: 0 8px 24px -10px rgba(87, 80, 70, 0.35);
+  }
+  .editor-prose table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    table-layout: fixed;
+    margin: 1em 0;
+    overflow: hidden;
+    border-radius: 0.9rem;
+    box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.1);
+  }
+  .editor-prose th,
+  .editor-prose td {
+    border: none;
+    border-right: 1px solid hsl(var(--foreground) / 0.08);
+    border-bottom: 1px solid hsl(var(--foreground) / 0.08);
+    padding: 0.5em 0.75em;
+    vertical-align: top;
+    position: relative;
+  }
+  .editor-prose tr > :last-child {
+    border-right: none;
+  }
+  .editor-prose tr:last-child > * {
+    border-bottom: none;
+  }
+  .editor-prose th {
+    background: hsl(var(--secondary) / 0.5);
+    font-family: 'Manrope', 'Onest', sans-serif;
+    font-weight: 700;
+    text-align: left;
+  }
+  .selectedCell:after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: hsl(var(--primary) / 0.12);
+    pointer-events: none;
+  }
+
+  .editor-prose ::selection {
+    background: hsl(var(--primary) / 0.2);
+  }
+
+  /* Блок кода с подсветкой синтаксиса (lowlight → hljs-классы) */
+  .editor-prose pre {
+    margin: 1em 0;
+    padding: 1rem 1.25rem;
+    border: 1px solid hsl(var(--foreground) / 0.08);
+    border-radius: 1rem;
+    background: hsl(var(--secondary) / 0.55);
+    overflow-x: auto;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 0.85em;
+    line-height: 1.6;
+    color: hsl(var(--foreground));
+  }
+  .editor-prose pre code.hljs {
+    background: transparent;
+    padding: 0;
+    font-family: inherit;
+  }
+  /* Тёплая палитра подсветки; тёмная тема — чуть ярче ниже */
+  .hljs-comment,
+  .hljs-quote {
+    color: hsl(var(--muted-foreground));
+    font-style: italic;
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-literal,
+  .hljs-doctag {
+    color: #b3541e;
+  }
+  .hljs-string,
+  .hljs-regexp,
+  .hljs-addition {
+    color: #557a46;
+  }
+  .hljs-number,
+  .hljs-symbol,
+  .hljs-bullet,
+  .hljs-link {
+    color: #8a6d3b;
+  }
+  .hljs-title,
+  .hljs-section,
+  .hljs-title.function_ {
+    color: #2b6cb0;
+  }
+  .hljs-attr,
+  .hljs-attribute,
+  .hljs-variable,
+  .hljs-template-variable,
+  .hljs-type {
+    color: #a16207;
+  }
+  .hljs-built_in,
+  .hljs-title.class_ {
+    color: #6d28d9;
+  }
+  .hljs-name,
+  .hljs-tag {
+    color: #1f2937;
+  }
+  .hljs-meta {
+    color: #475569;
+  }
+  .hljs-emphasis {
+    font-style: italic;
+  }
+  .hljs-strong {
+    font-weight: 700;
+  }
+  .hljs-deletion {
+    color: #b91c1c;
+  }
+  .dark .hljs-keyword,
+  .dark .hljs-selector-tag,
+  .dark .hljs-literal,
+  .dark .hljs-doctag {
+    color: #f2a56b;
+  }
+  .dark .hljs-string,
+  .dark .hljs-regexp,
+  .dark .hljs-addition {
+    color: #a8cf8f;
+  }
+  .dark .hljs-number,
+  .dark .hljs-symbol,
+  .dark .hljs-bullet {
+    color: #d9b877;
+  }
+  .dark .hljs-title,
+  .dark .hljs-section,
+  .dark .hljs-title.function_ {
+    color: #7fb3e6;
+  }
+  .dark .hljs-attr,
+  .dark .hljs-attribute,
+  .dark .hljs-variable,
+  .dark .hljs-type {
+    color: #e0b45c;
+  }
+  .dark .hljs-built_in,
+  .dark .hljs-title.class_ {
+    color: #b79cf0;
+  }
+  .dark .hljs-name,
+  .dark .hljs-tag {
+    color: #e5e0d8;
+  }
+  .dark .hljs-comment,
+  .dark .hljs-quote {
+    color: hsl(var(--muted-foreground));
   }
 
   /* 5/10. Карточки заметок: круглые, воздушные, единый стиль */
@@ -1065,5 +1504,22 @@
   100% {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+/* Экспорт в PDF: печатаем только контент заметки — без шапки и боковых реек. */
+@media print {
+  header,
+  .editor-rail,
+  .editor-statusbar {
+    display: none !important;
+  }
+  .editor-column {
+    overflow: visible;
+    padding: 0;
+  }
+  .editor-prose {
+    padding: 0;
+    color: #1c1917;
   }
 }

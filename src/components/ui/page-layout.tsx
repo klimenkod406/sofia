@@ -9,6 +9,9 @@ interface PageLayoutProps {
   className?: string;
   /** Максимальная ширина центральной колонки */
   width?: 'narrow' | 'default' | 'wide';
+  /** Полноэкранный режим (редактор): контент сам управляет скроллом
+      и занимает всю высоту под шапкой-оверлеем. */
+  fill?: boolean;
 }
 
 const widths = {
@@ -23,9 +26,25 @@ const widths = {
  * Контент всегда живёт в средней колонке по центру экрана.
  * Переключение страниц — отдаление с размытием и появление (п.3):
  * key по pathname перезапускает анимацию page-enter.
+ *
+ * fill=true — полноэкранная сцена без внешнего скролла (редактор заметки):
+ * контент получает всю высоту под прозрачной шапкой и сам решает,
+ * когда прокручиваться.
  */
-export function PageLayout({ children, className, width = 'default' }: PageLayoutProps) {
+export function PageLayout({ children, className, width = 'default', fill = false }: PageLayoutProps) {
   const location = useLocation();
+
+  if (fill) {
+    return (
+      <div className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden pt-[88px] print:pt-0">
+          <div key={location.pathname} className="page-enter min-h-0 flex-1">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>

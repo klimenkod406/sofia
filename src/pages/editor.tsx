@@ -15,26 +15,38 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Highlight from '@tiptap/extension-highlight';
 import Typography from '@tiptap/extension-typography';
+import TextAlign from '@tiptap/extension-text-align';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
+import { createLowlight, common } from 'lowlight';
+import { Markdown } from 'tiptap-markdown';
 import { invoke } from '@tauri-apps/api/core';
 import { useNotes, type Note } from '@/stores/notes';
 import { useSettings } from '@/stores/settings';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
-import { EditorStatusBar } from '@/components/editor/editor-status-bar';
-import { AIChatOverlay } from '@/components/ai/ai-chat-overlay';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Sparkles, Mic, ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Search, X } from 'lucide-react';
+
+// Общий экземпляр подсветки синтаксиса (lowlight v3): создаём один раз.
+const lowlight = createLowlight(common);
 
 export function EditorPage() {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
   const { currentNote, setCurrentNote, updateNote } = useNotes();
-  const { font, editor: editorSettings } = useSettings();
+  const { font, editor: editorSettings, uiPreferences } = useSettings();
+  // Вход в редактор — только с существующим id (создание происходит
+  // на главной / в чёлке с немедленным переходом на /editor/:id).
   const [isSaving, setIsSaving] = useState(false);
-  const [showAIChat, setShowAIChat] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [docStats, setDocStats] = useState({ words: 0, chars: 0 });
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [replaceQuery, setReplaceQuery] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const isSavingRef = useRef(false);
   // Всё изменяемое — через ref'ы: onUpdate в useEditor регистрируется один раз
@@ -97,10 +109,14 @@ export function EditorPage() {
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3, 4, 5, 6] },
+        // CodeBlockLowlight ниже предоставляет свой codeBlock — иначе дубликат 'blockCode'.
+        codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: 'Start writing your note...',
+        placeholder: ({ node }) =>
+          node.type.name === 'heading' ? 'Заголовок' : 'Начните писать…',
         emptyEditorClass: 'is-editor-empty',
+        emptyNodeClass: 'is-empty-node',
       }),
       Link.configure({
         openOnClick: false,
@@ -117,12 +133,16 @@ export function EditorPage() {
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
       Typography,
+      CodeBlockLowlight.configure({ lowlight, defaultLanguage: 'javascript' }),
+      Markdown.configure({ transformPastedText: true, transformCopiedText: true }),
+      TextStyle,
+      Color,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
     ],
     content: currentNote?.content_html || '',
     editorProps: {
       attributes: {
-        class:
-          'prose prose-sm sm:prose lg:prose-xl xl:prose-2xl max-w-none focus:outline-none min-h-[500px] p-4',
+        class: 'editor-prose',
         style: `font-family: ${font.family}; font-size: ${font.size}px; line-height: ${font.lineHeight};`,
       },
     },
@@ -135,9 +155,25 @@ export function EditorPage() {
     },
   });
 
+  // Живой счётчик слов/символов: пересчитываем на каждую транзакцию контента.
+  useEffect(() => {
+    if (!tiptapEditor) return;
+    const update = () => {
+      const text = tiptapEditor.state.doc.textContent;
+      setDocStats({
+        words: text.trim() ? text.trim().split(/\s+/).length : 0,
+        chars: text.length,
+      });
+    };
+    update();
+    tiptapEditor.on('update', update);
+    return () => {
+      tiptapEditor.off('update', update);
+    };
+  }, [tiptapEditor]);
+
   // Вход в редактор — только с существующим id (создание происходит
   // на главной / в чёлке с немедленным переходом на /editor/:id).
-  // Пустой «области для печати» без заметки больше нет.
   useEffect(() => {
     if (!noteId) return;
     setNotFound(false);
@@ -165,6 +201,41 @@ export function EditorPage() {
       tiptapEditor.commands.setContent(currentNote.content_html || '', false);
     }
   }, [tiptapEditor, currentNote, noteId]);
+
+  const replaceAllMatches = () => {
+    if (!tiptapEditor || !searchQuery) return;
+    const query = searchQuery.toLocaleLowerCase();
+    const transaction = tiptapEditor.state.tr;
+    const matches: Array<{ from: number; to: number }> = [];
+    tiptapEditor.state.doc.descendants((node, pos) => {
+      if (!node.isText || !node.text) return;
+      let offset = 0;
+      const text = node.text.toLocaleLowerCase();
+      let index = text.indexOf(query);
+      while (index !== -1) {
+        matches.push({ from: pos + 1 + index, to: pos + 1 + index + searchQuery.length });
+        offset = index + query.length;
+        index = text.indexOf(query, offset);
+      }
+    });
+    [...matches].reverse().forEach(match => transaction.insertText(replaceQuery, match.from, match.to));
+    if (matches.length) tiptapEditor.view.dispatch(transaction);
+  };
+
+  const findNextMatch = () => {
+    if (!tiptapEditor || !searchQuery) return;
+    const query = searchQuery.toLocaleLowerCase();
+    let found: { from: number; to: number } | null = null;
+    tiptapEditor.state.doc.descendants((node, pos) => {
+      if (found || !node.isText || !node.text) return;
+      const start = node.text.toLocaleLowerCase().indexOf(query);
+      if (start >= 0) found = { from: pos + 1 + start, to: pos + 1 + start + searchQuery.length };
+    });
+    if (found) {
+      tiptapEditor.commands.setTextSelection(found);
+      tiptapEditor.commands.focus();
+    }
+  };
 
   const loadNote = async (id: string) => {
     try {
@@ -195,14 +266,36 @@ export function EditorPage() {
           void doSave(tiptapEditor.getHTML(), tiptapEditor.getText());
         }
       }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'f') {
         e.preventDefault();
-        tiptapEditor?.chain().focus().setLink({ href: '' }).run();
+        setShowSearch(true);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        // Пустую ссылку не вставляем — иначе в тексте появляется битый <a href="">.
+        const url = window.prompt('Ссылка (https://…):');
+        if (url) tiptapEditor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
       }
     };
 
+    // «Сохранить» из меню «Ещё» тулбара — тот же немедленный сейв, что и Ctrl+S.
+    const handleSaveEvent = () => {
+      if (tiptapEditor && noteRef.current) {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current);
+          saveTimeoutRef.current = undefined;
+        }
+        pendingRef.current = null;
+        void doSave(tiptapEditor.getHTML(), tiptapEditor.getText());
+      }
+    };
+    window.addEventListener('sofia:save-note', handleSaveEvent);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('sofia:save-note', handleSaveEvent);
+    };
   }, [tiptapEditor]);
 
   if (!noteId) return <Navigate to="/home" replace />;
@@ -238,9 +331,9 @@ export function EditorPage() {
   if (!tiptapEditor || !currentNote || currentNote.id !== noteId) return <LoadingSpinner />;
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col gap-3">
-      {/* Возврат домой: единственный путь входа — через главную, туда же и выходим */}
-      <div className="flex min-w-0 items-center gap-2">
+    <div className="flex h-full min-h-0 min-w-0 flex-col">
+      {/* Статусная строка: возврат, название, состояние сохранения, статистика */}
+      <div className="editor-statusbar print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Все заметки
@@ -258,50 +351,56 @@ export function EditorPage() {
             Не сохранилось: {saveError}
           </span>
         )}
-      </div>
-      {/* Editor Toolbar */}
-      <EditorToolbar editor={tiptapEditor} />
-
-      {/* Main Editor Area */}
-      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="min-h-0 min-w-0 flex-1 overflow-auto">
-            <EditorContent editor={tiptapEditor} />
-          </div>
-
-          {/* Status Bar */}
-          <EditorStatusBar editor={tiptapEditor} note={currentNote} isSaving={isSaving} />
-        </div>
-
-        {/* AI Chat Overlay */}
-        {showAIChat && (
-          <AIChatOverlay noteId={currentNote?.id} onClose={() => setShowAIChat(false)} />
+        {uiPreferences.showWordCount && (
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+            {docStats.words.toLocaleString()} слов · {docStats.chars.toLocaleString()} симв.
+          </span>
         )}
       </div>
 
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-6 right-6 flex flex-col gap-2 z-20">
-        <Button
-          variant="primary"
-          size="icon"
-          className="shadow-lg"
-          onClick={() => setShowAIChat(true)}
-          aria-label="Open AI Assistant"
-        >
-          <Sparkles className="w-5 h-5" />
-        </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="shadow-lg"
-          onClick={() => {
-            // Start voice transcription
-          }}
-          aria-label="Start voice recording"
-        >
-          <Mic className="w-5 h-5" />
-        </Button>
+      {/* Тело редактора: боковые рейки с инструментами + центральная «страница» */}
+      <div className="editor-stage">
+        <EditorToolbar side="left" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
+
+        <div className="editor-column">
+          <EditorContent editor={tiptapEditor} />
+        </div>
+
+        <EditorToolbar side="right" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
       </div>
+
+      {showSearch && (
+        <div className="editor-search-panel" role="dialog" aria-label="Поиск и замена">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-sm font-semibold">Найти и заменить</h2>
+            <button className="editor-search-close" onClick={() => setShowSearch(false)} aria-label="Закрыть">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <input
+            autoFocus
+            className="input h-9 rounded-xl"
+            placeholder="Найти…"
+            value={searchQuery}
+            onChange={event => setSearchQuery(event.target.value)}
+            onKeyDown={event => event.key === 'Enter' && findNextMatch()}
+          />
+          <input
+            className="input h-9 rounded-xl"
+            placeholder="Заменить на…"
+            value={replaceQuery}
+            onChange={event => setReplaceQuery(event.target.value)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={findNextMatch} disabled={!searchQuery}>
+              <Search className="h-4 w-4" /> Найти
+            </Button>
+            <Button variant="secondary" size="sm" onClick={replaceAllMatches} disabled={!searchQuery}>
+              Заменить всё
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

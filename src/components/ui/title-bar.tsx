@@ -33,6 +33,9 @@ export function TitleBar() {
 
   useEffect(() => {
     setTauri(isTauri());
+    // Пометка на <body>: CSS-правила, которые должны уступать место кастомной
+    // шапке окна (а не браузерному оверлею), проверяют её через :has().
+    if (isTauri()) document.body.setAttribute('data-tauri-window', '');
   }, []);
 
   useEffect(() => {
