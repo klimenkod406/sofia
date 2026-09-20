@@ -546,37 +546,77 @@
     margin-top: 0;
   }
 
-  /* Центральная колонка: прокрутка + поля. Текст идёт прямо на фоне,
-     без «листа», без обводок, без зон для печати. */
+  /* Центральная колонка: прокрутка + поля вокруг листа-зоны печати.
+     Обычный поток (не flex) — лист растёт по контенту и не даёт курсору
+     вылезать за нижнюю кромку. */
   .editor-column {
-    display: flex;
     min-height: 0;
     min-width: 0;
     flex: 1;
-    justify-content: center;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 0 clamp(1.75rem, 4vw, 3rem) 6rem;
-  }
-
-  /* Курсор-текст на всей колонке — клик в любое место ставит курсор на строку. */
-  .editor-column {
+    padding: 0.75rem clamp(1.75rem, 4vw, 3rem) 3.5rem;
     cursor: text;
   }
 
-  /* Полосатая линовка убрана — письменная зона чистая, без линий.
-     Текст живёт прямо на фоне приложения, без карточки-листа. */
+  /* Зона печати: тёплый лист в духе «жидкого стекла» приложения.
+     Мягкое возвышение над фоном, без линовки и тяжёлых рамок. */
+  .editor-sheet {
+    display: flex;
+    flex-direction: column;
+    width: min(100%, 47rem);
+    margin: 0 auto;
+    min-height: 100%;
+    border: 1px solid hsl(var(--foreground) / 0.07);
+    border-radius: var(--radius);
+    background:
+      linear-gradient(168deg, hsl(var(--card) / 0.96), hsl(var(--secondary) / 0.5)),
+      hsl(var(--card));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.55),
+      0 1px 2px rgba(87, 80, 70, 0.05),
+      0 16px 44px -18px rgba(87, 80, 70, 0.22),
+      0 40px 80px -48px rgba(87, 80, 70, 0.3);
+  }
+  .dark .editor-sheet {
+    border-color: rgba(255, 255, 255, 0.06);
+    background:
+      linear-gradient(168deg, hsl(var(--card) / 0.94), hsl(var(--secondary) / 0.42)),
+      hsl(var(--card));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.05),
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 16px 44px -18px rgba(0, 0, 0, 0.45),
+      0 40px 80px -48px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Обёртка EditorContent и проза растягиваются: в пустой заметке лист
+     занимает всю высоту, с длинным текстом — растёт вместе с контентом. */
+  .editor-sheet > * {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+  }
+
+  /* Письменная зона внутри листа: поля страницы, без линий. */
   .editor-prose {
     display: flex;
     flex-direction: column;
-    min-height: 100%;
+    flex: 1 1 auto;
     outline: none;
-    padding: 1.5rem 0 0;
+    padding: 2.5rem clamp(1.5rem, 4vw, 3.25rem) 3.5rem;
     color: hsl(var(--foreground));
     background-color: transparent;
     font-kerning: normal;
     font-variant-ligatures: common-ligatures contextual;
     hanging-punctuation: first;
+  }
+  /* Клик в строку не должен рисовать фокусную рамку на листе:
+     contenteditable всегда матчит :focus-visible, гасим и ring-тень. */
+  .editor-prose:focus,
+  .editor-prose:focus-visible {
+    outline: none;
+    box-shadow: none;
   }
   .dark .editor-prose {
     background-color: transparent;
@@ -666,8 +706,8 @@
     color: hsl(var(--foreground));
   }
 
-  /* Контент занимает всю колонку — клик в любом месте (включая первые строки)
-     попадает в редактор и ставит курсор. */
+  /* Дети прозы не растягиваются, последний добирает высоту листа —
+     клик в любом месте листа попадает в редактор и ставит курсор. */
   .editor-prose > * {
     flex: 0 0 auto;
   }
@@ -1507,18 +1547,37 @@
   }
 }
 
-/* Экспорт в PDF: печатаем только контент заметки — без шапки и боковых реек. */
+/* Экспорт в PDF: печатаем только контент заметки — лист превращается в страницу.
+   Без шапки, боковых реек и статусбара; поля страницы даёт сам @page. */
 @media print {
   header,
   .editor-rail,
-  .editor-statusbar {
+  .editor-statusbar,
+  .editor-search-panel {
     display: none !important;
   }
+  html,
+  body {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  .editor-stage,
   .editor-column {
+    display: block;
     overflow: visible;
     padding: 0;
   }
+  .editor-sheet {
+    width: auto;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+    background: #fff;
+    box-shadow: none;
+  }
   .editor-prose {
+    min-height: 0;
     padding: 0;
     color: #1c1917;
   }

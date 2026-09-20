@@ -363,7 +363,18 @@ export function EditorPage() {
         <EditorToolbar side="left" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
 
         <div className="editor-column">
-          <EditorContent editor={tiptapEditor} />
+          <div
+            className="editor-sheet"
+            onMouseDown={event => {
+              // Клик по полю листа мимо текста ставит курсор в конец заметки.
+              const target = event.target as HTMLElement;
+              if (target.closest('.ProseMirror')) return;
+              event.preventDefault();
+              tiptapEditor.commands.focus('end');
+            }}
+          >
+            <EditorContent editor={tiptapEditor} />
+          </div>
         </div>
 
         <EditorToolbar side="right" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
