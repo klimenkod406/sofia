@@ -49,6 +49,10 @@ export function EditorPage() {
   const [replaceQuery, setReplaceQuery] = useState('');
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const isSavingRef = useRef(false);
+  // refs до зон скролла: колонка (прокрутчик) и лист (прямоугольная зона печати).
+  const columnRef = useRef<HTMLDivElement | null>(null);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const lastDocSizeRef = useRef(0);
   // Всё изменяемое — через ref'ы: onUpdate в useEditor регистрируется один раз
   // при монтировании, замыкание на state было бы протухшим (это и ломало сейв).
   const noteRef = useRef<Note | null>(null);
@@ -187,6 +191,38 @@ export function EditorPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
+
+  // Скролл за прямоугольной зоной печати: при вводе текста прокручиваем так,
+  // чтобы нижняя кромка листа оставалась у низа колонки (с учётом её нижнего
+  // поля), а не только строку курсора. Реагируем только на рост документа,
+  // чтобы выделение/сервисные транзакции не дёргали скролл.
+  useEffect(() => {
+    if (!tiptapEditor) return;
+    const scrollToSheetEdge = () => {
+      const column = columnRef.current;
+      const sheet = sheetRef.current;
+      if (!column || !sheet) return;
+      const docSize = tiptapEditor.state.doc.content.size;
+      if (docSize <= lastDocSizeRef.current) {
+        lastDocSizeRef.current = docSize;
+        return;
+      }
+      lastDocSizeRef.current = docSize;
+      const colRect = column.getBoundingClientRect();
+      const sheetRect = sheet.getBoundingClientRect();
+      // Нижняя кромка листа в координатах прокрутки колонки + нижнее поле.
+      const edgeOffset =
+        sheetRect.bottom - colRect.top + column.scrollTop + parseFloat(getComputedStyle(column).paddingBottom || '0');
+      const viewBottom = column.scrollTop + colRect.height;
+      if (edgeOffset > viewBottom) {
+        column.scrollTop = edgeOffset - colRect.height;
+      }
+    };
+    tiptapEditor.on('transaction', scrollToSheetEdge);
+    return () => {
+      tiptapEditor.off('transaction', scrollToSheetEdge);
+    };
+  }, [tiptapEditor]);
 
   // Контент подставляем, когда ГОТОВЫ ОБА: редактор и загруженная заметка
   // (раньше loadNote мог сработать до готовности редактора и текст терялся).
@@ -362,9 +398,10 @@ export function EditorPage() {
       <div className="editor-stage">
         <EditorToolbar side="left" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
 
-        <div className="editor-column">
+        <div className="editor-column" ref={columnRef}>
           <div
             className="editor-sheet"
+            ref={sheetRef}
             onMouseDown={event => {
               // Клик по полю листа мимо текста ставит курсор в конец заметки.
               const target = event.target as HTMLElement;
