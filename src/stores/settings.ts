@@ -66,11 +66,13 @@ const defaultEditor: EditorSettings = {
   vimMode: false,
 };
 
+// No model is configured until the user actually downloads local weights or
+// adds an API key — keep these neutral so the UI never pretends otherwise.
 const defaultAI: AISettings = {
   transcriptionLanguage: 'auto',
-  transcriptionModel: 'funasr',
-  analysisModel: 'local',
-  apiProvider: 'openai',
+  transcriptionModel: '',
+  analysisModel: '',
+  apiProvider: '',
 };
 
 const defaultUI: UIPreferences = {
@@ -148,13 +150,30 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'sofia-settings',
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown, version: number) => {
-        const s = persistedState as Record<string, unknown>;
+        let s = persistedState as Record<string, unknown>;
         if (version < 2 && s.theme === 'system') {
-          return { ...s, theme: 'light' } as SettingsState;
+          s = { ...s, theme: 'light' };
         }
-        return persistedState as SettingsState;
+        if (version < 3) {
+          // Drop the old fake AI defaults (funasr/local/openai): no model was
+          // ever installed or connected, so nothing should claim otherwise.
+          const ai = (s.ai ?? {}) as Record<string, unknown>;
+          s = {
+            ...s,
+            ai: {
+              transcriptionLanguage:
+                typeof ai.transcriptionLanguage === 'string'
+                  ? ai.transcriptionLanguage
+                  : 'auto',
+              transcriptionModel: '',
+              analysisModel: '',
+              apiProvider: '',
+            },
+          };
+        }
+        return s as unknown as SettingsState;
       },
     }
   )

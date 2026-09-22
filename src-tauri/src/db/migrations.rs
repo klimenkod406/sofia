@@ -60,5 +60,12 @@ pub fn migrations() -> Vec<Migration> {
             sql: include_str!("migrations/008_add_local_transcription_models.sql"),
             kind: MigrationKind::Up,
         },
+        // Clear fake AI model settings (nothing is installed/connected by default)
+        Migration {
+            version: 9,
+            description: "reset_ai_model_settings",
+            sql: include_str!("migrations/009_reset_ai_model_settings.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

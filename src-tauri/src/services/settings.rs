@@ -153,9 +153,11 @@ impl Default for AISettings {
     fn default() -> Self {
         Self {
             transcription_language: "auto".to_string(),
-            transcription_model: "funasr".to_string(),
-            analysis_model: "local".to_string(),
-            api_provider: "openai".to_string(),
+            // No model is installed or connected by default: the user must
+            // download local weights or add an API key first.
+            transcription_model: String::new(),
+            analysis_model: String::new(),
+            api_provider: String::new(),
         }
     }
 }

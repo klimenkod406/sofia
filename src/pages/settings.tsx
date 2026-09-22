@@ -6,7 +6,6 @@ import { useSettings } from '@/stores/settings';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -20,6 +19,7 @@ import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { LiveTranscriptionSettings } from '@/components/settings/live-transcription-settings';
+import { AiModelsSettings } from '@/components/settings/ai-models-settings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Sun,
@@ -37,8 +37,7 @@ import {
 
 export function SettingsPage() {
   const navigate = useNavigate();
-  const { theme, font, editor, ai, setTheme, setFont, setEditor, setAI, resetToDefaults } =
-    useSettings();
+  const { theme, font, editor, setTheme, setFont, setEditor, resetToDefaults } = useSettings();
   const [activeTab, setActiveTab] = useState('appearance');
 
   return (
@@ -269,70 +268,12 @@ export function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>AI Models</CardTitle>
-              <CardDescription>Configure AI models for transcription and analysis</CardDescription>
+              <CardDescription>
+                Install and configure models for transcription and analysis
+              </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-4">
-                {[
-                  {
-                    key: 'transcriptionLanguage',
-                    label: 'Transcription Language',
-                    options: [
-                      { value: 'auto', label: 'Auto-detect' },
-                      { value: 'zh', label: 'Chinese (中文)' },
-                      { value: 'en', label: 'English' },
-                      { value: 'ja', label: 'Japanese (日本語)' },
-                      { value: 'ko', label: 'Korean (한국어)' },
-                    ],
-                  },
-                  {
-                    key: 'transcriptionModel',
-                    label: 'Transcription Model',
-                    options: [
-                      { value: 'funasr', label: 'FunASR (Local)' },
-                      { value: 'whisper', label: 'Whisper (Local)' },
-                      { value: 'openai', label: 'OpenAI Whisper API' },
-                    ],
-                  },
-                  {
-                    key: 'analysisModel',
-                    label: 'Text Analysis Model',
-                    options: [
-                      { value: 'local', label: 'Local LLM (llama.cpp)' },
-                      { value: 'openai', label: 'OpenAI GPT-4o Mini' },
-                      { value: 'anthropic', label: 'Anthropic Claude' },
-                    ],
-                  },
-                  {
-                    key: 'apiProvider',
-                    label: 'API Provider',
-                    options: [
-                      { value: 'openai', label: 'OpenAI' },
-                      { value: 'anthropic', label: 'Anthropic' },
-                      { value: 'custom', label: 'Custom Endpoint' },
-                    ],
-                  },
-                ].map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <Label>{label}</Label>
-                    <Select
-                      value={ai[key as keyof typeof ai]}
-                      onValueChange={v => setAI({ [key]: v })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {options.map(o => (
-                          <SelectItem key={o.value} value={o.value}>
-                            {o.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
+            <CardContent>
+              <AiModelsSettings />
             </CardContent>
           </Card>
 
@@ -343,28 +284,6 @@ export function SettingsPage() {
             </CardHeader>
             <CardContent>
               <LiveTranscriptionSettings />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>API Keys</CardTitle>
-              <CardDescription>Add your API keys for cloud AI services</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>OpenAI API Key</Label>
-                  <Input type="password" placeholder="sk-..." />
-                  <p className="text-sm text-muted-foreground">
-                    Stored securely in system keychain
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Anthropic API Key</Label>
-                  <Input type="password" placeholder="sk-ant-..." />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
