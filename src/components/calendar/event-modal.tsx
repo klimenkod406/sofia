@@ -67,7 +67,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="bg-background w-full max-w-lg rounded-2xl border shadow-xl overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">

@@ -112,12 +112,15 @@ export const DropdownMenuContent = forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & { align?: 'start' | 'end' }
 >(({ className, align = 'end', children, ...props }, ref) => {
-  const { open, setOpen, anchor } = useContext(OpenContext);
+  const { open, anchor } = useContext(OpenContext);
   const innerRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   // Позиция от якоря: справа/слева под триггером, с клампом к вьюпорту
-  // и переворотом вверх, если внизу нет места
+  // и переворотом вверх, если внизу нет места.
+  // children НЕ в зависимостях: его смена при каждом keystroke в инпуте
+  // меню вызывала бы пересчёт позиции. Размер контента и так читается
+  // из DOM (offsetWidth/Height) внутри place().
   useEffect(() => {
     if (!open || !anchor) return;
     const place = () => {
@@ -142,7 +145,7 @@ export const DropdownMenuContent = forwardRef<
       window.removeEventListener('scroll', place, true);
       window.removeEventListener('resize', place);
     };
-  }, [open, anchor, align, children]);
+  }, [open, anchor, align]);
 
   if (!open) return null;
   return createPortal(
@@ -163,8 +166,10 @@ export const DropdownMenuContent = forwardRef<
         e.stopPropagation();
       }}
       onClick={e => {
+        // Контент в портале: по фиберам клик доходит до предков хоста —
+        // не даём странице под меню обработать клик. Закрытие — через
+        // closeOnSelect пунктов или клик вне меню.
         e.stopPropagation();
-        setOpen(false);
       }}
       {...props}
     >
@@ -177,24 +182,35 @@ DropdownMenuContent.displayName = 'DropdownMenuContent';
 
 export const DropdownMenuItem = forwardRef<
   HTMLButtonElement,
-  React.ButtonHTMLAttributes<HTMLButtonElement> & { onSelect?: () => void }
->(({ className, onSelect, children, onClick, ...props }, ref) => (
-  <button
-    ref={ref}
-    className={cn(
-      'flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm hover:bg-accent/70 transition-all duration-200 text-left',
-      className
-    )}
-    onClick={e => {
-      e.stopPropagation();
-      onSelect?.();
-      onClick?.(e);
-    }}
-    {...props}
-  >
-    {children}
-  </button>
-));
+  React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    onSelect?: () => void;
+    /** Закрыть меню после выбора (по умолчанию да). Для пунктов, разворачивающих
+     *  инлайн-форму внутри меню, передавайте closeOnSelect={false}. */
+    closeOnSelect?: boolean;
+  }
+>(({ className, onSelect, closeOnSelect = true, children, onClick, ...props }, ref) => {
+  const { setOpen } = useContext(OpenContext);
+  return (
+    <button
+      ref={ref}
+      className={cn(
+        'flex w-full items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm hover:bg-accent/70 transition-all duration-200 text-left',
+        className
+      )}
+      onClick={e => {
+        // НЕ стопаем всплытие: контейнер меню закрывается в bubble-фазе ПОСЛЕ
+        // действия пункта. stopPropagation здесь убивал onClick пункта на
+        // реальных кликах (capture-закрытие размонтировало меню до click).
+        onSelect?.();
+        onClick?.(e);
+        if (closeOnSelect) setOpen(false);
+      }}
+      {...props}
+    >
+      {children}
+    </button>
+  );
+});
 DropdownMenuItem.displayName = 'DropdownMenuItem';
 
 export const DropdownMenuSeparator = forwardRef<

@@ -31,7 +31,12 @@ const widths = {
  * контент получает всю высоту под прозрачной шапкой и сам решает,
  * когда прокручиваться.
  */
-export function PageLayout({ children, className, width = 'default', fill = false }: PageLayoutProps) {
+export function PageLayout({
+  children,
+  className,
+  width = 'default',
+  fill = false,
+}: PageLayoutProps) {
   const location = useLocation();
 
   if (fill) {

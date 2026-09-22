@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Minus, Square, Copy, X, Settings, Search, ArrowLeft } from 'lucide-react';
+import { Minus, Square, Copy, X, Settings, Search } from 'lucide-react';
 import { useNotes } from '@/stores/notes';
 import { cn } from '@/utils/cn';
 
@@ -105,12 +105,21 @@ export function TitleBar() {
   return (
     <header
       data-tauri-drag-region
-      onDoubleClick={tauri ? toggleMaximize : undefined}
+      onDoubleClick={
+        tauri
+          ? e => {
+              // Dblclick по кнопкам окна (свернуть/закрыть) не должен
+              // максимизировать окно прямо перед закрытием.
+              if ((e.target as HTMLElement).closest('button')) return;
+              toggleMaximize();
+            }
+          : undefined
+      }
       className="absolute inset-x-0 top-0 z-40 flex h-12 shrink-0 select-none items-start gap-1 bg-transparent px-3"
       aria-label="Window title bar"
     >
-      {/* Лого слева (чуть ниже верха) — drag-регион, клик ведёт на главную;
-          под лого — хлебная крошка «Главная» (скрыта на самой главной) */}
+      {/* Лого слева (чуть ниже верха) — drag-регион, клик ведёт на главную.
+          Хлебные крошки живут в контенте каждой страницы (как на главной). */}
       <div className="flex shrink-0 flex-col items-start gap-0.5 pl-1">
         <button
           data-tauri-drag-region
@@ -123,19 +132,6 @@ export function TitleBar() {
             Σόφια
           </span>
         </button>
-
-        {location.pathname !== '/home' && (
-          <nav role="navigation" aria-label="Навигация по разделам">
-            <button
-              onClick={() => navigate('/home')}
-              className="flex items-center gap-1 rounded-lg px-2 py-0.5 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              aria-label="На главную"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-              Главная
-            </button>
-          </nav>
-        )}
       </div>
 
       {/* Поиск — по центру, опущен на 40px от верха */}

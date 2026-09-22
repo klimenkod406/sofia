@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSettings } from '@/stores/settings';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
+import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -33,6 +35,7 @@ import {
 } from 'lucide-react';
 
 export function SettingsPage() {
+  const navigate = useNavigate();
   const { theme, font, editor, ai, setTheme, setFont, setEditor, setAI, resetToDefaults } =
     useSettings();
   const [activeTab, setActiveTab] = useState('appearance');
@@ -40,6 +43,12 @@ export function SettingsPage() {
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
+        <Breadcrumbs
+          onBack={() => navigate('/home')}
+          parentLabel="Главная"
+          current="Настройки"
+          className="mb-1 justify-start"
+        />
         <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Customize Σόφια to match your workflow</p>
       </div>

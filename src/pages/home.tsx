@@ -343,6 +343,28 @@ export function HomePage() {
     x: number;
     y: number;
   } | null>(null);
+  const folderMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Закрыть ПКМ-меню папки: клик/скролл вне, Escape.
+  useEffect(() => {
+    if (!folderCtx) return;
+    const onDown = (e: MouseEvent) => {
+      if (folderMenuRef.current && !folderMenuRef.current.contains(e.target as Node))
+        setFolderCtx(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFolderCtx(null);
+    };
+    const onScroll = () => setFolderCtx(null);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('scroll', onScroll, true);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }, [folderCtx]);
 
   const finishFolderRename = async (folder: Folder, name: string | null) => {
     setRenamingFolderId(null);
@@ -540,6 +562,16 @@ export function HomePage() {
       {/* Тулбар рабочей зоны: календарь СЛЕВА рядом с сортировкой — только
           иконки, без подписей. Сортировка — только иконка (без текста). */}
       <div className="flex items-center justify-end gap-1.5">
+        <Button
+          onClick={handleNewNote}
+          disabled={creating}
+          size="icon"
+          className="h-9 w-9 rounded-xl"
+          aria-label="Создать заметку"
+          title="Создать заметку"
+        >
+          <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
+        </Button>
         <button
           onClick={() => navigate('/calendar')}
           className="toolbar-icon-btn"
@@ -721,13 +753,17 @@ export function HomePage() {
         {folderCtx &&
           createPortal(
             <div
+              ref={folderMenuRef}
               className="liquid-glass fixed z-[100] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
               style={{
                 left: Math.min(folderCtx.x, window.innerWidth - 250),
                 top: Math.min(folderCtx.y, window.innerHeight - 180),
               }}
               role="menu"
-              onClickCapture={() => setFolderCtx(null)}
+              onClick={e => {
+                e.stopPropagation();
+                setFolderCtx(null);
+              }}
             >
               <DropdownMenuItem onClick={() => setFilter({ folderId: folderCtx.folder.id })}>
                 <ArrowLeft className="w-4 h-4 mr-1" />

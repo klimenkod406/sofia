@@ -262,11 +262,7 @@
     width: 100%;
     border-radius: 1rem;
     border: 1px solid hsl(var(--foreground) / 0.09);
-    background: linear-gradient(
-      135deg,
-      hsl(var(--card) / 0.72),
-      hsl(var(--secondary) / 0.5)
-    );
+    background: linear-gradient(135deg, hsl(var(--card) / 0.72), hsl(var(--secondary) / 0.5));
     backdrop-filter: blur(20px) saturate(1.6);
     -webkit-backdrop-filter: blur(20px) saturate(1.6);
     box-shadow:
@@ -547,25 +543,32 @@
   }
 
   /* Центральная колонка: прокрутка + поля вокруг листа-зоны печати.
-     Обычный поток (не flex) — лист растёт по контенту и не даёт курсору
-     вылезать за нижнюю кромку. */
+     Flex-колонка — лист всегда минимум на всю высоту вьюпорта колонки,
+     даже когда заметка пустая. Нижний зазор — margin'ом последнего
+     элемента, а не padding'ом колонки: у flex-контейнера с overflow:auto
+     нижний padding не прокручивается (баг Chromium), и лист прижимается
+     к нижнему краю окна. */
   .editor-column {
+    display: flex;
+    flex-direction: column;
     min-height: 0;
     min-width: 0;
     flex: 1;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 0.75rem clamp(1.75rem, 4vw, 3rem) 3.5rem;
+    padding: 0.75rem clamp(0.75rem, 2vw, 1.5rem) 0;
     cursor: text;
   }
 
   /* Зона печати: тёплый лист в духе «жидкого стекла» приложения.
-     Мягкое возвышение над фоном, без линовки и тяжёлых рамок. */
+     Мягкое возвышение над фоном, без линовки и тяжёлых рамок.
+     Подложка на всю высоту колонки, печатная зона всегда сверху. */
   .editor-sheet {
     display: flex;
     flex-direction: column;
-    width: min(100%, 47rem);
+    width: min(100%, 80rem);
     margin: 0 auto;
+    flex: 1 0 auto;
     min-height: 100%;
     border: 1px solid hsl(var(--foreground) / 0.07);
     border-radius: var(--radius);
@@ -596,15 +599,18 @@
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
   }
 
-  /* Письменная зона внутри листа: поля страницы, без линий. */
+  /* Письменная зона внутри листа: поля страницы, без линий.
+     display: block, а НЕ flex-колонка — иначе float на блочных детях
+     (изображения, таблицы) игнорируется браузером и обтекание не работает. */
   .editor-prose {
-    display: flex;
-    flex-direction: column;
+    display: block;
     flex: 1 1 auto;
     outline: none;
-    padding: 2.5rem clamp(1.5rem, 4vw, 3.25rem) 3.5rem;
+    padding: 2.5rem clamp(1rem, 3vw, 2.5rem) 3.5rem;
     color: hsl(var(--foreground));
     background-color: transparent;
     font-kerning: normal;
@@ -706,13 +712,10 @@
     color: hsl(var(--foreground));
   }
 
-  /* Дети прозы не растягиваются, последний добирает высоту листа —
-     клик в любом месте листа попадает в редактор и ставит курсор. */
-  .editor-prose > * {
-    flex: 0 0 auto;
-  }
+  /* Дети прозы — обычный блочный поток: блочные элементы (абзацы, списки,
+     таблицы) не разрываются и обтекают плавающие картинки целиком. */
   .editor-prose > *:last-child {
-    flex: 1 1 auto;
+    min-height: 1em;
   }
   .editor-prose.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
@@ -760,6 +763,25 @@
   .editor-prose ul,
   .editor-prose ol {
     padding-left: 1.5em;
+  }
+  .editor-prose ul {
+    list-style-type: disc;
+  }
+  .editor-prose ol {
+    list-style-type: decimal;
+  }
+  /* Вариации пометок по вложенности. */
+  .editor-prose ul ul {
+    list-style-type: circle;
+  }
+  .editor-prose ul ul ul {
+    list-style-type: square;
+  }
+  .editor-prose ol ol {
+    list-style-type: lower-alpha;
+  }
+  .editor-prose ol ol ol {
+    list-style-type: lower-roman;
   }
   .editor-prose li {
     margin: 0;
@@ -830,12 +852,25 @@
     height: 1px;
     width: 34%;
     margin: 2.25em auto;
-    background: linear-gradient(
+    background: transparent;
+    background-image: linear-gradient(
       90deg,
       transparent,
       hsl(var(--foreground) / 0.28),
       transparent
     );
+    flex: 0 0 auto;
+  }
+  /* Пустые абзацы вокруг hr не должны давать фантомный фон/полосу в тёмной теме. */
+  .editor-prose hr + p:empty,
+  .editor-prose p:empty:has(+ hr) {
+    min-height: 1em;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+  }
+  .editor-prose > p:empty:last-child {
+    background: transparent;
   }
   .editor-prose code:not(pre code) {
     border-radius: 0.45em;
@@ -854,9 +889,117 @@
   .editor-prose a:hover {
     text-decoration-color: hsl(var(--primary));
   }
-  .editor-prose img {
+  /* Вставленные изображения: NodeView-обёртка.
+     Контейнер нулевой высоты и без BFC (обычный block, без overflow/float):
+     невидимый float-блок внутри «сбегает» в BFC прозы, поэтому обтекание
+     действует на следующие абзацы/списки, а картинка (absolute) визуально
+     занимает место, не сдвигая блоки. */
+  .editor-prose .image-container {
+    position: relative;
+    width: 100%;
+    height: 0;
+  }
+  /* Невидимый float задаёт область обтекания: shape-outside: border-box —
+     контур картинки (со скруглением), padding справа/снизу — воздух для
+     текста. Так текст обходит картинку с обеих сторон в любом месте. */
+  .editor-prose .image-container .image-shape {
+    float: left;
+    pointer-events: none;
+    border-radius: 0.9rem;
+    padding: 0 1em 1em 0;
+    shape-outside: border-box;
+  }
+  .editor-prose .image-container img {
+    position: absolute;
+    top: 0;
+    display: block;
     border-radius: 0.9rem;
     box-shadow: 0 8px 24px -10px rgba(87, 80, 70, 0.35);
+    cursor: grab;
+  }
+  .editor-prose .image-container.is-selected img,
+  .editor-prose .image-container:hover img {
+    box-shadow:
+      0 0 0 2px hsl(var(--primary) / 0.65),
+      0 8px 24px -10px rgba(87, 80, 70, 0.35);
+  }
+  .editor-prose .image-resize-handle {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    z-index: 1;
+    border-radius: 5px;
+    background:
+      linear-gradient(135deg, transparent 0 42%, hsl(var(--primary)) 42% 58%, transparent 58% 100%),
+      hsl(var(--card));
+    background-size:
+      100% 100%,
+      100% 100%;
+    border: 2px solid hsl(var(--primary));
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    cursor: nwse-resize;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+  .editor-prose .image-container:hover .image-resize-handle {
+    opacity: 0.55;
+    pointer-events: auto;
+  }
+  .editor-prose .image-container.is-selected .image-resize-handle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* Пока тянем маркер — не выделяем текст страницы, курсор не скачет. */
+  body.image-resizing {
+    cursor: nwse-resize;
+    user-select: none;
+  }
+
+  /* Призрак изображения и линия сброса при перемещении мышью. */
+  .image-move-ghost {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.85;
+    border-radius: 0.9rem;
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.35);
+    transform: translate(-50%, -50%);
+  }
+  .image-move-ghost img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: inherit;
+  }
+  .image-drop-line {
+    position: fixed;
+    z-index: 9998;
+    height: 3px;
+    border-radius: 2px;
+    background: hsl(var(--primary));
+    box-shadow: 0 0 0 1px hsl(var(--card) / 0.9);
+    pointer-events: none;
+    display: none;
+  }
+  body.image-moving {
+    cursor: grabbing;
+    user-select: none;
+  }
+  /* Пилюля с текущей шириной в процентах при ресайзе. */
+  .image-resize-pill {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: hsl(var(--foreground) / 0.88);
+    color: hsl(var(--background));
+    font-size: 12px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    transform: translate(-50%, -140%);
   }
   .editor-prose table {
     border-collapse: separate;
@@ -867,6 +1010,132 @@
     overflow: hidden;
     border-radius: 0.9rem;
     box-shadow: inset 0 0 0 1px hsl(var(--foreground) / 0.1);
+  }
+  .editor-prose table[data-float='left'] {
+    float: left;
+    margin: 0 1em 1em 0;
+    width: auto;
+  }
+  .editor-prose table[data-float='right'] {
+    float: right;
+    margin: 0 0 1em 1em;
+    width: auto;
+  }
+  /* Компактная таблица: не на всю ширину листа, а по ширине содержимого. */
+  .editor-prose table[data-size='compact'] {
+    width: auto;
+  }
+  /* Ручка-уголок для изменения размера таблицы мышью (как в Word/Google Docs).
+     Показывается при наведении на таблицу; перетаскивание масштабирует
+     ширины колонок (обновляет colwidth ячеек). */
+  .editor-prose .tableWrapper {
+    position: relative;
+  }
+  .editor-prose .table-resize-handle {
+    position: absolute;
+    /* left/top задаются из JS по реальной геометрии таблицы (syncHandlePosition),
+       чтобы ручка ехала за правым нижним углом таблицы, а не wrapper'а. */
+    z-index: 5;
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    background: hsl(var(--accent));
+    border: 2px solid hsl(var(--card));
+    box-shadow: 0 1px 5px rgb(0 0 0 / 0.18);
+    cursor: nwse-resize;
+    opacity: 0;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+    pointer-events: none;
+  }
+  .editor-prose .tableWrapper:hover .table-resize-handle,
+  .editor-prose .tableWrapper.resizing .table-resize-handle,
+  body.table-resizing .editor-prose .table-resize-handle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .editor-prose .tableWrapper .table-resize-handle:hover,
+  .editor-prose .tableWrapper.resizing .table-resize-handle {
+    background: hsl(var(--primary));
+  }
+  body.table-resizing,
+  body.table-resizing * {
+    cursor: nwse-resize !important;
+    user-select: none;
+  }
+
+  /* Ручка-крестик для перемещения таблицы (левый верхний угол, как в Word/Google Docs). */
+  .editor-prose .table-move-handle {
+    position: absolute;
+    left: -7px;
+    top: -7px;
+    z-index: 5;
+    width: 15px;
+    height: 15px;
+    border-radius: 4px;
+    background:
+      linear-gradient(135deg, transparent 0 42%, hsl(var(--primary)) 42% 58%, transparent 58% 100%),
+      hsl(var(--card));
+    background-size:
+      100% 100%,
+      100% 100%;
+    border: 2px solid hsl(var(--primary));
+    box-shadow: 0 1px 5px rgb(0 0 0 / 0.18);
+    cursor: grab;
+    opacity: 0;
+    transition:
+      opacity 0.15s ease,
+      background-color 0.15s ease;
+    pointer-events: none;
+  }
+  .editor-prose .tableWrapper:hover .table-move-handle,
+  .editor-prose .tableWrapper.resizing .table-move-handle,
+  body.table-moving .editor-prose .table-move-handle {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .editor-prose .tableWrapper .table-move-handle:hover,
+  .editor-prose .tableWrapper.resizing .table-move-handle {
+    background: hsl(var(--primary));
+    cursor: grabbing;
+  }
+
+  /* Призрак таблицы и линия сброса при перемещении мышью. */
+  .table-move-ghost {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.85;
+    border-radius: 0.9rem;
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.35);
+    transform: translate(-50%, -50%);
+    overflow: hidden;
+  }
+  .table-move-ghost table {
+    margin: 0;
+    width: 100%;
+  }
+  .table-drop-line {
+    position: fixed;
+    z-index: 9998;
+    height: 3px;
+    border-radius: 2px;
+    background: hsl(var(--primary));
+    box-shadow: 0 0 0 1px hsl(var(--card) / 0.9);
+    pointer-events: none;
+    display: none;
+  }
+  body.table-moving {
+    cursor: grabbing;
+    user-select: none;
+  }
+  body.table-moving .editor-prose .tableWrapper {
+    cursor: grabbing;
+  }
+  .editor-prose th[data-colwidth],
+  .editor-prose td[data-colwidth] {
+    /* colwidth handled by table-layout: fixed + inline styles */
   }
   .editor-prose th,
   .editor-prose td {
@@ -901,20 +1170,60 @@
     background: hsl(var(--primary) / 0.2);
   }
 
-  /* Блок кода с подсветкой синтаксиса (lowlight → hljs-классы) */
-  .editor-prose pre {
+  /* Блок кода: тёмный фон, нумерация строк gutter'ом внутри рамки. */
+  .editor-prose .cb-wrapper {
+    display: flex;
+    position: relative;
     margin: 1em 0;
-    padding: 1rem 1.25rem;
-    border: 1px solid hsl(var(--foreground) / 0.08);
-    border-radius: 1rem;
-    background: hsl(var(--secondary) / 0.55);
-    overflow-x: auto;
+    border: 1px solid hsl(var(--foreground) / 0.1);
+    border-radius: 0.5rem;
+    background: #1c1917;
+    overflow: hidden;
     font-family: 'JetBrains Mono', ui-monospace, monospace;
     font-size: 0.85em;
     line-height: 1.6;
-    color: hsl(var(--foreground));
+    color: #e7e5e4;
   }
-  .editor-prose pre code.hljs {
+  .editor-prose .cb-gutter {
+    flex-shrink: 0;
+    min-width: 2.5ch;
+    padding: 1.75rem 0.5rem 1rem 0.75rem;
+    text-align: right;
+    color: #57534e;
+    user-select: none;
+    border-right: 1px solid #292524;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+  .editor-prose .cb-pre {
+    flex: 1;
+    margin: 0;
+    padding: 1.75rem 1.25rem 1rem;
+    background: transparent;
+    overflow-x: auto;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    border: none;
+    border-radius: 0;
+  }
+  .editor-prose .cb-pre::before {
+    content: attr(data-language);
+    position: absolute;
+    top: 0.35rem;
+    left: 0.75rem;
+    font-family: 'Manrope', 'Onest', sans-serif;
+    font-size: 0.72em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #a8a29e;
+    pointer-events: none;
+  }
+  .editor-prose .cb-pre code.hljs {
+    display: block;
     background: transparent;
     padding: 0;
     font-family: inherit;
@@ -1401,23 +1710,17 @@
   }
 
   /* Calendar */
+  /* Контейнер месяца: flex-колонка, в которой заголовок + строки недель
+     занимают всю высоту (row-строки растягиваются через auto-rows-fr). */
   .calendar-grid {
-    @apply grid grid-cols-7 gap-2;
+    @apply flex flex-col overflow-hidden rounded-xl border bg-card;
   }
   .calendar-day {
-    @apply relative min-h-[100px] p-3 bg-card rounded-2xl border border-border/60;
-  }
-  .calendar-day-today {
-    @apply calendar-day;
-    border-color: hsl(var(--primary) / 0.5);
-    background: hsl(var(--primary) / 0.08);
-  }
-  .calendar-day-other-month {
-    @apply calendar-day text-muted-foreground/50;
+    @apply relative flex min-h-0 flex-col overflow-hidden border-b border-r border-border/60 p-1.5 transition-colors hover:bg-accent/40;
   }
   .calendar-event {
-    @apply rounded-xl px-2 py-1 text-xs font-medium truncate cursor-pointer hover:opacity-90 transition-opacity;
-    background: hsl(var(--primary) / 0.2);
+    @apply truncate rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-tight cursor-pointer hover:opacity-90 transition-opacity;
+    color: #fff;
   }
 
   /* Settings */

@@ -144,12 +144,15 @@ function FolderSubmenu({
   folders,
   counts,
   onPick,
+  subRef,
 }: {
   sub: ReturnType<typeof useSubmenu>;
   note: Note;
   folders: Folder[];
   counts: Record<string, number>;
   onPick: (folderId: string | null) => void;
+  /** Ref на DOM-элемент портала — для «клик вне» родительского меню. */
+  subRef?: React.Ref<HTMLDivElement>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -183,7 +186,11 @@ function FolderSubmenu({
   if (!anchor) return null;
   return createPortal(
     <div
-      ref={ref}
+      ref={node => {
+        (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        if (typeof subRef === 'function') subRef(node);
+        else if (subRef) (subRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       className="liquid-glass fixed z-[140] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
       style={pos ? { top: pos.top, left: pos.left } : { visibility: 'hidden' }}
       role="menu"
@@ -191,6 +198,7 @@ function FolderSubmenu({
       onMouseEnter={sub.cancelSubClose}
       onMouseLeave={sub.scheduleSubClose}
       onMouseDown={e => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
     >
       <FolderPickRows note={note} folders={folders} counts={counts} onPick={onPick} />
     </div>,
@@ -217,6 +225,7 @@ export function NoteCard({
   const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
   const ctxSub = useSubmenu();
   const ctxRef = useRef<HTMLDivElement>(null);
+  const subRef = useRef<HTMLDivElement>(null);
 
   // Инлайн-переименование названия (ПКМ → Переименовать или клик по имени)
   const [renaming, setRenaming] = useState(false);
@@ -236,7 +245,13 @@ export function NoteCard({
   useEffect(() => {
     if (!ctx) return;
     const close = (e: MouseEvent) => {
-      if (ctxRef.current && !ctxRef.current.contains(e.target as Node)) closeCtx();
+      const target = e.target as Node;
+      // Подменю папок живёт в ОТДЕЛЬНОМ портале (FolderSubmenu) — клик по нему
+      // не содержится в ctxRef. Проверяем оба контейнера, иначе клик по краю
+      // подменю закрывал бы его до click по пункту.
+      if (ctxRef.current?.contains(target)) return;
+      if (subRef.current?.contains(target)) return;
+      closeCtx();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeCtx();
@@ -284,7 +299,12 @@ export function NoteCard({
       </DropdownMenuItem>
       <DropdownMenuItem
         onMouseLeave={() => controls.scheduleSubClose()}
-        onClick={e => controls.toggleSub(e.currentTarget)}
+        onClick={e => {
+          // Подменю живёт в отдельном портале: клик не должен закрывать
+          // главное меню (его контейнер закрывается в bubble-фазе).
+          e.stopPropagation();
+          controls.toggleSub(e.currentTarget);
+        }}
       >
         <FolderInput className="w-4 h-4 mr-1" />
         Переместить в папку…
@@ -415,7 +435,12 @@ export function NoteCard({
               top: Math.min(ctx.y, window.innerHeight - 320),
             }}
             role="menu"
-            onClickCapture={() => closeCtx()}
+            onClick={e => {
+              // Портал внутри NoteCard: по фиберам клик «всплывает» до onClick
+              // карточки (навигация в редактор). Стоп после действия пункта.
+              e.stopPropagation();
+              closeCtx();
+            }}
           >
             {renderMenuItems({
               toggleSub: ctxSub.toggleSub,
@@ -429,6 +454,7 @@ export function NoteCard({
         note={note}
         folders={folders}
         counts={folderCounts}
+        subRef={subRef}
         onPick={id => {
           pickFolder(id);
           closeCtx();

@@ -6,11 +6,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableCell from '@tiptap/extension-table-cell';
-import TableHeader from '@tiptap/extension-table-header';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Highlight from '@tiptap/extension-highlight';
@@ -18,13 +13,21 @@ import Typography from '@tiptap/extension-typography';
 import TextAlign from '@tiptap/extension-text-align';
 import TextStyle from '@tiptap/extension-text-style';
 import Color from '@tiptap/extension-color';
-import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight';
-import { createLowlight, common } from 'lowlight';
 import { Markdown } from 'tiptap-markdown';
 import { invoke } from '@tauri-apps/api/core';
 import { useNotes, type Note } from '@/stores/notes';
 import { useSettings } from '@/stores/settings';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
+import { EditorContextMenu } from '@/components/editor/editor-context-menu';
+import {
+  EnhancedImage,
+  EnhancedTable,
+  EnhancedTableRow,
+  EnhancedTableCell,
+  EnhancedTableHeader,
+} from '@/components/editor/extensions';
+import EnhancedCodeBlock from '@/components/editor/enhanced-code-block';
+import { createLowlight, common } from 'lowlight';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Search, X } from 'lucide-react';
@@ -117,8 +120,7 @@ export function EditorPage() {
         codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: ({ node }) =>
-          node.type.name === 'heading' ? 'Заголовок' : 'Начните писать…',
+        placeholder: ({ node }) => (node.type.name === 'heading' ? 'Заголовок' : 'Начните писать…'),
         emptyEditorClass: 'is-editor-empty',
         emptyNodeClass: 'is-empty-node',
       }),
@@ -126,18 +128,18 @@ export function EditorPage() {
         openOnClick: false,
         HTMLAttributes: { class: 'text-primary underline hover:no-underline' },
       }),
-      Image.configure({
-        HTMLAttributes: { class: 'rounded-lg max-w-full h-auto' },
+      EnhancedImage.configure({
+        HTMLAttributes: { class: 'rounded-lg' },
       }),
-      Table.configure({ resizable: true }),
-      TableRow,
-      TableCell,
-      TableHeader,
+      EnhancedTable.configure({ resizable: true }),
+      EnhancedTableRow,
+      EnhancedTableCell,
+      EnhancedTableHeader,
       TaskList,
       TaskItem.configure({ nested: true }),
       Highlight.configure({ multicolor: true }),
       Typography,
-      CodeBlockLowlight.configure({ lowlight, defaultLanguage: 'javascript' }),
+      EnhancedCodeBlock.configure({ lowlight, defaultLanguage: 'javascript' }),
       Markdown.configure({ transformPastedText: true, transformCopiedText: true }),
       TextStyle,
       Color,
@@ -209,10 +211,18 @@ export function EditorPage() {
       }
       lastDocSizeRef.current = docSize;
       const colRect = column.getBoundingClientRect();
+      // Скроллим только если курсор ввода за нижней границей видимой области:
+      // при наборе вверху/середине длинного листа не прыгаем в самый низ.
+      const sel = tiptapEditor.state.selection;
+      const cursorCoords = tiptapEditor.view.coordsAtPos(sel.empty ? sel.from : sel.to);
+      if (cursorCoords.bottom <= colRect.bottom) return;
       const sheetRect = sheet.getBoundingClientRect();
       // Нижняя кромка листа в координатах прокрутки колонки + нижнее поле.
       const edgeOffset =
-        sheetRect.bottom - colRect.top + column.scrollTop + parseFloat(getComputedStyle(column).paddingBottom || '0');
+        sheetRect.bottom -
+        colRect.top +
+        column.scrollTop +
+        parseFloat(getComputedStyle(column).paddingBottom || '0');
       const viewBottom = column.scrollTop + colRect.height;
       if (edgeOffset > viewBottom) {
         column.scrollTop = edgeOffset - colRect.height;
@@ -254,7 +264,9 @@ export function EditorPage() {
         index = text.indexOf(query, offset);
       }
     });
-    [...matches].reverse().forEach(match => transaction.insertText(replaceQuery, match.from, match.to));
+    [...matches]
+      .reverse()
+      .forEach(match => transaction.insertText(replaceQuery, match.from, match.to));
     if (matches.length) tiptapEditor.view.dispatch(transaction);
   };
 
@@ -396,32 +408,48 @@ export function EditorPage() {
 
       {/* Тело редактора: боковые рейки с инструментами + центральная «страница» */}
       <div className="editor-stage">
-        <EditorToolbar side="left" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
+        <EditorToolbar
+          side="left"
+          editor={tiptapEditor}
+          noteTitle={currentNote.title}
+          onOpenSearch={() => setShowSearch(true)}
+        />
 
         <div className="editor-column" ref={columnRef}>
-          <div
-            className="editor-sheet"
-            ref={sheetRef}
-            onMouseDown={event => {
-              // Клик по полю листа мимо текста ставит курсор в конец заметки.
-              const target = event.target as HTMLElement;
-              if (target.closest('.ProseMirror')) return;
-              event.preventDefault();
-              tiptapEditor.commands.focus('end');
-            }}
-          >
-            <EditorContent editor={tiptapEditor} />
-          </div>
+          <EditorContextMenu editor={tiptapEditor}>
+            <div
+              className="editor-sheet"
+              ref={sheetRef}
+              onMouseDown={event => {
+                // Клик по полю листа мимо текста ставит курсор в конец заметки.
+                const target = event.target as HTMLElement;
+                if (target.closest('.ProseMirror')) return;
+                event.preventDefault();
+                tiptapEditor.commands.focus('end');
+              }}
+            >
+              <EditorContent editor={tiptapEditor} />
+            </div>
+          </EditorContextMenu>
         </div>
 
-        <EditorToolbar side="right" editor={tiptapEditor} noteTitle={currentNote.title} onOpenSearch={() => setShowSearch(true)} />
+        <EditorToolbar
+          side="right"
+          editor={tiptapEditor}
+          noteTitle={currentNote.title}
+          onOpenSearch={() => setShowSearch(true)}
+        />
       </div>
 
       {showSearch && (
         <div className="editor-search-panel" role="dialog" aria-label="Поиск и замена">
           <div className="flex items-center justify-between gap-3">
             <h2 className="font-display text-sm font-semibold">Найти и заменить</h2>
-            <button className="editor-search-close" onClick={() => setShowSearch(false)} aria-label="Закрыть">
+            <button
+              className="editor-search-close"
+              onClick={() => setShowSearch(false)}
+              aria-label="Закрыть"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -443,7 +471,12 @@ export function EditorPage() {
             <Button variant="ghost" size="sm" onClick={findNextMatch} disabled={!searchQuery}>
               <Search className="h-4 w-4" /> Найти
             </Button>
-            <Button variant="secondary" size="sm" onClick={replaceAllMatches} disabled={!searchQuery}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={replaceAllMatches}
+              disabled={!searchQuery}
+            >
               Заменить всё
             </Button>
           </div>
