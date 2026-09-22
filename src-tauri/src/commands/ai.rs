@@ -4,7 +4,7 @@ use crate::services::ai::{AnalysisType, ChatMessage, ChatOptions};
 use crate::services::AppState;
 use anyhow::Result;
 use serde::Deserialize;
-use tauri::{command, State};
+use tauri::{command, AppHandle, State};
 
 #[derive(Deserialize)]
 pub struct TranscribeRequest {
@@ -256,6 +256,112 @@ pub async fn clear_chat_messages(
     state
         .ai
         .clear_chat_messages(&chat_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+// ---- Live transcription ------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct StartLiveTranscriptionRequest {
+    pub model_id: Option<String>,
+    pub language: Option<String>,
+    pub options: Option<crate::ai::live::LiveOptions>,
+}
+
+#[derive(Deserialize)]
+pub struct SaveCustomApiModelRequest {
+    pub id: Option<String>,
+    pub name: String,
+    pub api_endpoint: String,
+    pub model_name: String,
+}
+
+#[command]
+pub async fn start_live_transcription(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    request: StartLiveTranscriptionRequest,
+) -> Result<String, String> {
+    let model = state
+        .ai
+        .resolve_transcription_model(request.model_id.as_deref())
+        .await
+        .map_err(|e| e.to_string())?;
+    let mut options = request.options.unwrap_or_default();
+    if let Some(lang) = request.language {
+        options.language = lang;
+    }
+    state
+        .ai
+        .live
+        .start(app, model, options)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn push_live_audio_chunk(
+    state: State<'_, AppState>,
+    session_id: String,
+    chunk_base64: String,
+) -> Result<(), String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(chunk_base64.as_bytes())
+        .map_err(|e| e.to_string())?;
+    state
+        .ai
+        .live
+        .push(&session_id, bytes)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn stop_live_transcription(
+    state: State<'_, AppState>,
+    session_id: String,
+) -> Result<crate::ai::live::LiveTranscriptionResult, String> {
+    state
+        .ai
+        .live
+        .stop_and_finish(&session_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn get_device_profile(
+    state: State<'_, AppState>,
+) -> Result<crate::ai::device_profile::DeviceProfile, String> {
+    Ok(state.ai.device_profile())
+}
+
+#[command]
+pub async fn recommend_transcription_model(
+    state: State<'_, AppState>,
+) -> Result<crate::ai::device_profile::ModelRecommendation, String> {
+    state
+        .ai
+        .recommend_transcription_model()
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[command]
+pub async fn save_custom_api_model(
+    state: State<'_, AppState>,
+    request: SaveCustomApiModelRequest,
+) -> Result<crate::db::models::AIModel, String> {
+    state
+        .ai
+        .save_custom_api_model(
+            request.id.as_deref(),
+            &request.name,
+            &request.api_endpoint,
+            &request.model_name,
+        )
         .await
         .map_err(|e| e.to_string())
 }

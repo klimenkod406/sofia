@@ -409,3 +409,67 @@ export interface AppInfo {
   homepage: string;
   license: string;
 }
+
+// ---- Live transcription -------------------------------------------------
+
+export interface DeviceProfile {
+  total_ram_gb: number;
+  available_ram_gb: number;
+  cpu_count: number;
+  gpu_accelerated: boolean;
+  os: string;
+}
+
+export interface ModelRecommendation {
+  model_id: string;
+  model_name: string;
+  reason: string;
+  is_downloaded: boolean;
+  fits_ram: boolean;
+  estimated_realtime_factor: number;
+}
+
+export interface LiveSegment {
+  session_id: string;
+  paragraph_id: number;
+  speaker: string | null;
+  language: string;
+  text: string;
+  start: number;
+  end: number;
+  is_final: boolean;
+}
+
+export interface LivePartial {
+  session_id: string;
+  text: string;
+  duration_seconds: number;
+  language: string;
+}
+
+export interface LiveStatus {
+  session_id: string;
+  state: 'recording' | 'processing' | 'stopped' | 'error';
+  partial_text: string;
+  duration_seconds: number;
+  model_id: string;
+  language: string;
+  error: string | null;
+}
+
+export interface LiveOptions {
+  language: string;
+  break_on_silence: boolean;
+  silence_break_seconds: number;
+  break_on_speaker: boolean;
+  sentence_break_gap_seconds: number;
+  max_paragraph_chars: number;
+}
+
+export interface LiveTranscriptionResult {
+  session_id: string;
+  text: string;
+  paragraphs: LiveSegment[];
+  duration_seconds: number;
+  language: string;
+}

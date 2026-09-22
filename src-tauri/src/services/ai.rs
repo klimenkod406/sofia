@@ -1,7 +1,7 @@
 //! AI Service - coordinates transcription, analysis, and chat
 
 pub use crate::ai::transcription::{TranscriptionResult, TranscriptionSegment};
-use crate::ai::{AnalysisEngine, ModelManager, TranscriptionEngine};
+use crate::ai::{AnalysisEngine, LiveTranscriptionManager, ModelManager, TranscriptionEngine};
 use crate::db::models::*;
 use crate::db::repository::{AIChatRepository, ModelsRepository, TranscriptionRepository};
 use crate::db::Database;
@@ -13,6 +13,7 @@ pub struct AIService {
     transcription: Arc<TranscriptionEngine>,
     analysis: Arc<AnalysisEngine>,
     models: Arc<ModelManager>,
+    pub live: LiveTranscriptionManager,
     transcription_repo: TranscriptionRepository,
     chat_repo: AIChatRepository,
     models_repo: ModelsRepository,
@@ -27,15 +28,116 @@ impl AIService {
         let models = Arc::new(ModelManager::new(db.models())?);
         let transcription = Arc::new(TranscriptionEngine::new(models.clone())?);
         let analysis = Arc::new(AnalysisEngine::new(models.clone())?);
+        let live = LiveTranscriptionManager::new(transcription.clone());
 
         Ok(Self {
             transcription,
             analysis,
             models,
+            live,
             transcription_repo,
             chat_repo,
             models_repo,
         })
+    }
+
+    /// Resolve the transcription model to use: an explicit id wins, otherwise
+    /// the configured default transcription model.
+    pub async fn resolve_transcription_model(&self, model_id: Option<&str>) -> Result<AIModel> {
+        match model_id {
+            Some(id) => self.models.get_model(id).await,
+            None => self
+                .models_repo
+                .get_default_transcription()
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("No default transcription model configured")),
+        }
+    }
+
+    /// Hardware profile used to pick / recommend a local model.
+    pub fn device_profile(&self) -> crate::ai::device_profile::DeviceProfile {
+        crate::ai::device_profile::DeviceProfile::assess()
+    }
+
+    pub async fn recommend_transcription_model(
+        &self,
+    ) -> Result<crate::ai::device_profile::ModelRecommendation> {
+        let profile = self.device_profile();
+        let models = self
+            .models_repo
+            .list(Some("transcription"), None, true)
+            .await?;
+        crate::ai::device_profile::recommend_transcription_model(&profile, &models)
+            .ok_or_else(|| anyhow::anyhow!("No active transcription models available"))
+    }
+
+    /// Create or update a user-configured transcription API model ("own API
+    /// route"). API models are always `is_downloaded` — no local weights — and
+    /// point at the user's own service via `api_endpoint`.
+    pub async fn save_custom_api_model(
+        &self,
+        id: Option<&str>,
+        name: &str,
+        api_endpoint: &str,
+        model_name: &str,
+    ) -> Result<AIModel> {
+        let existing = match id {
+            Some(id) => self.models_repo.get(id).await?,
+            None => None,
+        };
+        let is_new = existing.is_none();
+        let now = chrono::Utc::now();
+
+        let mut model = existing.unwrap_or(AIModel {
+            id: uuid::Uuid::new_v4().to_string(),
+            name: String::new(),
+            model_type: "transcription".to_string(),
+            source: "api".to_string(),
+            model_id: None,
+            api_endpoint: None,
+            api_key_encrypted: None,
+            local_path: None,
+            huggingface_repo: None,
+            huggingface_revision: None,
+            tokenizer_path: None,
+            config_path: None,
+            size_bytes: 0,
+            quantization: None,
+            languages: "[]".to_string(),
+            capabilities: "[]".to_string(),
+            config: "{}".to_string(),
+            min_ram_gb: 0,
+            recommended_ram_gb: 0,
+            supports_gpu: false,
+            supports_cpu: true,
+            max_context_length: 0,
+            sample_rate: 16000,
+            chunk_duration_seconds: 30.0,
+            overlap_duration_seconds: 2.0,
+            is_active: true,
+            is_downloaded: true,
+            download_progress: 1.0,
+            last_used_at: None,
+            created_at: now,
+            updated_at: now,
+        });
+
+        model.name = name.to_string();
+        model.api_endpoint = Some(api_endpoint.to_string());
+        model.model_id = Some(model_name.to_string());
+        model.config = "{\"backend\":\"api\",\"rft_cpu\":0.0}".to_string();
+        model.languages = "[\"zh\",\"en\",\"auto\",\"multilingual\"]".to_string();
+        model.capabilities = "[\"transcription\"]".to_string();
+        model.is_active = true;
+        model.is_downloaded = true;
+        model.updated_at = chrono::Utc::now();
+
+        if is_new {
+            self.models_repo.create(model).await
+        } else {
+            self.models_repo.update(&model).await?;
+            Ok(model)
+        }
     }
 
     // Transcription

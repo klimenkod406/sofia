@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { LiveTranscriptionSettings } from '@/components/settings/live-transcription-settings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Sun,
@@ -332,6 +333,16 @@ export function SettingsPage() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Live Transcription</CardTitle>
+              <CardDescription>On-device speech recognition and custom API routes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <LiveTranscriptionSettings />
             </CardContent>
           </Card>
 

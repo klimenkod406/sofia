@@ -53,5 +53,12 @@ pub fn migrations() -> Vec<Migration> {
             sql: include_str!("migrations/007_add_note_versions.sql"),
             kind: MigrationKind::Up,
         },
+        // Add local whisper.cpp transcription models (live transcription)
+        Migration {
+            version: 8,
+            description: "add_local_transcription_models",
+            sql: include_str!("migrations/008_add_local_transcription_models.sql"),
+            kind: MigrationKind::Up,
+        },
     ]
 }

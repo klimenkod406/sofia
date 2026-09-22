@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
-import { useEditor, EditorContent } from '@tiptap/react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
@@ -19,6 +19,7 @@ import { useNotes, type Note } from '@/stores/notes';
 import { useSettings } from '@/stores/settings';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import { EditorContextMenu } from '@/components/editor/editor-context-menu';
+import { LiveTranscriptionBar } from '@/components/editor/live-transcription-bar';
 import {
   EnhancedImage,
   EnhancedTable,
@@ -31,9 +32,29 @@ import { createLowlight, common } from 'lowlight';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Search, X } from 'lucide-react';
+import { useLiveTranscription } from '@/hooks/use-live-transcription';
 
 // Общий экземпляр подсветки синтаксиса (lowlight v3): создаём один раз.
 const lowlight = createLowlight(common);
+
+// Вставка очередного абзаца расшифровки в конец заметки как отдельного
+// блока <p>. Первый пустой документ заменяется, дальше абзацы добавляются
+// друг за другом — так расшифровка остаётся «с логическими разделениями»,
+// а не сливается в сплошной текст.
+function insertTranscriptParagraph(editor: Editor, text: string) {
+  const { state, view } = editor;
+  const doc = state.doc;
+  const blankDoc =
+    doc.childCount === 1 &&
+    doc.firstChild?.type.name === 'paragraph' &&
+    doc.firstChild.textContent === '';
+  const node = state.schema.nodes.paragraph.create(null, state.schema.text(text));
+  if (blankDoc) {
+    view.dispatch(state.tr.replaceWith(0, doc.content.size, node));
+  } else {
+    view.dispatch(state.tr.insert(doc.content.size, node));
+  }
+}
 
 export function EditorPage() {
   const { noteId } = useParams<{ noteId: string }>();
@@ -66,6 +87,11 @@ export function EditorPage() {
   noteRef.current = currentNote;
   settingsRef.current = editorSettings;
   updateRef.current = updateNote;
+
+  // Живая расшифровка речи (микрофон). Хук живёт здесь и поднимает
+  // commit/partial/status события из Tauri; вставка в документ — ниже.
+  const live = useLiveTranscription();
+  const transcriptInsertedRef = useRef<Set<number>>(new Set());
 
   const doSave = async (html: string, text: string) => {
     const note = noteRef.current;
@@ -160,6 +186,22 @@ export function EditorPage() {
       editor.commands.focus();
     },
   });
+
+  // Сбрасываем набор вставленных абзацев при старте новой сессии.
+  useEffect(() => {
+    transcriptInsertedRef.current = new Set();
+  }, [live.sessionId]);
+
+  // Подключённые абзацы расшифровки вставляем в документ по мере готовности.
+  // paragraph_id монотонно растёт в рамках сессии — защита от дублей.
+  useEffect(() => {
+    if (!tiptapEditor) return;
+    for (const seg of live.segments) {
+      if (transcriptInsertedRef.current.has(seg.paragraph_id)) continue;
+      transcriptInsertedRef.current.add(seg.paragraph_id);
+      insertTranscriptParagraph(tiptapEditor, seg.text);
+    }
+  }, [live.segments, tiptapEditor]);
 
   // Живой счётчик слов/символов: пересчитываем на каждую транзакцию контента.
   useEffect(() => {
@@ -440,6 +482,8 @@ export function EditorPage() {
           onOpenSearch={() => setShowSearch(true)}
         />
       </div>
+
+      <LiveTranscriptionBar controller={live} />
 
       {showSearch && (
         <div className="editor-search-panel" role="dialog" aria-label="Поиск и замена">

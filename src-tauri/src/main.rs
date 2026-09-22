@@ -13,6 +13,8 @@ mod services;
 
 #[cfg(test)]
 mod merge_flow_test;
+#[cfg(test)]
+mod models_catalog_test;
 
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -159,6 +161,12 @@ fn main() {
             commands::ai::get_ai_messages,
             commands::ai::update_ai_chat,
             commands::ai::clear_chat_messages,
+            commands::ai::start_live_transcription,
+            commands::ai::push_live_audio_chunk,
+            commands::ai::stop_live_transcription,
+            commands::ai::get_device_profile,
+            commands::ai::recommend_transcription_model,
+            commands::ai::save_custom_api_model,
             // Models
             commands::models::list_local_models,
             commands::models::get_model_info,

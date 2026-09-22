@@ -6,6 +6,22 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+/// Parse a stored model timestamp. Rows seeded by migrations use SQLite's
+/// `CURRENT_TIMESTAMP` (`YYYY-MM-DD HH:MM:SS`), while rows written by the app
+/// use RFC 3339 — accept both so seeded catalog rows aren't silently dropped
+/// (a strict RFC-3339 parser would return `None` and blank out `row_to_model`).
+fn parse_timestamp(s: &str) -> Option<DateTime<Utc>> {
+    if let Ok(dt) = DateTime::parse_from_rfc3339(s) {
+        return Some(dt.with_timezone(&Utc));
+    }
+    for fmt in ["%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%d %H:%M:%S"] {
+        if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, fmt) {
+            return Some(DateTime::from_naive_utc_and_offset(naive, Utc));
+        }
+    }
+    None
+}
+
 pub struct ModelsRepository {
     db: Sql,
 }
@@ -370,12 +386,8 @@ impl ModelsRepository {
                 .and_then(|v| v.as_str())
                 .and_then(|s| DateTime::parse_from_rfc3339(s).ok())
                 .map(|d| d.with_timezone(&Utc)),
-            created_at: DateTime::parse_from_rfc3339(row.get("created_at")?.as_str()?)
-                .ok()?
-                .with_timezone(&Utc),
-            updated_at: DateTime::parse_from_rfc3339(row.get("updated_at")?.as_str()?)
-                .ok()?
-                .with_timezone(&Utc),
+            created_at: parse_timestamp(row.get("created_at")?.as_str()?)?,
+            updated_at: parse_timestamp(row.get("updated_at")?.as_str()?)?,
         })
     }
 }
