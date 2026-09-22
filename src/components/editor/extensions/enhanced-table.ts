@@ -3,9 +3,11 @@ import { Table, TableView } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
-import { NodeSelection, TextSelection } from '@tiptap/pm/state';
+import { NodeSelection, TextSelection, Plugin, PluginKey } from '@tiptap/pm/state';
+import { Fragment, Slice } from '@tiptap/pm/model';
 import type { Schema, Node as ProseMirrorNode } from '@tiptap/pm/model';
 import type { EditorView, ViewMutationRecord } from '@tiptap/pm/view';
+import { isInsideTableCell } from './enhanced-image';
 
 export type TableFloat = 'left' | 'right' | 'none';
 /** full — на всю ширину листа, compact — компактная, по ширине содержимого. */
@@ -51,6 +53,37 @@ function createConfiguredTable(
     rowType.createChecked(null, withHeaderRow && index === 0 ? headerCells : cells)
   );
   return tableType.createChecked(attrs, rows);
+}
+
+/**
+ * Вырезать из вставляемого фрагмента картинки и вложенные таблицы — они
+ * запрещены в ячейках таблицы (буфер обмена, drag-and-drop между заметками).
+ */
+function stripForbiddenInCells(slice: Slice): Slice {
+  const banned = new Set(['image', 'table']);
+  let changed = false;
+
+  const cleanNode = (node: ProseMirrorNode): ProseMirrorNode | null => {
+    if (banned.has(node.type.name)) {
+      changed = true;
+      return null;
+    }
+    if (!node.content.size) return node;
+    const children: ProseMirrorNode[] = [];
+    node.content.forEach(child => {
+      const cleaned = cleanNode(child);
+      if (cleaned) children.push(cleaned);
+    });
+    return node.copy(Fragment.fromArray(children));
+  };
+
+  const nodes: ProseMirrorNode[] = [];
+  slice.content.forEach(child => {
+    const cleaned = cleanNode(child);
+    if (cleaned) nodes.push(cleaned);
+  });
+  if (!changed) return slice;
+  return new Slice(Fragment.fromArray(nodes), slice.openStart, slice.openEnd);
 }
 
 /**
@@ -432,6 +465,50 @@ export const EnhancedTable = Table.extend({
       View: EnhancedTableView,
     };
   },
+  // Вложенные таблицы и картинки в ячейках запрещены: вырезаем такие узлы из
+  // вставляемого фрагмента (буфер обмена, drag-and-drop между заметками),
+  // но ТОЛЬКО когда курсор находится внутри ячейки — вне таблиц вставка
+  // картинок и таблиц работает как раньше.
+  // Второй плагин — страховка на ВСЕ остальные пути: перетаскивание узла
+  // внутри документа (нативный PM drag&drop НЕ проходит через transformPasted),
+  // вставку из других редакторов через setContent/replaceRange и т.п. Если
+  // после транзакции в ячейке оказалась картинка или таблица — удаляем их.
+  addProseMirrorPlugins() {
+    return [
+      ...(this.parent?.() ?? []),
+      new Plugin({
+        key: new PluginKey('enhancedTableCellContentGuard'),
+        transformPasted: (slice: Slice) =>
+          isInsideTableCell(this.editor.state) ? stripForbiddenInCells(slice) : slice,
+      }),
+      new Plugin({
+        key: new PluginKey('enhancedTableCellCleanup'),
+        appendTransaction: (transactions, _oldState, newState) => {
+          if (!transactions.some(tr => tr.docChanged)) return null;
+          // Позиции собираем из НОВОГО документа, удаляем в ОБРАТНОМ порядке:
+          // иначе каждое удаление сдвигает позиции ещё не удалённых узлов.
+          const targets: { from: number; to: number }[] = [];
+          newState.doc.descendants((node, pos) => {
+            if (node.type.name !== 'tableCell' && node.type.name !== 'tableHeader') return true;
+            node.descendants((child, childPos) => {
+              if (child.type.name === 'image' || child.type.name === 'table') {
+                targets.push({
+                  from: pos + 1 + childPos,
+                  to: pos + 1 + childPos + child.nodeSize,
+                });
+              }
+              return true;
+            });
+            return true;
+          });
+          if (!targets.length) return null;
+          const tr = newState.tr;
+          targets.sort((a, b) => b.from - a.from).forEach(t => tr.delete(t.from, t.to));
+          return tr;
+        },
+      }),
+    ];
+  },
   addAttributes() {
     return {
       ...this.parent?.(),
@@ -472,7 +549,13 @@ export const EnhancedTable = Table.extend({
           commands.updateAttributes(this.name, { size }),
       insertConfiguredTable:
         ({ rows, cols, size = 'full' }: { rows: number; cols: number; size?: TableSize }) =>
-        ({ tr, dispatch, editor }) => {
+        ({ tr, dispatch, editor, state }) => {
+          // Вложенные таблицы запрещены: внутри ячейки таблицы не вставляем.
+          const $from = state.selection.$from;
+          for (let d = $from.depth; d > 0; d--) {
+            const name = $from.node(d).type.name;
+            if (name === 'tableCell' || name === 'tableHeader') return false;
+          }
           const node = createConfiguredTable(editor.schema, rows, cols, true, { size });
           if (dispatch) {
             // replaceSelectionWith сдвигает документ — позицию «после таблицы»

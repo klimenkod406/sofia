@@ -21,6 +21,18 @@ function clampWidth(width: number): number {
   return Math.min(100, Math.max(1, Math.round(width)));
 }
 
+/** Курсор внутри ячейки таблицы? В ячейках запрещены картинки и вложенные таблицы. */
+export function isInsideTableCell(state: {
+  selection: { $from: { depth: number; node(d: number): { type: { name: string } } } };
+}): boolean {
+  const $from = state.selection.$from;
+  for (let d = $from.depth; d > 0; d--) {
+    const name = $from.node(d).type.name;
+    if (name === 'tableCell' || name === 'tableHeader') return true;
+  }
+  return false;
+}
+
 /** Позиция левого края картинки, % ширины колонки; картинка не выходит за край. */
 function clampAlignX(alignX: number, width: number): number {
   if (!Number.isFinite(alignX)) return 0;
@@ -154,6 +166,8 @@ export const EnhancedImage = Image.extend({
           // Вставка по URL (кнопка «Картинка»): подбираем ширину под
           // натуральный размер источника, чтобы картинка не растягивалась
           // на всю колонку. См. naturalWidthPercent.
+          // В ячейках таблицы картинки запрещены — тихо игнорируем.
+          if (isInsideTableCell(view.state)) return false;
           const src = attrs?.src ?? '';
           naturalWidthPercent(src, contentWidthOf(view)).then(width => {
             if (view.isDestroyed) return;
@@ -573,6 +587,8 @@ export const EnhancedImage = Image.extend({
           handlePaste: (view, event) => {
             const items = event.clipboardData?.items;
             if (!items) return false;
+            // В ячейках таблицы картинки запрещены — даём обработать текст как обычно.
+            if (isInsideTableCell(view.state)) return false;
             for (const item of Array.from(items)) {
               if (item.type.startsWith('image/')) {
                 event.preventDefault();
@@ -600,6 +616,8 @@ export const EnhancedImage = Image.extend({
           handleDrop: (view, event) => {
             const files = event.dataTransfer?.files;
             if (!files || files.length === 0) return false;
+            // В ячейках таблицы картинки запрещены — не перехватываем drop.
+            if (isInsideTableCell(view.state)) return false;
             const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
             if (!imageFiles.length) return false;
             event.preventDefault();

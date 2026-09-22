@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Pin,
@@ -223,9 +223,35 @@ export function NoteCard({
   folderCounts = {},
 }: NoteCardProps) {
   const [ctx, setCtx] = useState<{ x: number; y: number } | null>(null);
+  const [ctxPos, setCtxPos] = useState<{ x: number; y: number } | null>(null);
   const ctxSub = useSubmenu();
   const ctxRef = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
+
+  // Держим ПКМ-меню в пределах окна: измеряем НАТУРАЛЬНУЮ высоту (без
+  // клампа), затем поджимаем позицию. Если измерять сразу после рендера на
+  // сырых координатах клика, браузер уже применяет maxHeight и возвращает
+  // усечённую высоту — кламп получается неверным и меню всё равно обрезано.
+  useLayoutEffect(() => {
+    if (!ctx) return;
+    const el = ctxRef.current;
+    if (!el) return;
+    // Временно убираем ограничения, чтобы измерить реальный размер контента.
+    el.style.maxHeight = 'none';
+    el.style.top = '0px';
+    const rect = el.getBoundingClientRect();
+    const naturalHeight = rect.height || 320;
+    const width = rect.width || 240;
+    // Восстанавливаем ограничение и рассчитываем позицию.
+    el.style.maxHeight = '';
+    const GAP_BOTTOM = 12;
+    const x = Math.min(Math.max(ctx.x, 8), Math.max(8, window.innerWidth - width - 8));
+    const y = Math.min(
+      Math.max(ctx.y, 8),
+      Math.max(8, window.innerHeight - naturalHeight - GAP_BOTTOM)
+    );
+    setCtxPos(prev => (prev && prev.x === x && prev.y === y ? prev : { x, y }));
+  }, [ctx, ctx?.x, ctx?.y]);
 
   // Инлайн-переименование названия (ПКМ → Переименовать или клик по имени)
   const [renaming, setRenaming] = useState(false);
@@ -239,6 +265,7 @@ export function NoteCard({
 
   const closeCtx = useCallback(() => {
     setCtx(null);
+    setCtxPos(null);
     ctxSub.closeSub();
   }, [ctxSub]);
 
@@ -363,6 +390,7 @@ export function NoteCard({
         e.preventDefault();
         e.stopPropagation();
         setCtx({ x: e.clientX, y: e.clientY });
+        setCtxPos({ x: e.clientX, y: e.clientY });
       }}
     >
       {/* Несколько листиков: верхний при наведении перелистывается */}
@@ -431,8 +459,10 @@ export function NoteCard({
             ref={ctxRef}
             className="liquid-glass fixed z-[100] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
             style={{
-              left: Math.min(ctx.x, window.innerWidth - 250),
-              top: Math.min(ctx.y, window.innerHeight - 320),
+              left: ctxPos?.x ?? ctx.x,
+              top: ctxPos?.y ?? ctx.y,
+              maxHeight: 'calc(100vh - 20px)',
+              overflowY: 'auto',
             }}
             role="menu"
             onClick={e => {

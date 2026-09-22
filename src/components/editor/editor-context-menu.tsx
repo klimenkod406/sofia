@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { Editor } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Bold,
   Braces,
   Code,
@@ -19,11 +28,13 @@ import {
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, languageLabel } from './code-utils';
 
+type MenuKind = 'text' | 'code' | 'image' | 'table';
+
 interface MenuState {
   x: number;
   y: number;
   open: boolean;
-  inCodeBlock: boolean;
+  kind: MenuKind;
   codeLang: string | null;
 }
 
@@ -35,14 +46,33 @@ interface EditorContextMenuProps {
 const HIGHLIGHT_COLORS = ['#fef08a', '#fecaca', '#bbf7d0', '#bfdbfe', '#f5d0fe'];
 const TEXT_COLORS = ['#ef4444', '#f97316', '#22c55e', '#3b82f6', '#a855f7'];
 
+/**
+ * Позиция узла изображения/таблицы по точке правого клика: идём от глубины
+ * позиции вверх (узел, в котором стоит курсор), затем проверяем границы
+ * атомарного узла — posAtCoords может вернуть позицию ДО/ПОСЛЕ картинки,
+ * а не внутрь неё.
+ */
+function findNodeTarget(doc: ProseMirrorNode, pos: number, name: string): number | null {
+  const $pos = doc.resolve(pos);
+  for (let d = $pos.depth; d > 0; d--) {
+    if ($pos.node(d).type.name === name) return $pos.before(d);
+  }
+  const after = doc.nodeAt(pos);
+  if (after && after.type.name === name) return pos;
+  const before = $pos.nodeBefore;
+  if (before && before.type.name === name) return pos - before.nodeSize;
+  return null;
+}
+
 export function EditorContextMenu({ editor, children }: EditorContextMenuProps) {
   const [menu, setMenu] = useState<MenuState>({
     x: 0,
     y: 0,
     open: false,
-    inCodeBlock: false,
+    kind: 'text',
     codeLang: null,
   });
+  const [pos, setPos] = useState({ x: 0, y: 0 });
   const [submenu, setSubmenu] = useState<'highlight' | 'color' | 'lang' | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -55,33 +85,48 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      // Определяем codeBlock по ТОЧКЕ правого клика, а не по текущему
-      // selection: браузер не перемещает selection на contextmenu, и при
-      // потерянном фокусе focus()+isActive могли смотреть в другой узел.
+      // Цель определяем по ТОЧКЕ правого клика, а не по текущему selection:
+      // браузер не перемещает selection на contextmenu, и при потерянном
+      // фокусе focus()+isActive могли смотреть в другой узел.
       const coords = editor.view.posAtCoords({ left: e.clientX, top: e.clientY });
-      let inCodeBlock = false;
+      let kind: MenuKind = 'text';
       let codeLang: string | null = null;
+
       if (coords) {
-        const $pos = editor.state.doc.resolve(coords.pos);
-        for (let d = $pos.depth; d >= 0; d--) {
-          const node = d === 0 ? null : $pos.node(d);
-          if (node && node.type.name === 'codeBlock') {
-            inCodeBlock = true;
-            codeLang = (node.attrs.language as string | null) ?? null;
-            break;
+        const doc = editor.state.doc;
+        const imagePos = findNodeTarget(doc, coords.pos, 'image');
+        if (imagePos !== null) {
+          kind = 'image';
+          // Выделяем картинку: setImageWidth/setImageFloat читают NodeSelection.
+          editor.chain().focus().setNodeSelection(imagePos).run();
+        } else if (findNodeTarget(doc, coords.pos, 'table') !== null) {
+          kind = 'table';
+          // Курсор внутрь ячейки: команды строк/столбцов таблицы работают от
+          // выделения, а браузер его на contextmenu не перемещает.
+          editor.chain().focus().setTextSelection(coords.pos).run();
+        } else {
+          const $pos = doc.resolve(coords.pos);
+          for (let d = $pos.depth; d >= 1; d--) {
+            const node = $pos.node(d);
+            if (node.type.name === 'codeBlock') {
+              kind = 'code';
+              codeLang = (node.attrs.language as string | null) ?? null;
+              break;
+            }
           }
         }
       }
-      if (!inCodeBlock) {
+      if (kind === 'text') {
         // Фолбэк: если координаты не попали в узел (край документа и т.п.),
         // используем selection, но с фокусом — это всё же точнее «голого» isActive.
         editor.chain().focus().run();
         if (editor.isActive('codeBlock')) {
-          inCodeBlock = true;
+          kind = 'code';
           codeLang = (editor.getAttributes('codeBlock').language as string | null) ?? null;
         }
       }
-      setMenu({ x: e.clientX, y: e.clientY, open: true, inCodeBlock, codeLang });
+      setPos({ x: e.clientX, y: e.clientY });
+      setMenu({ x: e.clientX, y: e.clientY, open: true, kind, codeLang });
       setSubmenu(null);
     },
     [editor]
@@ -107,15 +152,30 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
     };
   }, [menu.open, close]);
 
-  // Clamp menu position so it stays inside the viewport.
-  const menuStyle = useMemo(() => {
-    const maxX = window.innerWidth - 240;
-    const maxY = window.innerHeight - 360;
-    return {
-      left: Math.min(Math.max(menu.x, 8), Math.max(maxX, 8)),
-      top: Math.min(Math.max(menu.y, 8), Math.max(maxY, 8)),
-    };
-  }, [menu.x, menu.y]);
+  // Держим меню в пределах окна: измеряем НАТУРАЛЬНУЮ высоту (без клампа),
+  // затем поджимаем позицию. Если измерять сразу после рендера на сырых
+  // координатах клика, браузер уже применяет maxHeight и возвращает
+  // усечённую высоту — кламп получается неверным и меню всё равно обрезано.
+  useLayoutEffect(() => {
+    if (!menu.open) return;
+    const el = menuRef.current;
+    if (!el) return;
+    // Временно убираем ограничения, чтобы измерить реальный размер контента.
+    el.style.maxHeight = 'none';
+    el.style.top = '0px';
+    const rect = el.getBoundingClientRect();
+    const naturalHeight = rect.height || 320;
+    const width = rect.width || 220;
+    // Восстанавливаем ограничение и рассчитываем позицию.
+    el.style.maxHeight = '';
+    const GAP_BOTTOM = 12;
+    const x = Math.min(Math.max(menu.x, 8), Math.max(8, window.innerWidth - width - 8));
+    const y = Math.min(
+      Math.max(menu.y, 8),
+      Math.max(8, window.innerHeight - naturalHeight - GAP_BOTTOM)
+    );
+    setPos(prev => (prev.x === x && prev.y === y ? prev : { x, y }));
+  }, [menu.open, menu.x, menu.y, menu.kind, submenu]);
 
   const run = useCallback(
     (fn: () => void) => () => {
@@ -143,10 +203,30 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
     close();
   };
 
+  const deleteNode = () => {
+    // Для выделенной картинки/таблицы (NodeSelection) удаляем сам узел,
+    // для текста — ближайший блок под курсором.
+    const { selection } = editor.state;
+    if (selection instanceof NodeSelection) {
+      editor.chain().focus().deleteSelection().run();
+      return;
+    }
+    const { $from } = selection;
+    const nodePos = $from.before($from.depth);
+    if (nodePos >= 0)
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: nodePos, to: nodePos + $from.parent.nodeSize })
+        .run();
+  };
+
   const itemCls =
     'flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] text-zinc-200 hover:bg-zinc-700/70 focus:outline-none';
   const iconCls = 'h-4 w-4 shrink-0 text-zinc-400';
   const dotCls = 'h-4 w-4 shrink-0 rounded-full border border-white/20';
+  const headerCls = 'px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500';
+  const divider = <div className="my-1 h-px bg-zinc-700" />;
 
   return (
     <div
@@ -158,11 +238,18 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
       {menu.open && (
         <div
           ref={menuRef}
-          style={{ position: 'fixed', zIndex: 60, ...menuStyle }}
+          style={{
+            position: 'fixed',
+            zIndex: 60,
+            left: pos.x,
+            top: pos.y,
+            maxHeight: 'calc(100vh - 20px)',
+            overflowY: 'auto',
+          }}
           className="w-[220px] rounded-md border border-zinc-700 bg-zinc-800/95 p-1 shadow-xl backdrop-blur"
           role="menu"
         >
-          {!menu.inCodeBlock && (
+          {menu.kind === 'text' && (
             <>
               <button
                 type="button"
@@ -276,11 +363,21 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
               >
                 <Braces className={iconCls} /> Code block
               </button>
-              <div className="my-1 h-px bg-zinc-700" />
+              {divider}
+              <button type="button" className={itemCls} onClick={run(deleteNode)}>
+                <Trash2 className={iconCls} /> Delete node
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())}
+              >
+                <Eraser className={iconCls} /> Clear formatting
+              </button>
             </>
           )}
 
-          {menu.inCodeBlock && (
+          {menu.kind === 'code' && (
             <>
               <button
                 type="button"
@@ -319,33 +416,172 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
               >
                 <X className={iconCls} /> Remove code block
               </button>
-              <div className="my-1 h-px bg-zinc-700" />
+              {divider}
             </>
           )}
 
-          <button
-            type="button"
-            className={itemCls}
-            onClick={run(() => {
-              const { $from } = editor.state.selection;
-              const pos = $from.before($from.depth);
-              if (pos >= 0)
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange({ from: pos, to: pos + $from.parent.nodeSize })
-                  .run();
-            })}
-          >
-            <Trash2 className={iconCls} /> Delete node
-          </button>
-          <button
-            type="button"
-            className={itemCls}
-            onClick={run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())}
-          >
-            <Eraser className={iconCls} /> Clear formatting
-          </button>
+          {menu.kind === 'image' && (
+            <>
+              <div className={headerCls}>Image</div>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageWidth(25).run())}
+              >
+                <Type className={iconCls} /> Width 25%
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageWidth(50).run())}
+              >
+                <Type className={iconCls} /> Width 50%
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageWidth(75).run())}
+              >
+                <Type className={iconCls} /> Width 75%
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageWidth(100).run())}
+              >
+                <Type className={iconCls} /> Width 100%
+              </button>
+              {divider}
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageFloat('left').run())}
+              >
+                <AlignLeft className={iconCls} /> Float left
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageFloat('right').run())}
+              >
+                <AlignRight className={iconCls} /> Float right
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setImageFloat('none').run())}
+              >
+                <AlignCenter className={iconCls} /> No float
+              </button>
+              {divider}
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().deleteSelection().run())}
+              >
+                <Trash2 className={iconCls} /> Delete image
+              </button>
+            </>
+          )}
+
+          {menu.kind === 'table' && (
+            <>
+              <div className={headerCls}>Table</div>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().addRowBefore().run())}
+              >
+                <ArrowUp className={iconCls} /> Row above
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().addRowAfter().run())}
+              >
+                <ArrowDown className={iconCls} /> Row below
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().addColumnBefore().run())}
+              >
+                <ArrowLeft className={iconCls} /> Column left
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().addColumnAfter().run())}
+              >
+                <ArrowRight className={iconCls} /> Column right
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().toggleHeaderRow().run())}
+              >
+                <TableIcon className={iconCls} /> Toggle header row
+              </button>
+              {divider}
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setTableFloat('left').run())}
+              >
+                <AlignLeft className={iconCls} /> Float left
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setTableFloat('right').run())}
+              >
+                <AlignRight className={iconCls} /> Float right
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setTableFloat('none').run())}
+              >
+                <AlignCenter className={iconCls} /> No float
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setTableSize('compact').run())}
+              >
+                <Type className={iconCls} /> Compact width
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().setTableSize('full').run())}
+              >
+                <TableIcon className={iconCls} /> Full width
+              </button>
+              {divider}
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().deleteRow().run())}
+              >
+                <X className={iconCls} /> Delete row
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().deleteColumn().run())}
+              >
+                <X className={iconCls} /> Delete column
+              </button>
+              <button
+                type="button"
+                className={itemCls}
+                onClick={run(() => editor.chain().focus().deleteTable().run())}
+              >
+                <Trash2 className={iconCls} /> Delete table
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

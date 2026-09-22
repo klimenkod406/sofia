@@ -14,6 +14,7 @@ const SettingsPage = lazy(() =>
   import('@/pages/settings').then(m => ({ default: m.SettingsPage }))
 );
 const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.AIChatPage })));
+const ArchivePage = lazy(() => import('@/pages/archive').then(m => ({ default: m.ArchivePage })));
 
 function App() {
   return (
@@ -42,7 +43,13 @@ function App() {
 
       {/* Центральная сцена: скроллится до верха окна, под прозрачной шапкой */}
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-        <Suspense fallback={<LoadingSpinner />}>
+        <Suspense
+          fallback={
+            <div className="flex h-full items-center justify-center">
+              <LoadingSpinner />
+            </div>
+          }
+        >
           <Routes>
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route
@@ -73,6 +80,14 @@ function App() {
                    а не растягивают страницу на 24 часа. */
                 <PageLayout fill>
                   <CalendarPage />
+                </PageLayout>
+              }
+            />
+            <Route
+              path="/archive"
+              element={
+                <PageLayout width="wide">
+                  <ArchivePage />
                 </PageLayout>
               }
             />

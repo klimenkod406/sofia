@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -343,7 +343,33 @@ export function HomePage() {
     x: number;
     y: number;
   } | null>(null);
+  const [folderCtxPos, setFolderCtxPos] = useState<{ x: number; y: number } | null>(null);
   const folderMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Держим ПКМ-меню папки в пределах окна: измеряем НАТУРАЛЬНУЮ высоту
+  // (без клампа), затем поджимаем позицию. Если измерять сразу после рендера
+  // на сырых координатах клика, браузер уже применяет maxHeight и возвращает
+  // усечённую высоту — кламп получается неверным и меню всё равно обрезано.
+  useLayoutEffect(() => {
+    if (!folderCtx) return;
+    const el = folderMenuRef.current;
+    if (!el) return;
+    // Временно убираем ограничения, чтобы измерить реальный размер контента.
+    el.style.maxHeight = 'none';
+    el.style.top = '0px';
+    const rect = el.getBoundingClientRect();
+    const naturalHeight = rect.height || 180;
+    const width = rect.width || 240;
+    // Восстанавливаем ограничение и рассчитываем позицию.
+    el.style.maxHeight = '';
+    const GAP_BOTTOM = 12;
+    const x = Math.min(Math.max(folderCtx.x, 8), Math.max(8, window.innerWidth - width - 8));
+    const y = Math.min(
+      Math.max(folderCtx.y, 8),
+      Math.max(8, window.innerHeight - naturalHeight - GAP_BOTTOM)
+    );
+    setFolderCtxPos(prev => (prev && prev.x === x && prev.y === y ? prev : { x, y }));
+  }, [folderCtx]);
 
   // Закрыть ПКМ-меню папки: клик/скролл вне, Escape.
   useEffect(() => {
@@ -580,6 +606,14 @@ export function HomePage() {
         >
           <Calendar className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
+        <button
+          onClick={() => navigate('/archive')}
+          className="toolbar-icon-btn"
+          aria-label="Архив"
+          title="Архив"
+        >
+          <Archive className="h-[18px] w-[18px]" aria-hidden="true" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
@@ -658,6 +692,7 @@ export function HomePage() {
                     e.preventDefault();
                     e.stopPropagation();
                     setFolderCtx({ folder, x: e.clientX, y: e.clientY });
+                    setFolderCtxPos({ x: e.clientX, y: e.clientY });
                   }}
                   className={cn(
                     'folder-object group',
@@ -756,8 +791,10 @@ export function HomePage() {
               ref={folderMenuRef}
               className="liquid-glass fixed z-[100] w-60 rounded-2xl p-1.5 shadow-xl animate-scale-in"
               style={{
-                left: Math.min(folderCtx.x, window.innerWidth - 250),
-                top: Math.min(folderCtx.y, window.innerHeight - 180),
+                left: folderCtxPos?.x ?? folderCtx.x,
+                top: folderCtxPos?.y ?? folderCtx.y,
+                maxHeight: 'calc(100vh - 20px)',
+                overflowY: 'auto',
               }}
               role="menu"
               onClick={e => {
