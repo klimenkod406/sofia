@@ -240,7 +240,11 @@ impl AIService {
 
     // Model management
     pub async fn get_available_models(&self, model_type: Option<&str>) -> Result<Vec<AIModel>> {
-        self.models_repo.list(model_type, None, true).await
+        let mut models = self.models_repo.list(model_type, None, true).await?;
+        // Only models that can actually run: local weights must be downloaded,
+        // API models are always ready.
+        models.retain(|m| m.source == "api" || m.is_downloaded);
+        Ok(models)
     }
 
     pub async fn download_model(
@@ -263,6 +267,14 @@ impl AIService {
 
     pub async fn test_api_connection(&self, model_id: &str) -> Result<bool> {
         self.models.test_connection(model_id).await
+    }
+
+    /// Current download state for a model (None if not downloading).
+    pub async fn get_download_state(
+        &self,
+        model_id: &str,
+    ) -> Option<crate::ai::models::DownloadState> {
+        self.models.get_download_state(model_id).await
     }
 
     // Chat sessions

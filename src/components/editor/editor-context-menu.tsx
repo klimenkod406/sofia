@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import { SUPPORTED_LANGUAGES, languageLabel } from './code-utils';
+import { useTranslation } from '@/lib/i18n';
 
 type MenuKind = 'text' | 'code' | 'image' | 'table';
 
@@ -65,6 +66,7 @@ function findNodeTarget(doc: ProseMirrorNode, pos: number, name: string): number
 }
 
 export function EditorContextMenu({ editor, children }: EditorContextMenuProps) {
+  const { t } = useTranslation();
   const [menu, setMenu] = useState<MenuState>({
     x: 0,
     y: 0,
@@ -186,14 +188,14 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
   );
 
   const insertImage = () => {
-    const src = window.prompt('Image URL');
+    const src = window.prompt(t('imageUrlPrompt'));
     if (src) editor.chain().focus().setImage({ src }).run();
     close();
   };
 
   const setLink = () => {
     const prev = editor.getAttributes('link').href as string | undefined;
-    const url = window.prompt('Link URL', prev ?? 'https://');
+    const url = window.prompt(t('linkUrlPrompt'), prev ?? 'https://');
     if (url === null) return close();
     if (url === '') {
       editor.chain().focus().unsetLink().run();
@@ -256,35 +258,35 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleBold().run())}
               >
-                <Bold className={iconCls} /> Bold
+                <Bold className={iconCls} /> {t('bold').replace(/\s*\(Ctrl\+B\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleItalic().run())}
               >
-                <Italic className={iconCls} /> Italic
+                <Italic className={iconCls} /> {t('italic').replace(/\s*\(Ctrl\+I\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleStrike().run())}
               >
-                <Strikethrough className={iconCls} /> Strikethrough
+                <Strikethrough className={iconCls} /> {t('strikethrough')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleCode().run())}
               >
-                <Code className={iconCls} /> Inline code
+                <Code className={iconCls} /> {t('inlineCode')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={() => setSubmenu(submenu === 'highlight' ? null : 'highlight')}
               >
-                <Highlighter className={iconCls} /> Highlight
+                <Highlighter className={iconCls} /> {t('highlight')}
               </button>
               {submenu === 'highlight' && (
                 <div className="ml-6 flex items-center gap-1.5 px-2 py-1.5">
@@ -297,7 +299,7 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                       onClick={run(() =>
                         editor.chain().focus().toggleHighlight({ color: c }).run()
                       )}
-                      aria-label={`Highlight ${c}`}
+                      aria-label={`${t('highlight')} ${c}`}
                     />
                   ))}
                   <button
@@ -314,7 +316,7 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={() => setSubmenu(submenu === 'color' ? null : 'color')}
               >
-                <Palette className={iconCls} /> Text color
+                <Palette className={iconCls} /> {t('textColor')}
               </button>
               {submenu === 'color' && (
                 <div className="ml-6 flex items-center gap-1.5 px-2 py-1.5">
@@ -325,7 +327,7 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                       className={dotCls}
                       style={{ backgroundColor: c }}
                       onClick={run(() => editor.chain().focus().setColor(c).run())}
-                      aria-label={`Text color ${c}`}
+                      aria-label={`${t('textColor')} ${c}`}
                     />
                   ))}
                   <button
@@ -338,10 +340,10 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 </div>
               )}
               <button type="button" className={itemCls} onClick={setLink}>
-                <LinkIcon className={iconCls} /> Link
+                <LinkIcon className={iconCls} /> {t('link').replace(/\s*\(Ctrl\+K\)/, '')}
               </button>
               <button type="button" className={itemCls} onClick={insertImage}>
-                <ImageIcon className={iconCls} /> Image
+                <ImageIcon className={iconCls} /> {t('image')}
               </button>
               <button
                 type="button"
@@ -354,25 +356,25 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                     .run()
                 )}
               >
-                <TableIcon className={iconCls} /> Table 3×3
+                <TableIcon className={iconCls} /> {t('table3x3')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().insertCodeBlock3().run())}
               >
-                <Braces className={iconCls} /> Code block
+                <Braces className={iconCls} /> {t('codeBlock')}
               </button>
               {divider}
               <button type="button" className={itemCls} onClick={run(deleteNode)}>
-                <Trash2 className={iconCls} /> Delete node
+                <Trash2 className={iconCls} /> {t('deleteNode')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().unsetAllMarks().clearNodes().run())}
               >
-                <Eraser className={iconCls} /> Clear formatting
+                <Eraser className={iconCls} /> {t('clearFormatting')}
               </button>
             </>
           )}
@@ -384,9 +386,9 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={() => setSubmenu(submenu === 'lang' ? null : 'lang')}
               >
-                <Braces className={iconCls} /> Language:{' '}
+                <Braces className={iconCls} /> {t('languageLabel', { name: '' }).replace('{name}', '')}:
                 <span className="ml-auto text-zinc-400">
-                  {menu.codeLang ? languageLabel(menu.codeLang) : 'Auto'}
+                  {menu.codeLang ? languageLabel(menu.codeLang) : t('auto')}
                 </span>
               </button>
               {submenu === 'lang' && (
@@ -414,7 +416,7 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleCodeBlock().run())}
               >
-                <X className={iconCls} /> Remove code block
+                <X className={iconCls} /> {t('removeCodeBlock')}
               </button>
               {divider}
             </>
@@ -422,34 +424,34 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
 
           {menu.kind === 'image' && (
             <>
-              <div className={headerCls}>Image</div>
+              <div className={headerCls}>{t('image')}</div>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageWidth(25).run())}
               >
-                <Type className={iconCls} /> Width 25%
+                <Type className={iconCls} /> {t('width25')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageWidth(50).run())}
               >
-                <Type className={iconCls} /> Width 50%
+                <Type className={iconCls} /> {t('width50')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageWidth(75).run())}
               >
-                <Type className={iconCls} /> Width 75%
+                <Type className={iconCls} /> {t('width75')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageWidth(100).run())}
               >
-                <Type className={iconCls} /> Width 100%
+                <Type className={iconCls} /> {t('width100')}
               </button>
               {divider}
               <button
@@ -457,21 +459,21 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageFloat('left').run())}
               >
-                <AlignLeft className={iconCls} /> Float left
+                <AlignLeft className={iconCls} /> {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageFloat('right').run())}
               >
-                <AlignRight className={iconCls} /> Float right
+                <AlignRight className={iconCls} /> {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageFloat('none').run())}
               >
-                <AlignCenter className={iconCls} /> No float
+                <AlignCenter className={iconCls} /> {t('floatNone')}
               </button>
               {divider}
               <button
@@ -479,48 +481,48 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().deleteSelection().run())}
               >
-                <Trash2 className={iconCls} /> Delete image
+                <Trash2 className={iconCls} /> {t('deleteImage')}
               </button>
             </>
           )}
 
           {menu.kind === 'table' && (
             <>
-              <div className={headerCls}>Table</div>
+              <div className={headerCls}>{t('table')}</div>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().addRowBefore().run())}
               >
-                <ArrowUp className={iconCls} /> Row above
+                <ArrowUp className={iconCls} /> {t('rowAbove')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().addRowAfter().run())}
               >
-                <ArrowDown className={iconCls} /> Row below
+                <ArrowDown className={iconCls} /> {t('rowBelow')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().addColumnBefore().run())}
               >
-                <ArrowLeft className={iconCls} /> Column left
+                <ArrowLeft className={iconCls} /> {t('columnLeft')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().addColumnAfter().run())}
               >
-                <ArrowRight className={iconCls} /> Column right
+                <ArrowRight className={iconCls} /> {t('columnRight')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().toggleHeaderRow().run())}
               >
-                <TableIcon className={iconCls} /> Toggle header row
+                <TableIcon className={iconCls} /> {t('toggleHeader')}
               </button>
               {divider}
               <button
@@ -528,35 +530,35 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableFloat('left').run())}
               >
-                <AlignLeft className={iconCls} /> Float left
+                <AlignLeft className={iconCls} /> {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableFloat('right').run())}
               >
-                <AlignRight className={iconCls} /> Float right
+                <AlignRight className={iconCls} /> {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableFloat('none').run())}
               >
-                <AlignCenter className={iconCls} /> No float
+                <AlignCenter className={iconCls} /> {t('floatNone')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableSize('compact').run())}
               >
-                <Type className={iconCls} /> Compact width
+                <Type className={iconCls} /> {t('compactWidth')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableSize('full').run())}
               >
-                <TableIcon className={iconCls} /> Full width
+                <TableIcon className={iconCls} /> {t('fullWidth')}
               </button>
               {divider}
               <button
@@ -564,21 +566,21 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().deleteRow().run())}
               >
-                <X className={iconCls} /> Delete row
+                <X className={iconCls} /> {t('deleteRow')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().deleteColumn().run())}
               >
-                <X className={iconCls} /> Delete column
+                <X className={iconCls} /> {t('deleteColumn')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().deleteTable().run())}
               >
-                <Trash2 className={iconCls} /> Delete table
+                <Trash2 className={iconCls} /> {t('deleteTable')}
               </button>
             </>
           )}

@@ -9,6 +9,7 @@ import { NoteCard } from '@/components/home/note-card';
 import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { toast } from '@/hooks/use-toast';
+import { useTranslation } from '@/lib/i18n';
 
 function isTauri(): boolean {
   if (typeof window === 'undefined') return false;
@@ -25,6 +26,7 @@ function isTauri(): boolean {
  */
 export function ArchivePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { archiveNote, deleteNote, duplicateNote, updateNote, pinNote, favoriteNote } = useNotes();
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -56,7 +58,7 @@ export function ArchivePage() {
     } catch (e) {
       console.error('load archived failed', e);
       toast({
-        title: 'Не получилось загрузить архив',
+        title: t('loadArchivedFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
     } finally {
@@ -80,30 +82,29 @@ export function ArchivePage() {
     onArchive: (n: Note) =>
       archiveNote(n.id, false)
         .then(loadArchived)
-        .catch(fail('Не получилось разархивировать заметку')),
-    onDelete: (n: Note) => deleteNote(n.id).then(loadArchived).catch(fail('Не удалось удалить')),
-    onDuplicate: (n: Note) => duplicateNote(n.id).then(loadArchived).catch(fail('Не удалось дублировать')),
-    onPin: (n: Note) => pinNote(n.id, !n.is_pinned).then(loadArchived).catch(fail('Не удалось закрепить')),
+        .catch(fail(t('unarchiveFailed'))),
+    onDelete: (n: Note) => deleteNote(n.id).then(loadArchived).catch(fail(t('deleteFailed'))),
+    onDuplicate: (n: Note) => duplicateNote(n.id).then(loadArchived).catch(fail(t('duplicateFailed'))),
+    onPin: (n: Note) => pinNote(n.id, !n.is_pinned).then(loadArchived).catch(fail(t('pinFailed'))),
     onFavorite: (n: Note) =>
-      favoriteNote(n.id, !n.is_favorite).then(loadArchived).catch(fail('Не удалось изменить избранное')),
+      favoriteNote(n.id, !n.is_favorite).then(loadArchived).catch(fail(t('favoriteFailed'))),
     onRename: (n: Note, title: string) =>
       updateNote({ id: n.id, title })
         .then(loadArchived)
-        .catch(fail('Не получилось переименовать заметку')),
+        .catch(fail(t('renameNoteFailed'))),
   };
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-5">
       {/* Заголовок + возврат на главную в стиле остальных страниц */}
       <div className="flex flex-col items-center gap-3 text-center">
-        <Breadcrumbs onBack={() => navigate('/home')} parentLabel="Главная" current="Архив" />
+        <Breadcrumbs onBack={() => navigate('/home')} parentLabel={t('home')} current={t('archive')} />
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
-          Архив
+          {t('archive')}
         </h1>
         {!isLoading && notes.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            {notes.length === 1 ? '1 заметка' : `${notes.length} заметок`} · ПКМ по карточке —
-            действия, «Разархивировать» вернёт на главную
+            {notes.length === 1 ? t('archiveNoteCount1') : t('archiveNoteCount', { count: notes.length })} · {t('archiveHint')}
           </p>
         )}
       </div>
@@ -120,10 +121,9 @@ export function ArchivePage() {
               <Archive className="h-6 w-6" />
             </span>
             <div className="space-y-1.5">
-              <h3 className="font-display text-lg font-bold">Архив пуст</h3>
+              <h3 className="font-display text-lg font-bold">{t('archiveEmpty')}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Заархивированные заметки появятся здесь — правый клик по заметке на главной →
-                «В архив»
+                {t('archiveEmptyDesc')}
               </p>
             </div>
           </div>

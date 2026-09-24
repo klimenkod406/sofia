@@ -15,6 +15,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { MapPin, Trash2, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { useTranslation } from '@/lib/i18n';
 
 interface EventModalProps {
   event: Partial<Event> & { id?: string };
@@ -24,6 +25,7 @@ interface EventModalProps {
 }
 
 export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps) {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: event.title || '',
     description: event.description || '',
@@ -61,7 +63,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
   };
 
   const handleDelete = async () => {
-    if (onDelete && window.confirm('Are you sure you want to delete this event?')) {
+    if (onDelete && window.confirm(t('confirmDeleteEvent'))) {
       await onDelete();
     }
   };
@@ -71,7 +73,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
       <div className="bg-background w-full max-w-lg rounded-2xl border shadow-xl overflow-hidden animate-scale-in">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">{event.id ? 'Edit Event' : 'New Event'}</h2>
+          <h2 className="text-lg font-semibold">{event.id ? t('editEvent') : t('newEvent')}</h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-5 h-5" />
           </Button>
@@ -86,29 +88,29 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
           className="p-4 space-y-4 max-h-[70vh] overflow-y-auto"
         >
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">{t('eventTitle')}</Label>
             <Input
               id="title"
               value={formData.title}
               onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-              placeholder="Event title"
+              placeholder={t('eventTitlePlaceholder')}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label>{t('description')}</Label>
             <Textarea
               value={formData.description}
               onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-              placeholder="Add details..."
+              placeholder={t('descriptionPlaceholder')}
               rows={3}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Start Date</Label>
+              <Label>{t('startDate')}</Label>
               <Input
                 type="date"
                 value={formData.startDate}
@@ -116,7 +118,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               />
             </div>
             <div className="space-y-2">
-              <Label>Start Time</Label>
+              <Label>{t('startTime')}</Label>
               <Input
                 type="time"
                 value={formData.startTime}
@@ -128,7 +130,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>End Date</Label>
+              <Label>{t('endDate')}</Label>
               <Input
                 type="date"
                 value={formData.endDate}
@@ -136,7 +138,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               />
             </div>
             <div className="space-y-2">
-              <Label>End Time</Label>
+              <Label>{t('endTime')}</Label>
               <Input
                 type="time"
                 value={formData.endTime}
@@ -155,19 +157,19 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               className="rounded border-input"
             />
             <Label htmlFor="allDay" className="cursor-pointer">
-              All day
+              {t('allDay')}
             </Label>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="location">Location</Label>
+            <Label htmlFor="location">{t('location')}</Label>
             <div className="relative">
               <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 id="location"
                 value={formData.location}
                 onChange={e => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                placeholder="Add location"
+                placeholder={t('locationPlaceholder')}
                 className="pl-10"
               />
             </div>
@@ -175,7 +177,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="color">Color</Label>
+              <Label htmlFor="color">{t('color')}</Label>
               <Select
                 value={formData.color}
                 onValueChange={v => setFormData(prev => ({ ...prev, color: v }))}
@@ -185,7 +187,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
                     className="w-4 h-4 rounded-full border"
                     style={{ backgroundColor: formData.color }}
                   />
-                  <SelectValue placeholder="Select color" />
+                  <SelectValue placeholder={t('selectColor')} />
                 </SelectTrigger>
                 <SelectContent>
                   {[
@@ -212,7 +214,7 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="reminder">Reminder</Label>
+              <Label htmlFor="reminder">{t('reminder')}</Label>
               <Select
                 value={formData.reminderMinutes.toString()}
                 onValueChange={v =>
@@ -220,16 +222,16 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
                 }
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select reminder" />
+                  <SelectValue placeholder={t('selectReminder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="0">At time of event</SelectItem>
-                  <SelectItem value="5">5 minutes before</SelectItem>
-                  <SelectItem value="15">15 minutes before</SelectItem>
-                  <SelectItem value="30">30 minutes before</SelectItem>
-                  <SelectItem value="60">1 hour before</SelectItem>
-                  <SelectItem value="1440">1 day before</SelectItem>
-                  <SelectItem value="10080">1 week before</SelectItem>
+                  <SelectItem value="0">{t('reminderAtEvent')}</SelectItem>
+                  <SelectItem value="5">{t('reminder5min')}</SelectItem>
+                  <SelectItem value="15">{t('reminder15min')}</SelectItem>
+                  <SelectItem value="30">{t('reminder30min')}</SelectItem>
+                  <SelectItem value="60">{t('reminder1hour')}</SelectItem>
+                  <SelectItem value="1440">{t('reminder1day')}</SelectItem>
+                  <SelectItem value="10080">{t('reminder1week')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -240,14 +242,14 @@ export function EventModal({ event, onClose, onSave, onDelete }: EventModalProps
             {event.id && onDelete && (
               <Button variant="destructive" onClick={handleDelete} disabled={isSaving}>
                 <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                {t('delete')}
               </Button>
             )}
             <Button variant="outline" onClick={onClose} disabled={isSaving}>
-              Cancel
+              {t('cancelBtn')}
             </Button>
             <Button type="submit" disabled={isSaving || !formData.title.trim()}>
-              {isSaving ? 'Saving...' : event.id ? 'Save Changes' : 'Create Event'}
+              {isSaving ? t('eventSaving') : event.id ? t('saveChanges') : t('createEventBtn')}
             </Button>
           </div>
         </form>

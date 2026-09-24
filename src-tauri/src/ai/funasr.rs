@@ -8,7 +8,7 @@
 use crate::ai::transcription::{TranscriptionJob, TranscriptionResult, TranscriptionSegment};
 use crate::db::models::AIModel;
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 pub struct FunASRTranscriber {
@@ -244,26 +244,41 @@ impl FunASRTranscriber {
 
 /// Fallback implementation using whisper.cpp when FunASR is not available.
 ///
-/// `whisper-cli` is expected on PATH; the GGML/GGUF model weights live at the
-/// model's `local_path` (downloaded via `download_gguf_model`). We ask for VTT
-/// output (`-ovtt`) because its `HH:MM:SS.mmm` timestamps are unambiguous,
+/// The CLI is looked up in `<models dir>/bin/whisper-cli(.exe)` first — the app
+/// bundles the official whisper.cpp v1.5.4 Windows build during model
+/// installation (matching the ggml-*.bin weights) — then on PATH. We ask for
+/// VTT output (`-ovtt`) because its `HH:MM:SS.mmm` timestamps are unambiguous,
 /// unlike the version-dependent `t0`/`t1` units in `-oj` JSON.
+#[derive(Clone)]
 pub struct WhisperCppTranscriber {
-    whisper_cli: String,
+    whisper_cli: PathBuf,
 }
 
 impl WhisperCppTranscriber {
-    pub fn new() -> Result<Self> {
+    /// Prefer the CLI bundled next to the models, then fall back to PATH.
+    pub fn new(models_dir: &str) -> Result<Self> {
+        let bundled = Path::new(models_dir)
+            .join("bin")
+            .join(if cfg!(windows) { "whisper-cli.exe" } else { "whisper-cli" });
+        if bundled.exists() {
+            return Ok(Self { whisper_cli: bundled });
+        }
         Ok(Self {
-            whisper_cli: Self::find_whisper_cli()?,
+            whisper_cli: Self::find_on_path()?,
         })
     }
 
-    fn find_whisper_cli() -> Result<String> {
+    /// Construct directly from a known CLI path (e.g. after an on-demand
+    /// download of the bundled binary).
+    pub fn new_with_cli(cli: PathBuf) -> Result<Self> {
+        Ok(Self { whisper_cli: cli })
+    }
+
+    fn find_on_path() -> Result<PathBuf> {
         for cmd in ["whisper-cli", "whisper", "main"] {
             if let Ok(output) = std::process::Command::new(cmd).arg("--help").output() {
                 if output.status.success() {
-                    return Ok(cmd.to_string());
+                    return Ok(PathBuf::from(cmd));
                 }
             }
         }
@@ -327,8 +342,17 @@ impl WhisperCppTranscriber {
             ));
         }
 
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        self.parse_vtt(&stdout)
+        // `-ovtt` writes the transcript to `<input>.vtt` — parse that file, it
+        // is the canonical VTT. Fall back to stdout for builds that print the
+        // same cues instead of (or in addition to) writing the file.
+        let vtt_path = format!("{audio_path}.vtt");
+        let vtt_file = tokio::fs::read_to_string(&vtt_path).await.unwrap_or_default();
+        if !vtt_file.trim().is_empty() {
+            self.parse_vtt(&vtt_file)
+        } else {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            self.parse_vtt(&stdout)
+        }
     }
 
     fn parse_vtt(&self, output: &str) -> Result<TranscriptionResult> {
@@ -350,7 +374,12 @@ impl WhisperCppTranscriber {
     }
 }
 
-/// Parse a WebVTT body produced by `whisper-cli -ovtt` into timed segments.
+/// Parse a WebVTT body into timed segments. Handles both formats whisper.cpp
+/// produces:
+/// - the `.vtt` file written by `-ovtt` (`HH:MM:SS.mmm --> HH:MM:SS.mmm` on its
+///   own line, cue text on the following lines), and
+/// - the stdout progress format (`[HH:MM:SS.mmm --> HH:MM:SS.mmm]  text` with
+///   the cue text on the same line).
 pub(crate) fn parse_vtt(output: &str) -> Result<Vec<TranscriptionSegment>> {
     let mut segments = Vec::new();
     let mut start: Option<f32> = None;
@@ -359,12 +388,37 @@ pub(crate) fn parse_vtt(output: &str) -> Result<Vec<TranscriptionSegment>> {
 
     for raw in output.lines() {
         let line = raw.trim_end();
-        if line.contains("-->") {
+        if let Some(idx) = line.find("-->") {
+            // Flush the previous VTT-format cue (timestamp alone on a line,
+            // text on the following lines) before starting a new one.
             push_vtt_segment(&mut segments, start.take(), end.take(), &mut text_lines);
-            let sides: Vec<&str> = line.split("-->").collect();
-            if sides.len() == 2 {
-                start = parse_vtt_timestamp(sides[0]);
-                end = parse_vtt_timestamp(sides[1]);
+
+            let left = line[..idx].trim();
+            let right = line[idx + 3..].trim();
+
+            // stdout progress format carries the cue text after the closing
+            // `]` on the timestamp line itself: `[t1 --> t2]  text`.
+            let left = left.strip_prefix('[').unwrap_or(left);
+            let (right, inline_text) = match right.find(']') {
+                Some(close) => (right[..close].trim(), right[close + 1..].trim()),
+                None => (right, ""),
+            };
+
+            match (parse_vtt_timestamp(left), parse_vtt_timestamp(right)) {
+                (Some(s), Some(e)) if !inline_text.is_empty() => {
+                    segments.push(TranscriptionSegment {
+                        start: s,
+                        end: e,
+                        text: inline_text.to_string(),
+                        speaker: None,
+                        confidence: 1.0,
+                    });
+                }
+                (Some(s), Some(e)) => {
+                    start = Some(s);
+                    end = Some(e);
+                }
+                _ => {} // malformed timestamp line — ignore
             }
         } else if line.is_empty()
             || line.starts_with("WEBVTT")
@@ -459,6 +513,24 @@ mod tests {
         assert_eq!(segs[0].text, "hello world");
         assert!((segs[0].end - 2.1).abs() < 0.001);
         assert_eq!(segs[1].text, "second segment");
+    }
+
+    #[test]
+    fn parses_whisper_stdout_progress_format() {
+        // `whisper-cli` prints cues to stdout as `[t1 --> t2]  text` — the
+        // same timestamps it writes into the .vtt file, but inline. Both must
+        // produce the same segments (this was the "nothing happens" bug: the
+        // parser only understood the file format and dropped every cue).
+        let out = "[00:00:00.000 --> 00:00:02.000]   Привет!\n\
+[00:00:02.000 --> 00:00:04.000]   Привет\n";
+        let segs = parse_vtt(out).unwrap();
+        assert_eq!(segs.len(), 2);
+        assert_eq!(segs[0].text, "Привет!");
+        assert!((segs[0].start - 0.0).abs() < 0.001);
+        assert!((segs[0].end - 2.0).abs() < 0.001);
+        assert_eq!(segs[1].text, "Привет");
+        assert!((segs[1].start - 2.0).abs() < 0.001);
+        assert!((segs[1].end - 4.0).abs() < 0.001);
     }
 
     #[test]

@@ -139,6 +139,16 @@ export interface AIModel {
   updated_at: string;
 }
 
+/** Live download state returned by the `get_download_progress` command. */
+export interface DownloadState {
+  model_id: string;
+  progress: number;
+  status: 'pending' | 'downloading' | 'verifying' | 'completed' | 'failed' | 'cancelled';
+  error: string | null;
+  bytes_downloaded: number;
+  total_bytes: number;
+}
+
 export interface AIChat {
   id: string;
   note_id: string | null;

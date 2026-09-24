@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
+import { useTranslation } from '@/lib/i18n';
 import {
   Bold,
   Italic,
@@ -200,6 +201,7 @@ function ColorMenu({
   onClear: () => void;
   side: 'left' | 'right';
 }) {
+  const { t } = useTranslation();
   const { colors, addColor } = useCustomColors(customKey);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
@@ -240,13 +242,13 @@ function ColorMenu({
           onClick={() => setShowAdd(v => !v)}
           className="flex items-center gap-2"
         >
-          <Plus className="h-4 w-4" /> Добавить цвет…
+          <Plus className="h-4 w-4" /> {t('addColor')}
         </DropdownMenuItem>
         {showAdd && (
           <div className="px-3 py-2 space-y-2">
             <input
               className="w-full rounded border border-border bg-transparent px-2 py-1 text-sm"
-              placeholder="Название"
+              placeholder={t('colorName')}
               value={newName}
               onChange={e => setNewName(e.target.value)}
             />
@@ -270,13 +272,13 @@ function ColorMenu({
                 }
               }}
             >
-              Сохранить
+              {t('save')}
             </Button>
           </div>
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onClear} className="flex items-center gap-2">
-          <Eraser className="h-4 w-4" /> Убрать
+          <Eraser className="h-4 w-4" /> {t('remove')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -383,6 +385,7 @@ function TableInsertMenu({
 }
 
 export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorToolbarProps) {
+  const { t } = useTranslation();
   // Без подписки на транзакции кнопки isActive/disabled протухают:
   // рейка рендерится только при смене пропсов, а не при каждом наборе текста.
   const [, setTick] = useState(0);
@@ -482,35 +485,35 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       icon: Bold,
       action: () => editor.chain().focus().toggleBold().run(),
       active: editor.isActive('bold'),
-      title: 'Полужирный (Ctrl+B)',
+      title: t('bold'),
     },
     {
       kind: 'button',
       icon: Italic,
       action: () => editor.chain().focus().toggleItalic().run(),
       active: editor.isActive('italic'),
-      title: 'Курсив (Ctrl+I)',
+      title: t('italic'),
     },
     {
       kind: 'button',
       icon: Strikethrough,
       action: () => editor.chain().focus().toggleStrike().run(),
       active: editor.isActive('strike'),
-      title: 'Зачёркнутый',
+      title: t('strikethrough'),
     },
     {
       kind: 'button',
       icon: Code,
       action: () => editor.chain().focus().toggleCode().run(),
       active: editor.isActive('code'),
-      title: 'Моноширинный текст',
+      title: t('code'),
     },
     {
       kind: 'custom',
       render: () => (
         <ColorMenu
           key="highlight-menu"
-          title="Маркер"
+          title={t('highlight')}
           icon={Highlighter}
           defaults={HIGHLIGHT_COLORS}
           customKey={HIGHLIGHT_STORAGE_KEY}
@@ -525,7 +528,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       render: () => (
         <ColorMenu
           key="text-color-menu"
-          title="Цвет текста"
+          title={t('textColor')}
           icon={Palette}
           defaults={TEXT_COLORS}
           customKey={TEXT_STORAGE_KEY}
@@ -541,70 +544,70 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       icon: AlignLeft,
       action: () => setAlignment('left'),
       active: editor.isActive({ textAlign: 'left' }),
-      title: 'По левому краю',
+      title: t('alignLeft'),
     },
     {
       kind: 'button',
       icon: AlignCenter,
       action: () => setAlignment('center'),
       active: editor.isActive({ textAlign: 'center' }),
-      title: 'По центру',
+      title: t('alignCenter'),
     },
     {
       kind: 'button',
       icon: AlignRight,
       action: () => setAlignment('right'),
       active: editor.isActive({ textAlign: 'right' }),
-      title: 'По правому краю',
+      title: t('alignRight'),
     },
     {
       kind: 'button',
       icon: Heading1,
       action: () => addHeading(1),
       active: editor.isActive('heading', { level: 1 }),
-      title: 'Заголовок 1',
+      title: t('heading1'),
     },
     {
       kind: 'button',
       icon: Heading2,
       action: () => addHeading(2),
       active: editor.isActive('heading', { level: 2 }),
-      title: 'Заголовок 2',
+      title: t('heading2'),
     },
     {
       kind: 'button',
       icon: Heading3,
       action: () => addHeading(3),
       active: editor.isActive('heading', { level: 3 }),
-      title: 'Заголовок 3',
+      title: t('heading3'),
     },
     {
       kind: 'button',
       icon: Pilcrow,
       action: () => editor.chain().focus().setParagraph().run(),
       active: editor.isActive('paragraph'),
-      title: 'Обычный текст',
+      title: t('paragraph'),
     },
     {
       kind: 'button',
       icon: List,
       action: () => editor.chain().focus().toggleBulletList().run(),
       active: editor.isActive('bulletList'),
-      title: 'Список',
+      title: t('bulletList'),
     },
     {
       kind: 'button',
       icon: ListOrdered,
       action: () => editor.chain().focus().toggleOrderedList().run(),
       active: editor.isActive('orderedList'),
-      title: 'Нумерованный список',
+      title: t('numberedList'),
     },
     {
       kind: 'button',
       icon: CheckSquare,
       action: () => editor.chain().focus().toggleTaskList().run(),
       active: editor.isActive('taskList'),
-      title: 'Список задач',
+      title: t('taskList'),
     },
   ];
 
@@ -615,43 +618,43 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       icon: Undo,
       action: () => editor.chain().focus().undo().run(),
       disabled: !canUndo,
-      title: 'Отменить (Ctrl+Z)',
+      title: t('undo'),
     },
     {
       kind: 'button',
       icon: Redo,
       action: () => editor.chain().focus().redo().run(),
       disabled: !canRedo,
-      title: 'Вернуть (Ctrl+Shift+Z)',
+      title: t('redo'),
     },
     {
       kind: 'button',
       icon: Quote,
       action: () => editor.chain().focus().toggleBlockquote().run(),
       active: editor.isActive('blockquote'),
-      title: 'Цитата',
+      title: t('quote'),
     },
     {
       kind: 'button',
       icon: Code,
       action: () => editor.chain().focus().insertCodeBlock3().run(),
       active: editor.isActive('codeBlock'),
-      title: 'Блок кода',
+      title: t('codeBlock'),
     },
     {
       kind: 'button',
       icon: Minus,
       action: () => editor.chain().focus().setHorizontalRule().run(),
-      title: 'Разделитель',
+      title: t('horizontalRule'),
     },
     {
       kind: 'button',
       icon: Link,
       action: addLink,
       active: editor.isActive('link'),
-      title: 'Ссылка (Ctrl+K)',
+      title: t('link'),
     },
-    { kind: 'button', icon: Image, action: addImage, title: 'Картинка' },
+    { kind: 'button', icon: Image, action: addImage, title: t('image') },
     {
       kind: 'custom',
       render: () => <TableInsertMenu key="table-menu" editor={editor} side={side} />,
@@ -659,21 +662,21 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     {
       kind: 'menu',
       icon: MoreHorizontal,
-      title: 'Таблица: обтекание',
+      title: t('tableFloat'),
       menuItems: [
         {
           icon: AlignLeft,
-          label: 'Слева (обтекание)',
+          label: t('floatLeft'),
           action: () => editor.chain().focus().setTableFloat('left').run(),
         },
         {
           icon: AlignRight,
-          label: 'Справа (обтекание)',
+          label: t('floatRight'),
           action: () => editor.chain().focus().setTableFloat('right').run(),
         },
         {
           icon: AlignCenter,
-          label: 'По ширине',
+          label: t('fullWidth'),
           action: () => editor.chain().focus().setTableFloat('none').run(),
         },
       ],
@@ -681,7 +684,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     {
       kind: 'menu',
       icon: MoreHorizontal,
-      title: 'Картинка: размер',
+      title: t('imageSize'),
       menuItems: [
         { icon: Type, label: '25%', action: () => editor.chain().focus().setImageWidth(25).run() },
         { icon: Type, label: '50%', action: () => editor.chain().focus().setImageWidth(50).run() },
@@ -696,21 +699,21 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     {
       kind: 'menu',
       icon: MoreHorizontal,
-      title: 'Картинка: обтекание',
+      title: t('imageFloat'),
       menuItems: [
         {
           icon: AlignLeft,
-          label: 'Слева',
+          label: t('imageFloatLeft'),
           action: () => editor.chain().focus().setImageFloat('left').run(),
         },
         {
           icon: AlignRight,
-          label: 'Справа',
+          label: t('imageFloatRight'),
           action: () => editor.chain().focus().setImageFloat('right').run(),
         },
         {
           icon: AlignCenter,
-          label: 'Без обтекания',
+          label: t('floatNone'),
           action: () => editor.chain().focus().setImageFloat('none').run(),
         },
       ],
@@ -719,27 +722,27 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       kind: 'button',
       icon: Search,
       action: () => onOpenSearch?.(),
-      title: 'Найти и заменить (Ctrl+F)',
+      title: t('findAndReplace'),
     },
     {
       kind: 'menu',
       icon: MoreHorizontal,
-      title: 'Ещё',
+      title: t('more'),
       menuItems: [
-        { icon: Eraser, label: 'Сбросить форматирование', action: clearFormatting },
-        { icon: Unlink, label: 'Убрать ссылку', action: removeLink },
-        { icon: Save, label: 'Сохранить (Ctrl+S)', action: saveNow },
+        { icon: Eraser, label: t('clearFormatting'), action: clearFormatting },
+        { icon: Unlink, label: t('removeLink'), action: removeLink },
+        { icon: Save, label: t('saveNow'), action: saveNow },
         {
           icon: FileDown,
-          label: 'Экспорт в Markdown',
+          label: t('exportMarkdown'),
           action: () => void exportMarkdown().catch(reportExportError),
         },
         {
           icon: FileCode,
-          label: 'Экспорт в HTML',
+          label: t('exportHtml'),
           action: () => void exportHtml().catch(reportExportError),
         },
-        { icon: Printer, label: 'Печать / PDF', action: exportPdf },
+        { icon: Printer, label: t('printPdf'), action: exportPdf },
       ],
     },
   ];
@@ -750,7 +753,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     <div
       className="editor-rail"
       role="toolbar"
-      aria-label={side === 'left' ? 'Форматирование текста' : 'История и блоки'}
+      aria-label={side === 'left' ? t('leftRail') : t('rightRail')}
     >
       {items.map((item, itemIndex) => {
         if (item.kind === 'divider') {
@@ -767,9 +770,9 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
                 size="icon"
                 className={cn(
                   'editor-toolbar-btn',
-                  item.title === 'Маркер' && editor.isActive('highlight'),
-                  item.title === 'Цвет текста' && editor.isActive('textStyle'),
-                  item.title === 'Язык кода' && editor.isActive('codeBlock')
+                  item.title === t('highlight') && editor.isActive('highlight'),
+                  item.title === t('textColor') && editor.isActive('textStyle'),
+                  item.title === t('codeLanguage') && editor.isActive('codeBlock')
                 )}
                 title={item.title}
                 aria-label={item.title}
@@ -833,9 +836,10 @@ function FragmentItem({
 }
 
 function reportExportError(e: unknown) {
+  const { t } = useTranslation();
   console.error('export failed', e);
   toast({
-    title: 'Не получилось сохранить файл',
+    title: t('exportError'),
     description: e instanceof Error ? e.message : String(e),
     variant: 'destructive',
   });

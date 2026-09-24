@@ -171,6 +171,7 @@ fn main() {
             commands::models::list_local_models,
             commands::models::get_model_info,
             commands::models::install_model,
+            commands::models::get_download_progress,
             commands::models::uninstall_model,
             // File operations
             commands::file_ops::read_file,
@@ -199,10 +200,9 @@ fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> anyhow::Result<()> {
 
     let menu = Menu::with_items(app, &[&show, &new_note, &separator, &quit])?;
 
-    let mut builder = TrayIconBuilder::with_id("main").menu(&menu);
-    if let Some(icon) = app.default_window_icon().cloned() {
-        builder = builder.icon(icon);
-    }
+    let mut builder = TrayIconBuilder::with_id("main")
+        .menu(&menu)
+        .icon(tauri::include_image!("icons/tray-icon.png"));
 
     let _tray = builder
         .on_menu_event(|app, event| match event.id.as_ref() {

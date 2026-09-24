@@ -3,8 +3,8 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-// Только две темы: светлая и тёмная (тёплые пастельные), без system.
-type Theme = 'light' | 'dark';
+// Три варианта: светлая, тёмная и системная (автоопределение ОС)
+type Theme = 'light' | 'dark' | 'system';
 
 interface ThemeContextType {
   theme: Theme;
@@ -14,11 +14,16 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+function getSystemTheme(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 export function ThemeProvider({
   children,
   attribute = 'class',
   defaultTheme = 'light',
-  enableSystem = false,
+  enableSystem = true,
 }: {
   children: ReactNode;
   attribute?: 'class' | 'data-theme';
@@ -26,29 +31,45 @@ export function ThemeProvider({
   enableSystem?: boolean;
 }) {
   const [theme, setTheme] = useState<Theme>(defaultTheme);
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(defaultTheme);
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     const stored = localStorage.getItem('sofia-theme') as Theme | null;
-    if (stored === 'light' || stored === 'dark') {
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
       setTheme(stored);
     }
   }, []);
+
+  // Слушаем изменения системной темы
+  useEffect(() => {
+    if (!enableSystem || theme !== 'system') return;
+
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => {
+      setResolvedTheme(getSystemTheme());
+    };
+
+    setResolvedTheme(getSystemTheme());
+    media.addEventListener('change', handler);
+    return () => media.removeEventListener('change', handler);
+  }, [theme, enableSystem]);
 
   useEffect(() => {
     if (!mounted) return;
 
     const root = window.document.documentElement;
-    void enableSystem; // проп оставлен для совместимости API
 
-    setResolvedTheme(theme);
+    // Определяем итоговую тему: если 'system' — берём из ОС
+    const resolved = theme === 'system' ? getSystemTheme() : theme;
+    setResolvedTheme(resolved);
+
     if (attribute === 'class') {
       root.classList.remove('light', 'dark');
-      root.classList.add(theme);
+      root.classList.add(resolved);
     } else {
-      root.setAttribute('data-theme', theme);
+      root.setAttribute('data-theme', resolved);
     }
     localStorage.setItem('sofia-theme', theme);
   }, [theme, enableSystem, mounted, attribute]);

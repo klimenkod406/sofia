@@ -33,32 +33,125 @@ import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Search, X } from 'lucide-react';
 import { useLiveTranscription } from '@/hooks/use-live-transcription';
+import { useTranslation } from '@/lib/i18n';
 
 // Общий экземпляр подсветки синтаксиса (lowlight v3): создаём один раз.
 const lowlight = createLowlight(common);
 
-// Вставка очередного абзаца расшифровки в конец заметки как отдельного
-// блока <p>. Первый пустой документ заменяется, дальше абзацы добавляются
-// друг за другом — так расшифровка остаётся «с логическими разделениями»,
-// а не сливается в сплошной текст.
-function insertTranscriptParagraph(editor: Editor, text: string) {
+// Абзац расшифровки: обычный (финальный) или курсивный «черновик» с ещё
+// не зафиксированным промежуточным текстом.
+function makeTranscriptParagraph(editor: Editor, text: string, pending: boolean) {
+  const { state } = editor;
+  const textNode = pending
+    ? state.schema.text(text, [state.schema.marks.italic.create()])
+    : state.schema.text(text);
+  return state.schema.nodes.paragraph.create(null, textNode);
+}
+
+// Живой черновик: partial-текст печатается в документе курсивом сразу, как
+// только бэкенд его прислал — не нужно ждать паузы или остановки записи.
+// Пока черновик не создан — вставляем его в точку вставки (позиция курсора
+// на старте сессии); потом обновляем на месте.
+function upsertTranscriptDraft(
+  editor: Editor,
+  text: string,
+  insertPos: { current: number | null },
+  draft: { pos: number | null; size: number }
+) {
   const { state, view } = editor;
   const doc = state.doc;
+  const node = makeTranscriptParagraph(editor, text, true);
+
+  if (draft.pos !== null) {
+    const cur = doc.nodeAt(draft.pos);
+    if (cur?.type.name === 'paragraph' && cur.textContent !== text) {
+      view.dispatch(
+        state.tr
+          .replaceWith(draft.pos, draft.pos + draft.size, node)
+          .setMeta('addToHistory', false)
+      );
+      draft.size = node.nodeSize;
+    }
+    return;
+  }
+
   const blankDoc =
     doc.childCount === 1 &&
     doc.firstChild?.type.name === 'paragraph' &&
     doc.firstChild.textContent === '';
-  const node = state.schema.nodes.paragraph.create(null, state.schema.text(text));
   if (blankDoc) {
-    view.dispatch(state.tr.replaceWith(0, doc.content.size, node));
-  } else {
-    view.dispatch(state.tr.insert(doc.content.size, node));
+    view.dispatch(
+      state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false)
+    );
+    draft.pos = 0;
+    draft.size = node.nodeSize;
+    return;
   }
+  const pos = Math.min(Math.max(insertPos.current ?? doc.content.size, 0), doc.content.size);
+  view.dispatch(state.tr.insert(pos, node).setMeta('addToHistory', false));
+  draft.pos = pos;
+  draft.size = node.nodeSize;
+  // Якорь не двигаем: когда придут финальные сегменты, черновик заменится
+  // на месте, а точка вставки сдвинется за них.
+}
+
+// Вставка финального абзаца расшифровки. Если для этого текста уже был
+// показан черновик — заменяем его обычным абзацем; иначе вставляем в точку
+// вставки (позиция курсора на старте сессии), каждый следующий — сразу
+// после предыдущего, чтобы расшифровка «печаталась» в одном месте.
+// Позиция клампится в актуальный диапазон документа: между вставками
+// пользователь может править текст.
+function insertTranscriptParagraph(
+  editor: Editor,
+  text: string,
+  insertPos: { current: number | null },
+  draft: { pos: number | null; size: number }
+) {
+  const { state, view } = editor;
+  const doc = state.doc;
+  const node = makeTranscriptParagraph(editor, text, false);
+
+  if (draft.pos !== null) {
+    const cur = doc.nodeAt(draft.pos);
+    if (cur?.type.name === 'paragraph') {
+      view.dispatch(
+        state.tr
+          .replaceWith(draft.pos, draft.pos + draft.size, node)
+          .setMeta('addToHistory', false)
+      );
+      insertPos.current = draft.pos + node.nodeSize;
+      draft.pos = null;
+      draft.size = 0;
+      return;
+    }
+    draft.pos = null;
+    draft.size = 0;
+  }
+
+  const blankDoc =
+    doc.childCount === 1 &&
+    doc.firstChild?.type.name === 'paragraph' &&
+    doc.firstChild.textContent === '';
+  if (blankDoc) {
+    // Первый пустой документ заменяется целиком, дальше абзацы добавляются
+    // друг за другом — так расшифровка остаётся «с логическими разделениями»,
+    // а не сливается в сплошной текст.
+    view.dispatch(
+      state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false)
+    );
+    insertPos.current = node.nodeSize;
+    return;
+  }
+  const pos = Math.min(Math.max(insertPos.current ?? doc.content.size, 0), doc.content.size);
+  view.dispatch(state.tr.insert(pos, node).setMeta('addToHistory', false));
+  // Точка сразу после вставленного абзаца — следующий абзац пойдёт следом.
+  insertPos.current = pos + node.nodeSize;
 }
 
 export function EditorPage() {
   const { noteId } = useParams<{ noteId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { currentNote, setCurrentNote, updateNote } = useNotes();
   const { font, editor: editorSettings, uiPreferences } = useSettings();
   // Вход в редактор — только с существующим id (создание происходит
@@ -92,6 +185,15 @@ export function EditorPage() {
   // commit/partial/status события из Tauri; вставка в документ — ниже.
   const live = useLiveTranscription();
   const transcriptInsertedRef = useRef<Set<number>>(new Set());
+  // Точка вставки расшифровки в документе (позиция курсора на старте
+  // сессии), сдвигается после каждого вставленного абзаца.
+  const transcriptInsertPosRef = useRef<number | null>(null);
+  // Живой черновик: курсивный абзац с промежуточным (partial) текстом,
+  // который заменяется финальным абзацем по мере готовности сегментов.
+  const transcriptDraftRef = useRef<{ pos: number | null; size: number }>({
+    pos: null,
+    size: 0,
+  });
 
   const doSave = async (html: string, text: string) => {
     const note = noteRef.current;
@@ -146,7 +248,7 @@ export function EditorPage() {
         codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: ({ node }) => (node.type.name === 'heading' ? 'Заголовок' : 'Начните писать…'),
+        placeholder: ({ node }) => (node.type.name === 'heading' ? t('heading') : t('startWriting')),
         emptyEditorClass: 'is-editor-empty',
         emptyNodeClass: 'is-empty-node',
       }),
@@ -187,21 +289,60 @@ export function EditorPage() {
     },
   });
 
-  // Сбрасываем набор вставленных абзацев при старте новой сессии.
+  // При старте новой сессии диктовки запоминаем точку вставки: текущую
+  // позицию курсора в редакторе. Клик по кнопке «Диктовка» уводит фокус из
+  // редактора, но selection в состоянии ProseMirror сохраняется — это и есть
+  // место, куда пользователь поставил каретку. Сбрасываем только на СТАРТЕ
+  // сессии: при остановке ref'ы ещё нужны эффектам ниже для финализации.
   useEffect(() => {
+    if (!live.sessionId || !tiptapEditor) return;
     transcriptInsertedRef.current = new Set();
-  }, [live.sessionId]);
+    transcriptInsertPosRef.current = tiptapEditor.state.selection.from;
+    transcriptDraftRef.current.pos = null;
+    transcriptDraftRef.current.size = 0;
+  }, [live.sessionId, tiptapEditor]);
 
-  // Подключённые абзацы расшифровки вставляем в документ по мере готовности.
+  // Финальные абзацы расшифровки вставляем в документ по мере готовности.
   // paragraph_id монотонно растёт в рамках сессии — защита от дублей.
+  // Если для этого текста уже печатался живой черновик, он заменяется
+  // обычным абзацем на том же месте.
   useEffect(() => {
     if (!tiptapEditor) return;
     for (const seg of live.segments) {
       if (transcriptInsertedRef.current.has(seg.paragraph_id)) continue;
       transcriptInsertedRef.current.add(seg.paragraph_id);
-      insertTranscriptParagraph(tiptapEditor, seg.text);
+      insertTranscriptParagraph(tiptapEditor, seg.text, transcriptInsertPosRef, transcriptDraftRef.current);
     }
   }, [live.segments, tiptapEditor]);
+
+  // Живой черновик: пока идёт запись, промежуточный текст печатается
+  // в документ курсивом сразу — «моментально с микрофоном», без ожидания
+  // паузы или остановки.
+  useEffect(() => {
+    if (!tiptapEditor || !live.sessionId || !live.isRecording) return;
+    const text = live.partialText.trim();
+    if (!text) return;
+    upsertTranscriptDraft(tiptapEditor, text, transcriptInsertPosRef, transcriptDraftRef.current);
+  }, [tiptapEditor, live.sessionId, live.isRecording, live.partialText]);
+
+  // Запись закончилась: если черновик так и не был заменён финальным абзацем
+  // (например, хвост оказался тишиной) — превращаем его в обычный текст,
+  // чтобы курсив не остался в заметке.
+  useEffect(() => {
+    if (!tiptapEditor || live.isRecording) return;
+    if (transcriptDraftRef.current.pos === null) return;
+    const { state, view } = tiptapEditor;
+    const { pos, size } = transcriptDraftRef.current;
+    const cur = state.doc.nodeAt(pos);
+    if (cur?.type.name === 'paragraph') {
+      const node = makeTranscriptParagraph(tiptapEditor, cur.textContent, false);
+      view.dispatch(
+        state.tr.replaceWith(pos, pos + size, node).setMeta('addToHistory', false)
+      );
+    }
+    transcriptDraftRef.current.pos = null;
+    transcriptDraftRef.current.size = 0;
+  }, [tiptapEditor, live.isRecording]);
 
   // Живой счётчик слов/символов: пересчитываем на каждую транзакцию контента.
   useEffect(() => {
@@ -363,7 +504,7 @@ export function EditorPage() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         // Пустую ссылку не вставляем — иначе в тексте появляется битый <a href="">.
-        const url = window.prompt('Ссылка (https://…):');
+        const url = window.prompt(t('linkPrompt'));
         if (url) tiptapEditor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
       }
     };
@@ -393,13 +534,13 @@ export function EditorPage() {
   if (notFound) {
     return (
       <div className="liquid-glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl p-10 text-center">
-        <h3 className="font-display text-lg font-bold">Заметка не найдена</h3>
+        <h3 className="font-display text-lg font-bold">{t('noteNotFound')}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Возможно, она была удалена. Вернитесь на главную и откройте другую.
+          {t('noteNotFoundDesc')}
         </p>
         <Button onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          На главную
+          {t('backToHome')}
         </Button>
       </div>
     );
@@ -408,11 +549,11 @@ export function EditorPage() {
   if (loadError) {
     return (
       <div className="liquid-glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl p-10 text-center">
-        <h3 className="font-display text-lg font-bold">Не получилось открыть заметку</h3>
+        <h3 className="font-display text-lg font-bold">{t('failedToOpenNote')}</h3>
         <p className="text-sm leading-relaxed text-muted-foreground">{loadError}</p>
         <Button onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          На главную
+          {t('backToHome')}
         </Button>
       </div>
     );
@@ -426,24 +567,24 @@ export function EditorPage() {
       <div className="editor-statusbar print:hidden">
         <Button variant="ghost" size="sm" onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Все заметки
+          {t('allNotes')}
         </Button>
         <span className="truncate font-display text-sm font-bold text-muted-foreground">
-          {currentNote.title || 'Без названия'}
+          {currentNote.title || t('untitled')}
         </span>
         {isSaving && (
           <span className="text-xs text-muted-foreground" role="status">
-            Сохранение…
+            {t('saving')}
           </span>
         )}
         {saveError && (
           <span className="truncate text-xs text-destructive" role="alert" title={saveError}>
-            Не сохранилось: {saveError}
+            {t('saveFailed')}: {saveError}
           </span>
         )}
         {uiPreferences.showWordCount && (
           <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
-            {docStats.words.toLocaleString()} слов · {docStats.chars.toLocaleString()} симв.
+            {docStats.words.toLocaleString()} {t('words')} · {docStats.chars.toLocaleString()} {t('chars')}
           </span>
         )}
       </div>
@@ -486,13 +627,13 @@ export function EditorPage() {
       <LiveTranscriptionBar controller={live} />
 
       {showSearch && (
-        <div className="editor-search-panel" role="dialog" aria-label="Поиск и замена">
+        <div className="editor-search-panel" role="dialog" aria-label={t('findAndReplace')}>
           <div className="flex items-center justify-between gap-3">
-            <h2 className="font-display text-sm font-semibold">Найти и заменить</h2>
+            <h2 className="font-display text-sm font-semibold">{t('findAndReplace')}</h2>
             <button
               className="editor-search-close"
               onClick={() => setShowSearch(false)}
-              aria-label="Закрыть"
+              aria-label={t('close')}
             >
               <X className="h-4 w-4" />
             </button>
@@ -500,20 +641,20 @@ export function EditorPage() {
           <input
             autoFocus
             className="input h-9 rounded-xl"
-            placeholder="Найти…"
+            placeholder={t('find')}
             value={searchQuery}
             onChange={event => setSearchQuery(event.target.value)}
             onKeyDown={event => event.key === 'Enter' && findNextMatch()}
           />
           <input
             className="input h-9 rounded-xl"
-            placeholder="Заменить на…"
+            placeholder={t('replaceWith')}
             value={replaceQuery}
             onChange={event => setReplaceQuery(event.target.value)}
           />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" size="sm" onClick={findNextMatch} disabled={!searchQuery}>
-              <Search className="h-4 w-4" /> Найти
+              <Search className="h-4 w-4" /> {t('find')}
             </Button>
             <Button
               variant="secondary"
@@ -521,7 +662,7 @@ export function EditorPage() {
               onClick={replaceAllMatches}
               disabled={!searchQuery}
             >
-              Заменить всё
+              {t('replaceAll')}
             </Button>
           </div>
         </div>

@@ -26,12 +26,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/utils/cn';
+import { useTranslation } from '@/lib/i18n';
+import { getLocale } from '@/lib/i18n';
 
 type View = 'month' | 'week' | 'day';
 
 export function CalendarPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { t, language } = useTranslation();
+  const locale = getLocale(language);
   const {
     currentDate,
     setCurrentDate,
@@ -120,14 +124,14 @@ export function CalendarPage() {
   const handleCreateNote = useCallback(
     async (_date?: Date) => {
       try {
-        const note = await createNote(null, 'Новая заметка');
+        const note = await createNote(null, t('newNote'));
         if (note) navigate(`/editor/${note.id}`);
       } catch (e) {
         console.error('create note failed', e);
-        toast({ title: 'Не удалось создать заметку', variant: 'destructive' });
+        toast({ title: t('createNoteFailed'), variant: 'destructive' });
       }
     },
-    [createNote, navigate, toast]
+    [createNote, navigate, toast, t]
   );
 
   const handleCreateEvent = useCallback(
@@ -148,21 +152,21 @@ export function CalendarPage() {
   const handleSaveReminder = useCallback(
     (data: ReminderDraft) => {
       addReminder(data);
-      toast({ title: 'Напоминание создано', description: data.title });
+      toast({ title: t('reminderCreated'), description: data.title });
       setReminderDraft(null);
     },
-    [addReminder, toast]
+    [addReminder, toast, t]
   );
 
   const subtitle =
     view === 'month'
-      ? currentDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
+      ? currentDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
       : view === 'week'
-        ? `Неделя с ${startOfWeek(currentDate).toLocaleDateString('ru-RU', {
+        ? `${t('weekFrom')} ${startOfWeek(currentDate).toLocaleDateString(locale, {
             day: 'numeric',
             month: 'long',
           })}`
-        : currentDate.toLocaleDateString('ru-RU', {
+        : currentDate.toLocaleDateString(locale, {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
@@ -179,11 +183,11 @@ export function CalendarPage() {
         <div className="min-w-0">
           <Breadcrumbs
             onBack={() => navigate('/home')}
-            parentLabel="Главная"
-            current="Календарь"
+            parentLabel={t('home')}
+            current={t('calendar')}
             className="mb-1 justify-start"
           />
-          <h1 className="text-3xl font-bold tracking-tight">Календарь</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{t('calendar')}</h1>
           <p className="truncate text-muted-foreground">{subtitle}</p>
         </div>
 
@@ -200,7 +204,7 @@ export function CalendarPage() {
                     : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                 )}
               >
-                {v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}
+                {v === 'month' ? t('viewMonth') : v === 'week' ? t('viewWeek') : t('viewDay')}
               </button>
             ))}
           </div>
@@ -209,12 +213,12 @@ export function CalendarPage() {
 
           <Button variant="outline" onClick={goToToday} className="hidden sm:flex">
             <CalendarDays className="mr-1 h-4 w-4" />
-            Сегодня
+            {t('today')}
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateView(-1)}>
+          <Button variant="outline" size="icon" onClick={() => navigateView(-1)} title={t('prev')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => navigateView(1)}>
+          <Button variant="outline" size="icon" onClick={() => navigateView(1)} title={t('next')}>
             <ChevronRight className="h-4 w-4" />
           </Button>
 
@@ -227,11 +231,11 @@ export function CalendarPage() {
 
           <Button variant="outline" onClick={() => handleCreateNote()}>
             <StickyNote className="mr-1 h-4 w-4" />
-            Заметка
+            {t('note')}
           </Button>
           <Button onClick={() => handleCreateEvent()}>
             <Plus className="mr-1 h-4 w-4" />
-            Событие
+            {t('event')}
           </Button>
         </div>
       </div>
@@ -316,6 +320,8 @@ function RemindersBell({
   onNewReminder: () => void;
 }) {
   const reminders = useReminders(s => s.reminders);
+  const { t, language } = useTranslation();
+  const locale = getLocale(language);
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30000);
@@ -328,7 +334,7 @@ function RemindersBell({
     <DropdownMenu>
       <DropdownMenuTrigger
         className="relative flex h-9 w-9 items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        title="Напоминания"
+        title={t('remindersBell')}
       >
         <Bell className="h-4 w-4" />
         {dueReminders.length > 0 && (
@@ -338,10 +344,10 @@ function RemindersBell({
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80">
-        <DropdownMenuLabel>Пора напомнить</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('timeToRemind')}</DropdownMenuLabel>
         {dueReminders.length === 0 ? (
           <div className="px-3.5 py-3 text-sm text-muted-foreground">
-            Просроченных напоминаний нет
+            {t('noOverdueReminders')}
           </div>
         ) : (
           dueReminders.map(reminder => (
@@ -349,7 +355,7 @@ function RemindersBell({
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-medium">{reminder.title}</span>
                 <span className="shrink-0 text-[11px] text-muted-foreground">
-                  {new Date(reminder.trigger_at).toLocaleTimeString('ru-RU', {
+                  {new Date(reminder.trigger_at).toLocaleTimeString(locale, {
                     hour: '2-digit',
                     minute: '2-digit',
                   })}
@@ -364,7 +370,7 @@ function RemindersBell({
                   className="h-7 px-2 text-xs"
                   onClick={() => onOpenNote(reminder.note_id)}
                 >
-                  Открыть
+                  {t('open')}
                 </Button>
                 <Button
                   size="sm"
@@ -372,7 +378,7 @@ function RemindersBell({
                   className="h-7 px-2 text-xs"
                   onClick={() => onSnooze(reminder.id, 5)}
                 >
-                  Позже
+                  {t('later')}
                 </Button>
                 <Button
                   size="sm"
@@ -380,7 +386,7 @@ function RemindersBell({
                   className="h-7 px-2 text-xs"
                   onClick={() => onToggleDone(reminder.id)}
                 >
-                  Готово
+                  {t('done')}
                 </Button>
               </div>
             </div>
@@ -396,6 +402,7 @@ function RemindersBell({
 /** Пункт меню колокольчика, который закрывает меню перед открытием модалки. */
 function NewReminderMenuItem({ onSelect }: { onSelect: () => void }) {
   const { setOpen } = useDropdownMenu();
+  const { t } = useTranslation();
   return (
     <DropdownMenuItem
       onSelect={() => {
@@ -405,7 +412,7 @@ function NewReminderMenuItem({ onSelect }: { onSelect: () => void }) {
       className="justify-center text-muted-foreground"
     >
       <Bell className="h-3.5 w-3.5" />
-      Новое напоминание
+      {t('newReminder')}
     </DropdownMenuItem>
   );
 }

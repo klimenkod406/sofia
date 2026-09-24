@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Folder as FolderIcon, Trash2, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useTranslation } from '@/lib/i18n';
 
 export type FolderDeleteMode = 'keep-notes' | 'with-notes';
 
@@ -14,14 +15,6 @@ interface FolderDeleteDialogProps {
   onConfirm: (mode: FolderDeleteMode) => void;
 }
 
-function pluralNotes(n: number): string {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'заметка';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'заметки';
-  return 'заметок';
-}
-
 /** Подтверждение удаления папки с выбором судьбы заметок внутри. */
 export function FolderDeleteDialog({
   folderName,
@@ -29,6 +22,8 @@ export function FolderDeleteDialog({
   onCancel,
   onConfirm,
 }: FolderDeleteDialogProps) {
+  const { t, language } = useTranslation();
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCancel();
@@ -48,7 +43,7 @@ export function FolderDeleteDialog({
         onClick={e => e.stopPropagation()}
         role="alertdialog"
         aria-modal="true"
-        aria-label={`Удалить папку ${folderName}`}
+        aria-label={t('folderDeleteTitle', { name: folderName })}
       >
         <div className="flex items-center gap-3">
           <span
@@ -58,9 +53,11 @@ export function FolderDeleteDialog({
             <FolderIcon className="h-5 w-5 text-destructive" />
           </span>
           <div className="min-w-0">
-            <h3 className="truncate font-display text-lg font-bold">Удалить «{folderName}»?</h3>
+            <h3 className="truncate font-display text-lg font-bold">
+              {t('folderDeleteTitle', { name: folderName })}
+            </h3>
             <p className="text-sm text-muted-foreground">
-              Внутри: {noteCount} {pluralNotes(noteCount)}
+              {t('folderDeleteDesc', { count: noteCount, notes: pluralNotes(noteCount, language) })}
             </p>
           </div>
         </div>
@@ -72,7 +69,7 @@ export function FolderDeleteDialog({
             className="w-full justify-start gap-2"
           >
             <Undo2 className="h-4 w-4" />
-            Только папку — заметки вернутся на главную
+            {t('folderDeleteKeepNotes')}
           </Button>
           <Button
             variant="destructive"
@@ -80,14 +77,32 @@ export function FolderDeleteDialog({
             className="w-full justify-start gap-2"
           >
             <Trash2 className="h-4 w-4" />
-            Папку вместе с заметками
+            {t('folderDeleteWithNotes')}
           </Button>
           <Button variant="ghost" onClick={onCancel} className="w-full">
-            Отмена
+            {t('cancel')}
           </Button>
         </div>
       </div>
     </div>,
     document.body
   );
+}
+
+function pluralNotesRu(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'заметка';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'заметки';
+  return 'заметок';
+}
+
+function pluralNotesDe(n: number): string {
+  return n === 1 ? 'Notiz' : 'Notizen';
+}
+
+function pluralNotes(n: number, language: string): string {
+  if (language === 'ru') return pluralNotesRu(n);
+  if (language === 'de') return pluralNotesDe(n);
+  return n === 1 ? 'note' : 'notes';
 }

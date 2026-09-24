@@ -20,10 +20,12 @@ interface ModelSelectorProps {
 }
 
 export function ModelSelector({ currentModel, models, onSelect }: ModelSelectorProps) {
+  // Локальные модели показываем только скачанные; API — только с сохранённым
+  // ключом. Неготовые к работе модели не должны быть выбираемы.
   const localModels = models.filter(m => m.source === 'local' && m.is_downloaded);
-  const apiModels = models.filter(m => m.source === 'api');
+  const apiModels = models.filter(m => m.source === 'api' && Boolean(m.api_key_encrypted));
   const availableModels = models.filter(
-    m => m.is_active && (m.is_downloaded || m.source === 'api')
+    m => m.is_active && (m.source === 'api' ? Boolean(m.api_key_encrypted) : m.is_downloaded)
   );
 
   return (

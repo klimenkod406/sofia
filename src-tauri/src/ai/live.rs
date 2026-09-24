@@ -14,7 +14,7 @@
 //! persistent streaming ASR process, but the event contract is unchanged.
 
 use crate::ai::segmentation::{split_into_paragraphs, SegmentationOptions};
-use crate::ai::transcription::{TranscriptionEngine, TranscriptionResult};
+use crate::ai::transcription::{TranscriptionEngine, TranscriptionResult, TranscriptionSegment};
 use crate::db::models::AIModel;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -164,16 +164,25 @@ impl LiveTranscriptionManager {
     }
 
     pub async fn push(&self, session_id: &str, chunk: Vec<u8>) -> Result<()> {
-        let sessions = self.sessions.read().await;
-        let handle = sessions
-            .get(session_id)
-            .ok_or_else(|| anyhow::anyhow!("Unknown live session: {session_id}"))?;
-        handle
-            .chunk_tx
-            .send(chunk)
-            .await
-            .map_err(|_| anyhow::anyhow!("Live session already stopped"))?;
-        Ok(())
+        // Clone the sender under the read lock, then send outside it so a slow
+        // worker never blocks pushes for other sessions.
+        let chunk_tx = {
+            let sessions = self.sessions.read().await;
+            sessions.get(session_id).map(|h| h.chunk_tx.clone())
+        };
+        match chunk_tx {
+            Some(tx) => tx
+                .send(chunk)
+                .await
+                .map_err(|_| anyhow::anyhow!("Live session already stopped")),
+            None => {
+                // The session already ended — typically a mic chunk that raced
+                // the Stop click. Dropping it is correct: stop_and_finish has
+                // already finalized the transcript, there is nothing to append.
+                tracing::debug!("dropping chunk for ended live session {session_id}");
+                Ok(())
+            }
+        }
     }
 
     pub async fn stop_and_finish(&self, session_id: &str) -> Result<LiveTranscriptionResult> {
@@ -268,7 +277,16 @@ async fn run_session(
                         .cloned()
                         .collect();
 
-                    for para in split_into_paragraphs(&newly_final, &seg_opts) {
+                    // whisper помечает паузы/музыку как [BLANK_AUDIO], [музыка]
+                    // и т.п. — такие сегменты не должны попадать в заметку ни
+                    // финальными абзацами, ни в живой partial.
+                    let speech: Vec<TranscriptionSegment> = newly_final
+                        .iter()
+                        .filter(|s| !is_non_speech(&s.text))
+                        .cloned()
+                        .collect();
+
+                    for para in split_into_paragraphs(&speech, &seg_opts) {
                         let seg = LiveSegment {
                             session_id: session_id.clone(),
                             paragraph_id: paragraph_seq,
@@ -289,6 +307,7 @@ async fn run_session(
                         .segments
                         .iter()
                         .skip(committed)
+                        .filter(|s| !is_non_speech(&s.text))
                         .map(|s| s.text.as_str())
                         .collect::<Vec<_>>()
                         .join(" ");
@@ -347,7 +366,12 @@ async fn run_session(
                     detected_language = result.language.clone();
                 }
                 let remainder: Vec<_> = result.segments.iter().skip(committed).cloned().collect();
-                for para in split_into_paragraphs(&remainder, &seg_opts) {
+                let speech_remainder: Vec<TranscriptionSegment> = remainder
+                    .iter()
+                    .filter(|s| !is_non_speech(&s.text))
+                    .cloned()
+                    .collect();
+                for para in split_into_paragraphs(&speech_remainder, &seg_opts) {
                     let seg = LiveSegment {
                         session_id: session_id.clone(),
                         paragraph_id: paragraph_seq,
@@ -421,6 +445,14 @@ async fn decode(
         .await
 }
 
+/// Whisper помечает паузы, музыку, шум как сегменты-«теги» в квадратных
+/// скобках ([BLANK_AUDIO], [музыка], [MUSIC], …). Они не должны попадать
+/// в заметку ни финальными абзацами, ни в живой partial.
+fn is_non_speech(text: &str) -> bool {
+    let t = text.trim();
+    t.is_empty() || (t.starts_with('[') && t.ends_with(']') && t.len() <= 40)
+}
+
 /// Wrap raw 16 kHz mono s16le PCM in a minimal RIFF/WAVE header so the ASR
 /// backends (which consume files, not raw buffers) accept it.
 fn pcm_to_wav(pcm: &[u8], sample_rate: u32) -> Vec<u8> {
@@ -461,5 +493,17 @@ mod tests {
         let len = u32::from_le_bytes([wav[40], wav[41], wav[42], wav[43]]);
         assert_eq!(len as usize, pcm.len());
         assert_eq!(wav.len(), 44 + pcm.len());
+    }
+
+    #[test]
+    fn non_speech_tags_are_filtered() {
+        assert!(is_non_speech("[BLANK_AUDIO]"));
+        assert!(is_non_speech("[музыка]"));
+        assert!(is_non_speech("[MUSIC]"));
+        assert!(is_non_speech("[coughing]"));
+        assert!(is_non_speech("   "));
+        assert!(is_non_speech(""));
+        assert!(!is_non_speech("Привет!"));
+        assert!(!is_non_speech("Сегодня я записал идеи по проекту"));
     }
 }

@@ -70,19 +70,20 @@ pub fn backend_from_model(model: &AIModel) -> Backend {
 pub struct TranscriptionEngine {
     models: Arc<ModelManager>,
     funasr: Option<FunASRTranscriber>,
-    whisper: Option<WhisperCppTranscriber>,
+    whisper: RwLock<Option<WhisperCppTranscriber>>,
     current_model: RwLock<Option<String>>,
 }
 
 impl TranscriptionEngine {
     pub fn new(models: Arc<ModelManager>) -> Result<Self> {
         let funasr = FunASRTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
-        let whisper = WhisperCppTranscriber::new().ok();
+        let whisper =
+            WhisperCppTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
 
         Ok(Self {
             models,
             funasr,
-            whisper,
+            whisper: RwLock::new(whisper),
             current_model: RwLock::new(None),
         })
     }
@@ -93,6 +94,18 @@ impl TranscriptionEngine {
         *self.current_model.write().await = Some(model_id.to_string());
         self.transcribe_with_model(&model, &job.audio_path, &job.language)
             .await
+    }
+
+    /// Whisper transcriber, downloading the bundled CLI on first use. Covers
+    /// the case where a model was installed before the CLI was shipped.
+    async fn whisper_transcriber(&self) -> Result<WhisperCppTranscriber> {
+        if let Some(w) = self.whisper.read().await.as_ref() {
+            return Ok(w.clone());
+        }
+        let cli = self.models.ensure_whisper_cli().await?;
+        let transcriber = WhisperCppTranscriber::new_with_cli(cli)?;
+        *self.whisper.write().await = Some(transcriber.clone());
+        Ok(transcriber)
     }
 
     /// Transcribe an audio file using the backend configured on `model`.
@@ -107,8 +120,8 @@ impl TranscriptionEngine {
         match backend_from_model(model) {
             Backend::Api => self.transcribe_api(audio_path, language, model).await,
             Backend::WhisperCpp => {
-                let whisper = self.whisper.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("whisper.cpp not available (whisper-cli not found on PATH)")
+                let whisper = self.whisper_transcriber().await.map_err(|e| {
+                    anyhow::anyhow!("whisper.cpp not available: {e}")
                 })?;
                 whisper.transcribe(model, audio_path, language).await
             }

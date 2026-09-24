@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Minus, Square, Copy, X, Settings, Search } from 'lucide-react';
 import { useNotes } from '@/stores/notes';
+import { useTranslation } from '@/lib/i18n';
 import { cn } from '@/utils/cn';
 
 function isTauri(): boolean {
@@ -27,6 +28,7 @@ export function TitleBar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { filter, setFilter } = useNotes();
+  const { t } = useTranslation();
   const [tauri, setTauri] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [searchQuery, setSearchQuery] = useState(filter.searchQuery ?? '');
@@ -125,8 +127,8 @@ export function TitleBar() {
           data-tauri-drag-region
           onClick={() => navigate('/home')}
           className="mt-1.5 flex cursor-pointer items-center"
-          aria-label="На главную"
-          title="На главную"
+          aria-label={t('backToHome')}
+          title={t('backToHome')}
         >
           <span className="font-display text-[17px] font-bold tracking-tight text-foreground/90">
             Σόφια
@@ -140,16 +142,16 @@ export function TitleBar() {
           <Search className="notch-search-icon" aria-hidden="true" />
           <input
             className="notch-search-input"
-            placeholder="Найти…"
+            placeholder={t('search')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            aria-label="Поиск заметок"
+            aria-label={t('search')}
           />
           {searchQuery && (
             <button
               className="notch-search-clear"
               onClick={() => setSearchQuery('')}
-              aria-label="Очистить поиск"
+              aria-label={t('clearSearch')}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
@@ -164,8 +166,8 @@ export function TitleBar() {
           onClick={() => navigate('/settings')}
           data-active={isSettingsActive ? 'true' : 'false'}
           aria-current={isSettingsActive ? 'page' : undefined}
-          aria-label="Настройки"
-          title="Настройки"
+          aria-label={t('settings')}
+          title={t('settings')}
         >
           <Settings className="h-[17px] w-[17px]" aria-hidden="true" />
         </button>

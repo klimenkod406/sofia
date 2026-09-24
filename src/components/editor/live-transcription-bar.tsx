@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import type { AIModel, ModelRecommendation } from '@/types';
 import type { LiveTranscriptionController } from '@/hooks/use-live-transcription';
+import { useTranslation } from '@/lib/i18n';
 
 const LANGUAGES: Array<{ value: string; label: string }> = [
   { value: 'auto', label: 'Авто' },
@@ -27,6 +28,7 @@ const LANGUAGES: Array<{ value: string; label: string }> = [
 ];
 
 export function LiveTranscriptionBar({ controller }: { controller: LiveTranscriptionController }) {
+  const { t } = useTranslation();
   const [models, setModels] = useState<AIModel[]>([]);
   const [recommendation, setRecommendation] = useState<ModelRecommendation | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
@@ -40,10 +42,18 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
         invoke<ModelRecommendation>('recommend_transcription_model'),
       ]);
       if (cancelled) return;
-      if (list.status === 'fulfilled') setModels(list.value);
+      if (list.status === 'fulfilled') {
+        setModels(list.value);
+        // Только реально готовые к работе модели: скачанные локальные и API.
+        const usable = list.value.filter(m => m.is_downloaded || m.source === 'api');
+        if (usable.length > 0) {
+          const preferred =
+            rec.status === 'fulfilled' ? usable.find(m => m.id === rec.value.model_id) : undefined;
+          setSelectedModelId(prev => prev || preferred?.id || usable[0].id);
+        }
+      }
       if (rec.status === 'fulfilled') {
         setRecommendation(rec.value);
-        setSelectedModelId(prev => prev || rec.value.model_id);
       }
     })();
     return () => {
@@ -51,11 +61,12 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
     };
   }, []);
 
-  // Downloaded models first: most likely usable right now.
-  const sortedModels = [...models].sort((a, b) => {
-    if (a.is_downloaded !== b.is_downloaded) return a.is_downloaded ? -1 : 1;
-    return (a.recommended_ram_gb ?? 0) - (b.recommended_ram_gb ?? 0);
-  });
+  // Только готовые к работе модели: скачанные локальные и API-сервисы.
+  // Нескачанные в списке не показываем, чтобы их нельзя было выбрать.
+  const usableModels = models.filter(m => m.is_downloaded || m.source === 'api');
+  const sortedModels = [...usableModels].sort(
+    (a, b) => (a.recommended_ram_gb ?? 0) - (b.recommended_ram_gb ?? 0)
+  );
 
   const toggle = async () => {
     if (controller.isRecording) {
@@ -65,7 +76,13 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
     }
   };
 
-  const statusLabel = recommendation ? recommendation.reason : null;
+  // Подсказка показывается только когда есть что сказать: если модель
+  // установлена и влезает в память — всё и так готово, лишний текст не нужен.
+  const statusLabel = recommendation
+    ? !recommendation.is_downloaded || !recommendation.fits_ram
+      ? recommendation.reason
+      : null
+    : null;
 
   return (
     <div className="liquid-glass fixed bottom-6 left-1/2 z-30 flex max-w-[92vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-2 py-2 shadow-lg">
@@ -73,20 +90,27 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
         size="sm"
         variant={controller.isRecording ? 'destructive' : 'primary'}
         onClick={toggle}
+        disabled={!controller.isRecording && sortedModels.length === 0}
         className="gap-2 shrink-0"
-        title={controller.isRecording ? 'Остановить транскрибацию' : 'Начать транскрибацию'}
+        title={
+          controller.isRecording
+            ? t('stopTranscription')
+            : sortedModels.length === 0
+              ? t('installModelFirst')
+              : t('startTranscription')
+        }
       >
         {controller.isRecording ? (
           <Square className="h-4 w-4 fill-current" />
         ) : (
           <Mic className="h-4 w-4" />
         )}
-        {controller.isRecording ? 'Стоп' : 'Диктовка'}
+        {controller.isRecording ? t('stop') : t('dictation')}
       </Button>
 
       <Select value={language} onValueChange={setLanguage}>
         <SelectTrigger className="h-9 w-[7.5rem] shrink-0">
-          <SelectValue placeholder="Язык" />
+          <SelectValue placeholder={t('language')} />
         </SelectTrigger>
         <SelectContent>
           {LANGUAGES.map(lang => (
@@ -99,15 +123,20 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
 
       <Select value={selectedModelId} onValueChange={setSelectedModelId}>
         <SelectTrigger className="h-9 w-[16rem] shrink-0">
-          <SelectValue placeholder="Модель" />
+          <SelectValue placeholder={t('model')} />
         </SelectTrigger>
         <SelectContent>
-          {sortedModels.map(model => (
-            <SelectItem key={model.id} value={model.id}>
-              {model.name}
-              {model.is_downloaded ? ` · ${model.recommended_ram_gb ?? '?'} ГБ` : ' · не скачана'}
+          {sortedModels.length === 0 ? (
+            <SelectItem value="__none__" disabled>
+              {t('noModelsInstalled')}
             </SelectItem>
-          ))}
+          ) : (
+            sortedModels.map(model => (
+              <SelectItem key={model.id} value={model.id}>
+                {model.name} · {model.recommended_ram_gb ?? '?'} {t('gbUnit')}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
 
@@ -118,7 +147,7 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
             <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
           </span>
           <span className="max-w-[24rem] truncate italic">
-            {controller.partialText || 'Слушаю…'}
+            {controller.partialText || t('listening')}
           </span>
         </span>
       )}

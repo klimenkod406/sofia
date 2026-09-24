@@ -37,7 +37,8 @@ ignore = "0.4"
 glob = "0.3"
 mime_guess = "2.0"
 base64 = "0.22"
-reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls"] }
+reqwest = { version = "0.12", features = ["json", "multipart", "rustls-tls", "stream"] }
+futures-util = "0.3"
 sysinfo = "0.30"
 sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono", "uuid"] }
 regex = "1.10"

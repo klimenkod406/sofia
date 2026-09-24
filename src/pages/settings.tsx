@@ -18,8 +18,9 @@ import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { LiveTranscriptionSettings } from '@/components/settings/live-transcription-settings';
 import { AiModelsSettings } from '@/components/settings/ai-models-settings';
+import { LanguageSelector } from '@/components/settings/language-selector';
+import { useTranslation } from '@/lib/i18n';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Sun,
@@ -31,6 +32,7 @@ import {
   Shield,
   Download,
   Upload,
+  MonitorSmartphone,
   RotateCcw,
   Trash2,
 } from 'lucide-react';
@@ -39,41 +41,42 @@ export function SettingsPage() {
   const navigate = useNavigate();
   const { theme, font, editor, setTheme, setFont, setEditor, resetToDefaults } = useSettings();
   const [activeTab, setActiveTab] = useState('appearance');
+  const { t } = useTranslation();
 
   return (
     <div className="max-w-3xl mx-auto">
       <div className="mb-8">
         <Breadcrumbs
           onBack={() => navigate('/home')}
-          parentLabel="Главная"
-          current="Настройки"
+          parentLabel={t('home')}
+          current={t('settings')}
           className="mb-1 justify-start"
         />
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">Customize Σόφια to match your workflow</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t('settingsTitle')}</h1>
+        <p className="text-muted-foreground">{t('settingsDesc')}</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="appearance">
             <Palette className="w-4 h-4 mr-2" />
-            Appearance
+            {t('appearance')}
           </TabsTrigger>
           <TabsTrigger value="editor">
             <Type className="w-4 h-4 mr-2" />
-            Editor
+            {t('editor')}
           </TabsTrigger>
           <TabsTrigger value="ai">
             <Bot className="w-4 h-4 mr-2" />
-            AI Models
+            {t('aiModels')}
           </TabsTrigger>
           <TabsTrigger value="calendar">
             <LayoutGrid className="w-4 h-4 mr-2" />
-            Calendar
+            {t('calendarSettings')}
           </TabsTrigger>
           <TabsTrigger value="advanced">
             <Shield className="w-4 h-4 mr-2" />
-            Advanced
+            {t('advanced')}
           </TabsTrigger>
         </TabsList>
 
@@ -81,18 +84,33 @@ export function SettingsPage() {
         <TabsContent value="appearance" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Theme</CardTitle>
-              <CardDescription>Choose your preferred color scheme</CardDescription>
+              <CardTitle>{t('language')}</CardTitle>
+              <CardDescription>{t('languageDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <LanguageSelector />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('theme')}</CardTitle>
+              <CardDescription>{t('themeDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-3 gap-4">
                 {[
-                  { value: 'light', label: 'Light', icon: Sun, desc: 'Warm pastel day' },
-                  { value: 'dark', label: 'Dark', icon: Moon, desc: 'Warm pastel night' },
+                  { value: 'light', label: t('light'), icon: Sun, desc: t('lightDesc') },
+                  { value: 'dark', label: t('dark'), icon: Moon, desc: t('darkDesc') },
+                  {
+                    value: 'system',
+                    label: t('system'),
+                    icon: MonitorSmartphone,
+                    desc: t('systemDesc'),
+                  },
                 ].map(({ value, label, icon: Icon, desc }) => (
                   <button
                     key={value}
-                    onClick={() => setTheme(value as 'light' | 'dark')}
+                    onClick={() => setTheme(value as 'light' | 'dark' | 'system')}
                     className={cn(
                       'relative p-4 rounded-xl border-2 transition-all',
                       theme === value
@@ -129,21 +147,21 @@ export function SettingsPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Font Settings</CardTitle>
-              <CardDescription>Customize the editor font</CardDescription>
+              <CardTitle>{t('fontSettings')}</CardTitle>
+              <CardDescription>{t('fontSettingsDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="fontFamily">Font Family</Label>
+                <Label htmlFor="fontFamily">{t('fontFamily')}</Label>
                 <Select value={font.family} onValueChange={v => setFont({ family: v })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {[
-                      { value: 'Onest', hint: 'Текст и интерфейс' },
-                      { value: 'Manrope', hint: 'Заголовки' },
-                      { value: 'JetBrains Mono', hint: 'Код' },
+                      { value: 'Onest', hint: t('textAndUi') },
+                      { value: 'Manrope', hint: t('headings') },
+                      { value: 'JetBrains Mono', hint: t('code') },
                     ].map(f => (
                       <SelectItem key={f.value} value={f.value}>
                         <span style={{ fontFamily: f.value }}>
@@ -155,7 +173,7 @@ export function SettingsPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="fontSize">Font Size: {font.size}px</Label>
+                <Label htmlFor="fontSize">{t('fontSize', { size: font.size })}</Label>
                 <Slider
                   value={[font.size]}
                   onValueChange={([v]) => setFont({ size: v })}
@@ -165,7 +183,7 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lineHeight">Line Height: {font.lineHeight}</Label>
+                <Label htmlFor="lineHeight">{t('lineHeight', { height: font.lineHeight })}</Label>
                 <Slider
                   value={[font.lineHeight]}
                   onValueChange={([v]) => setFont({ lineHeight: v })}
@@ -182,15 +200,15 @@ export function SettingsPage() {
         <TabsContent value="editor" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Editing Experience</CardTitle>
-              <CardDescription>Configure how you write and edit notes</CardDescription>
+              <CardTitle>{t('editingExperience')}</CardTitle>
+              <CardDescription>{t('editingExperienceDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Editor Mode</Label>
+                  <Label>{t('editorMode')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Choose between WYSIWYG and Markdown editing
+                    {t('editorModeDesc')}
                   </p>
                 </div>
                 <Select
@@ -201,8 +219,8 @@ export function SettingsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="wysiwyg">WYSIWYG (Rich Text)</SelectItem>
-                    <SelectItem value="markdown">Markdown Source</SelectItem>
+                    <SelectItem value="wysiwyg">{t('wysiwyg')}</SelectItem>
+                    <SelectItem value="markdown">{t('markdown')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -213,23 +231,23 @@ export function SettingsPage() {
                 {[
                   {
                     key: 'autoSave',
-                    label: 'Auto-save',
-                    desc: 'Automatically save changes as you type',
+                    label: t('autoSave'),
+                    desc: t('autoSaveDesc'),
                   },
                   {
                     key: 'spellCheck',
-                    label: 'Spell Check',
-                    desc: 'Enable browser spell checking',
+                    label: t('spellCheck'),
+                    desc: t('spellCheckDesc'),
                   },
                   {
                     key: 'showLineNumbers',
-                    label: 'Line Numbers',
-                    desc: 'Show line numbers in markdown mode',
+                    label: t('lineNumbers'),
+                    desc: t('lineNumbersDesc'),
                   },
                   {
                     key: 'vimMode',
-                    label: 'Vim Keybindings',
-                    desc: 'Enable vim-style keyboard shortcuts',
+                    label: t('vimMode'),
+                    desc: t('vimModeDesc'),
                   },
                 ].map(({ key, label, desc }) => (
                   <div key={key} className="flex items-center justify-between">
@@ -249,7 +267,7 @@ export function SettingsPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="autoSaveInterval">
-                  Auto-save Interval: {editor.autoSaveInterval}ms
+                  {t('autoSaveInterval', { ms: editor.autoSaveInterval })}
                 </Label>
                 <Slider
                   value={[editor.autoSaveInterval]}
@@ -267,23 +285,11 @@ export function SettingsPage() {
         <TabsContent value="ai" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>AI Models</CardTitle>
-              <CardDescription>
-                Install and configure models for transcription and analysis
-              </CardDescription>
+              <CardTitle>{t('aiModelsTitle')}</CardTitle>
+              <CardDescription>{t('aiModelsDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <AiModelsSettings />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Live Transcription</CardTitle>
-              <CardDescription>On-device speech recognition and custom API routes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <LiveTranscriptionSettings />
             </CardContent>
           </Card>
         </TabsContent>
@@ -292,57 +298,57 @@ export function SettingsPage() {
         <TabsContent value="calendar" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Calendar Settings</CardTitle>
-              <CardDescription>Configure calendar behavior and notifications</CardDescription>
+              <CardTitle>{t('calendarSettingsTitle')}</CardTitle>
+              <CardDescription>{t('calendarSettingsDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Default Reminder</Label>
+                    <Label>{t('defaultReminder')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Set default reminder time for new events
+                      {t('defaultReminderDesc')}
                     </p>
                   </div>
                   <Select defaultValue="15" onValueChange={() => {}}>
                     <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="15 minutes" />
+                      <SelectValue placeholder={t('minutes', { n: 15 })} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">At time of event</SelectItem>
-                      <SelectItem value="5">5 minutes</SelectItem>
-                      <SelectItem value="15">15 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="1440">1 day</SelectItem>
+                      <SelectItem value="0">{t('atTimeOfEvent')}</SelectItem>
+                      <SelectItem value="5">{t('minutes', { n: 5 })}</SelectItem>
+                      <SelectItem value="15">{t('minutes', { n: 15 })}</SelectItem>
+                      <SelectItem value="30">{t('minutes', { n: 30 })}</SelectItem>
+                      <SelectItem value="60">{t('hours', { n: 1 })}</SelectItem>
+                      <SelectItem value="1440">{t('daysBefore', { n: 1 })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Week Starts On</Label>
+                    <Label>{t('weekStartsOn')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Choose the first day of the week
+                      {t('weekStartsOnDesc')}
                     </p>
                   </div>
                   <Select defaultValue="0" onValueChange={() => {}}>
                     <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="Sunday" />
+                      <SelectValue placeholder={t('sunday')} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="0">Sunday</SelectItem>
-                      <SelectItem value="1">Monday</SelectItem>
-                      <SelectItem value="6">Saturday</SelectItem>
+                      <SelectItem value="0">{t('sunday')}</SelectItem>
+                      <SelectItem value="1">{t('monday')}</SelectItem>
+                      <SelectItem value="6">{t('saturday')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Show Weekends</Label>
+                    <Label>{t('showWeekends')}</Label>
                     <p className="text-sm text-muted-foreground">
-                      Display Saturday and Sunday in week view
+                      {t('showWeekendsDesc')}
                     </p>
                   </div>
                   <Switch checked={true} onCheckedChange={() => {}} />
@@ -350,19 +356,19 @@ export function SettingsPage() {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label>Default Event Duration</Label>
-                    <p className="text-sm text-muted-foreground">Default length for new events</p>
+                    <Label>{t('defaultEventDuration')}</Label>
+                    <p className="text-sm text-muted-foreground">{t('defaultEventDurationDesc')}</p>
                   </div>
                   <Select defaultValue="60" onValueChange={() => {}}>
                     <SelectTrigger className="w-[200px]">
-                      <SelectValue placeholder="60 minutes" />
+                      <SelectValue placeholder={t('minutes', { n: 60 })} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="15">15 minutes</SelectItem>
-                      <SelectItem value="30">30 minutes</SelectItem>
-                      <SelectItem value="60">1 hour</SelectItem>
-                      <SelectItem value="90">1.5 hours</SelectItem>
-                      <SelectItem value="120">2 hours</SelectItem>
+                      <SelectItem value="15">{t('minutes', { n: 15 })}</SelectItem>
+                      <SelectItem value="30">{t('minutes', { n: 30 })}</SelectItem>
+                      <SelectItem value="60">{t('hours', { n: 1 })}</SelectItem>
+                      <SelectItem value="90">{t('hours', { n: 1.5 })}</SelectItem>
+                      <SelectItem value="120">{t('hours', { n: 2 })}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -375,15 +381,15 @@ export function SettingsPage() {
         <TabsContent value="advanced" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Data Management</CardTitle>
-              <CardDescription>Backup, export, and manage your data</CardDescription>
+              <CardTitle>{t('dataManagement')}</CardTitle>
+              <CardDescription>{t('dataManagementDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Auto Backup</Label>
+                  <Label>{t('autoBackup')}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Automatically create backups daily
+                    {t('autoBackupDesc')}
                   </p>
                 </div>
                 <Switch checked={true} onCheckedChange={() => {}} />
@@ -391,12 +397,12 @@ export function SettingsPage() {
 
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Download className="w-4 h-4" />
-                Export All Data
+                {t('exportAllData')}
               </Button>
 
               <Button variant="outline" className="w-full justify-start gap-2">
                 <Upload className="w-4 h-4" />
-                Import Data
+                {t('importData')}
               </Button>
 
               <Button
@@ -405,29 +411,29 @@ export function SettingsPage() {
                 onClick={resetToDefaults}
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset All Settings
+                {t('resetAllSettings')}
               </Button>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Performance</CardTitle>
-              <CardDescription>Optimize for your hardware</CardDescription>
+              <CardTitle>{t('performance')}</CardTitle>
+              <CardDescription>{t('performanceDesc')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Hardware Acceleration</Label>
+                <Label>{t('hardwareAcceleration')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Use GPU for AI inference when available
+                  {t('hardwareAccelerationDesc')}
                 </p>
               </div>
               <Switch checked={true} onCheckedChange={() => {}} />
 
               <div className="space-y-2">
-                <Label>Reduce Animations</Label>
+                <Label>{t('reduceAnimations')}</Label>
                 <p className="text-sm text-muted-foreground">
-                  Minimize motion for better performance
+                  {t('reduceAnimationsDesc')}
                 </p>
               </div>
               <Switch checked={false} onCheckedChange={() => {}} />
@@ -436,13 +442,13 @@ export function SettingsPage() {
 
           <Card className="border-destructive/50">
             <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>Irreversible actions</CardDescription>
+              <CardTitle className="text-destructive">{t('dangerZone')}</CardTitle>
+              <CardDescription>{t('dangerZoneDesc')}</CardDescription>
             </CardHeader>
             <CardContent>
               <Button variant="destructive" className="w-full justify-start gap-2">
                 <Trash2 className="w-4 h-4" />
-                Delete All Data
+                {t('deleteAllData')}
               </Button>
             </CardContent>
           </Card>

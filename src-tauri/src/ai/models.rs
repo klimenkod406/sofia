@@ -100,6 +100,20 @@ impl ModelManager {
             return Ok(());
         }
 
+        // Never start a second download for the same model (the frontend can
+        // re-issue install while a background download is still running).
+        {
+            let states = self.download_states.read().await;
+            if let Some(s) = states.get(model_id) {
+                if matches!(
+                    s.status,
+                    DownloadStatus::Pending | DownloadStatus::Downloading
+                ) {
+                    return Ok(());
+                }
+            }
+        }
+
         // Initialize download state
         {
             let mut states = self.download_states.write().await;
@@ -196,6 +210,7 @@ impl ModelManager {
         std::fs::create_dir_all(&local_dir)?;
 
         // Report progress
+        self.models_repo.set_download_progress(&model.id, 0.1).await?;
         if let Some(cb) = &progress_callback {
             cb(0.1);
         }
@@ -216,6 +231,7 @@ impl ModelManager {
         if let Some(cb) = &progress_callback {
             cb(0.5);
         }
+        self.models_repo.set_download_progress(&model.id, 0.5).await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -234,6 +250,9 @@ impl ModelManager {
         model: &AIModel,
         progress_callback: Option<Box<dyn Fn(f32) + Send + Sync>>,
     ) -> Result<PathBuf> {
+        use futures_util::StreamExt;
+        use tokio::io::AsyncWriteExt;
+
         let repo = model
             .huggingface_repo
             .as_deref()
@@ -247,35 +266,116 @@ impl ModelManager {
         let local_path = self.models_dir.join("gguf").join(filename);
         std::fs::create_dir_all(local_path.parent().unwrap())?;
 
-        // Download with progress using reqwest
+        // Download with progress using reqwest, streaming straight to disk so a
+        // multi-GB model is never buffered in RAM.
         let url = format!("https://huggingface.co/{}/resolve/main/{}", repo, filename);
 
         let response = self.client.get(&url).send().await?;
-        let total_size = response.content_length().unwrap_or(model.size_bytes as u64);
-
-        let data = response.bytes().await?;
-        let downloaded = data.len() as u64;
-        tokio::fs::write(&local_path, &data).await?;
-
-        let progress = if total_size > 0 {
-            downloaded as f32 / total_size as f32
-        } else {
-            1.0
-        };
-
-        if let Some(cb) = &progress_callback {
-            cb(progress);
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Download failed: HTTP {} for {}",
+                response.status(),
+                url
+            ));
         }
 
-        self.models_repo
-            .set_download_progress(&model.id, progress)
-            .await?;
+        let total_size = response
+            .content_length()
+            .unwrap_or(model.size_bytes as u64)
+            .max(1);
+        let mut file = tokio::fs::File::create(&local_path).await?;
+        let mut stream = response.bytes_stream();
+        let mut downloaded: u64 = 0;
+        let mut last_pct: i32 = -1;
 
+        while let Some(chunk) = stream.next().await {
+            let chunk =
+                chunk.map_err(|e| anyhow::anyhow!("Download stream error: {e}"))?;
+            file.write_all(&chunk).await?;
+            downloaded += chunk.len() as u64;
+
+            // Report progress at every whole percent: DB row is polled by the
+            // frontend, the callback covers the in-process callers.
+            let pct = (downloaded as f64 / total_size as f64 * 100.0) as i32;
+            if pct != last_pct {
+                last_pct = pct;
+                let progress = (downloaded as f32 / total_size as f32).min(1.0);
+                if let Some(cb) = &progress_callback {
+                    cb(progress);
+                }
+                self.models_repo
+                    .set_download_progress(&model.id, progress)
+                    .await?;
+            }
+        }
+        file.flush().await?;
+
+        self.models_repo
+            .set_download_progress(&model.id, 1.0)
+            .await?;
         if let Some(cb) = &progress_callback {
             cb(1.0);
         }
 
+        // A whisper model is only useful with the CLI that runs it. Fetch the
+        // bundled binary (first install only) so dictation works out of the box.
+        self.ensure_whisper_cli().await?;
+
         Ok(local_path)
+    }
+
+    /// Ensure the bundled whisper.cpp CLI is present, downloading the official
+    /// Windows build from GitHub releases on first use. Returns the CLI path.
+    ///
+    /// The app downloads ggml-*.bin weights, which whisper.cpp v1.6+ can no
+    /// longer read, so the pinned v1.5.4 build is used — it reads `.bin` and
+    /// supports `-l auto` language detection.
+    pub async fn ensure_whisper_cli(&self) -> Result<PathBuf> {
+        let bin_dir = self.models_dir.join("bin");
+        let cli_path = bin_dir.join("whisper-cli.exe");
+
+        if cli_path.exists() {
+            return Ok(cli_path);
+        }
+        if !cfg!(windows) {
+            return Err(anyhow::anyhow!(
+                "whisper.cpp CLI is only bundled on Windows — install whisper-cli on PATH"
+            ));
+        }
+
+        std::fs::create_dir_all(&bin_dir)?;
+
+        let url = "https://github.com/ggml-org/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip";
+        let response = self.client.get(url).send().await?;
+        if !response.status().is_success() {
+            return Err(anyhow::anyhow!(
+                "Failed to download whisper.cpp CLI: HTTP {}",
+                response.status()
+            ));
+        }
+        let bytes = response.bytes().await?;
+
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes))
+            .map_err(|e| anyhow::anyhow!("Invalid whisper.cpp CLI archive: {e}"))?;
+
+        // `main.exe` is the CLI (renamed for clarity); `whisper.dll` is its
+        // runtime and must sit next to it.
+        for (entry_name, target_name) in
+            [("main.exe", "whisper-cli.exe"), ("whisper.dll", "whisper.dll")]
+        {
+            // Read the entry fully before the await — ZipFile isn't Send.
+            let buf = {
+                let mut entry = archive
+                    .by_name(entry_name)
+                    .map_err(|e| anyhow::anyhow!("CLI archive missing {entry_name}: {e}"))?;
+                let mut buf = Vec::new();
+                std::io::Read::read_to_end(&mut entry, &mut buf)?;
+                buf
+            };
+            tokio::fs::write(bin_dir.join(target_name), buf).await?;
+        }
+
+        Ok(cli_path)
     }
 
     async fn download_huggingface_model(

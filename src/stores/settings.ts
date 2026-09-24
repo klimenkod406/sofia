@@ -34,13 +34,13 @@ export interface UIPreferences {
 }
 
 interface SettingsState {
-  theme: 'light' | 'dark';
+  theme: 'light' | 'dark' | 'system';
   font: FontSettings;
   editor: EditorSettings;
   ai: AISettings;
   uiPreferences: UIPreferences;
 
-  setTheme: (theme: 'light' | 'dark') => void;
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setFont: (font: Partial<FontSettings>) => void;
   setEditor: (editor: Partial<EditorSettings>) => void;
   setAI: (ai: Partial<AISettings>) => void;
@@ -93,8 +93,14 @@ export const useSettings = create<SettingsState>()(
 
       setTheme: theme => {
         set({ theme });
+        const resolved =
+          theme === 'system'
+            ? window.matchMedia('(prefers-color-scheme: dark)').matches
+              ? 'dark'
+              : 'light'
+            : theme;
         document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(theme);
+        document.documentElement.classList.add(resolved);
       },
 
       setFont: font => set(state => ({ font: { ...state.font, ...font } })),
@@ -121,7 +127,7 @@ export const useSettings = create<SettingsState>()(
       loadFromBackend: async () => {
         try {
           const settings = (await invoke('get_settings')) as Record<string, unknown>;
-          if (settings.theme === 'light' || settings.theme === 'dark')
+          if (settings.theme === 'light' || settings.theme === 'dark' || settings.theme === 'system')
             set({ theme: settings.theme });
           if (settings.font_family || settings.font_size || settings.line_height) {
             set(state => ({
@@ -150,7 +156,7 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'sofia-settings',
       storage: createJSONStorage(() => localStorage),
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, version: number) => {
         let s = persistedState as Record<string, unknown>;
         if (version < 2 && s.theme === 'system') {
@@ -172,6 +178,13 @@ export const useSettings = create<SettingsState>()(
               apiProvider: '',
             },
           };
+        }
+        // v3 → v4: разрешаем 'system' тему (раньше принудительно сбрасывалась на light)
+        if (version < 4) {
+          const t = s.theme;
+          if (t !== 'light' && t !== 'dark' && t !== 'system') {
+            s = { ...s, theme: 'light' };
+          }
         }
         return s as unknown as SettingsState;
       },

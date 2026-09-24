@@ -10,9 +10,11 @@ import { Breadcrumbs } from '@/components/ui/breadcrumbs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sparkles, Send, Mic, Loader2, X } from 'lucide-react';
 import { cn } from '@/utils/cn';
+import { useTranslation } from '@/lib/i18n';
 
 export function AIChatPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const { messages, isLoading, currentModel, availableModels, sendMessage, setModel, clearChat } =
     useAIChat();
 
@@ -55,16 +57,16 @@ export function AIChatPage() {
         <div className="flex items-center gap-3">
           <Breadcrumbs
             onBack={() => navigate('/home')}
-            parentLabel="Главная"
-            current="AI-чат"
+            parentLabel={t('home')}
+            current={t('aiAssistant')}
             className="justify-start"
           />
           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
             <Sparkles className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold">AI Assistant</h1>
-            <p className="text-sm text-muted-foreground">Chat with AI about your notes</p>
+            <h1 className="text-xl font-bold">{t('aiAssistant')}</h1>
+            <p className="text-sm text-muted-foreground">{t('aiChatDesc')}</p>
           </div>
         </div>
 
@@ -82,15 +84,15 @@ export function AIChatPage() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
               <Sparkles className="w-16 h-16 mb-4 opacity-50" />
-              <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-              <p className="max-w-xs">Ask questions, analyze text, or get help with your notes</p>
+              <h3 className="text-lg font-medium mb-2">{t('startConversation')}</h3>
+              <p className="max-w-xs">{t('startConversationDesc')}</p>
               <div className="mt-6 flex flex-wrap gap-2 justify-center">
                 {[
-                  'Summarize my latest note',
-                  'Fix grammar in selected text',
-                  'Generate tags for my notes',
-                  'Translate to English',
-                  'Extract action items',
+                  t('suggestion1'),
+                  t('suggestion2'),
+                  t('suggestion3'),
+                  t('suggestion4'),
+                  t('suggestion5'),
                 ].map(suggestion => (
                   <Button
                     key={suggestion}
@@ -135,7 +137,7 @@ export function AIChatPage() {
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
-              placeholder={isLoading ? 'AI is thinking...' : 'Ask me anything...'}
+              placeholder={isLoading ? t('aiThinking') : t('aiInputPlaceholder')}
               disabled={isLoading}
               className={cn(
                 'textarea resize-none min-h-[44px] max-h-[200px] pr-12',
@@ -161,8 +163,8 @@ export function AIChatPage() {
         </div>
 
         <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
-          <span>Model: {currentModel?.name || 'Select a model'}</span>
-          <span>Shift+Enter for new line</span>
+          <span>{t('modelLabel', { name: currentModel?.name || t('selectModel') })}</span>
+          <span>{t('shiftEnter')}</span>
         </div>
       </form>
     </div>

@@ -30,12 +30,13 @@ import {
 import { cn, truncate } from '@/utils/cn';
 import { filterVisibleNotes, canMergeNotes } from '@/utils/notes-visibility';
 import { toast } from '@/hooks/use-toast';
+import { useTranslation } from '@/lib/i18n';
 
 const sortOptions = [
-  { value: 'updated_at:desc', label: 'Сначала недавние' },
-  { value: 'created_at:desc', label: 'Сначала новые' },
-  { value: 'title:asc', label: 'По названию (А–Я)' },
-  { value: 'title:desc', label: 'По названию (Я–А)' },
+  { value: 'updated_at:desc', labelKey: 'sortRecent' },
+  { value: 'created_at:desc', labelKey: 'sortNew' },
+  { value: 'title:asc', labelKey: 'sortTitleAsc' },
+  { value: 'title:desc', labelKey: 'sortTitleDesc' },
 ] as const;
 
 /** Инлайн-переименование папки: инпут в подписи (ПКМ → Переименовать).
@@ -50,6 +51,7 @@ function FolderRenameInput({
 }) {
   const [draft, setDraft] = useState(folder.name);
   const doneRef = useRef(false);
+  const { t } = useTranslation();
 
   const commit = (v: string | null) => {
     if (doneRef.current) return;
@@ -74,13 +76,14 @@ function FolderRenameInput({
       onClick={e => e.stopPropagation()}
       onMouseDown={e => e.stopPropagation()}
       onPointerDown={e => e.stopPropagation()}
-      aria-label="Название папки"
+      aria-label={t('folderName')}
     />
   );
 }
 
 export function HomePage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     notes,
     folders,
@@ -235,16 +238,15 @@ export function HomePage() {
     setDraggedNote(null);
     setDropTargetId(null);
     if (!press?.active) return;
-    const t = pickDropTarget(e.clientX, e.clientY, press.note.id);
-    if (!t) {
+    const dropTarget = pickDropTarget(e.clientX, e.clientY, press.note.id);
+    if (!dropTarget) {
       // Бросок на заметку из папки: слияние запрещено — объясняем и возвращаем
       const blocked = findNoteUnderCursor(e.clientX, e.clientY, press.note.id);
       if (blocked) {
         dropCardEl(press.note.id, press.session, true);
         toast({
-          title: 'Заметка уже в папке',
-          description:
-            'Новые папки создаются только из заметок на главной — сначала уберите её из папки',
+          title: t('noteAlreadyInFolder'),
+          description: t('noteAlreadyInFolderDesc'),
         });
         return;
       }
@@ -254,9 +256,9 @@ export function HomePage() {
       return;
     }
     dropCardEl(press.note.id, press.session, false);
-    const sep = t.indexOf(':');
-    const kind = t.slice(0, sep);
-    const id = t.slice(sep + 1);
+    const sep = dropTarget.indexOf(':');
+    const kind = dropTarget.slice(0, sep);
+    const id = dropTarget.slice(sep + 1);
     if (kind === 'n') void mergeNotesToFolder(press.note.id, id);
     else void moveNoteToFolder(press.note.id, id);
   };
@@ -401,7 +403,7 @@ export function HomePage() {
     } catch (e) {
       console.error('rename folder failed', e);
       toast({
-        title: 'Не получилось переименовать папку',
+        title: t('renameFolderFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
     }
@@ -418,13 +420,13 @@ export function HomePage() {
       toast({
         title:
           mode === 'with-notes'
-            ? `Папка «${folder.name}» и заметки удалены`
-            : `Папка «${folder.name}» удалена, заметки вернулись на главную`,
+            ? t('folderAndNotesDeleted', { name: folder.name })
+            : t('folderDeletedNotesReturned', { name: folder.name }),
       });
     } catch (e) {
       console.error('delete folder failed', e);
       toast({
-        title: 'Не получилось удалить папку',
+        title: t('deleteFolderFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
     }
@@ -435,12 +437,12 @@ export function HomePage() {
     if (creating) return;
     setCreating(true);
     try {
-      const note = await createNote(filter.folderId ?? null, 'Новая заметка');
+      const note = await createNote(filter.folderId ?? null, t('newNote'));
       navigate(`/editor/${note.id}`);
     } catch (e) {
       console.error('create note failed', e);
       toast({
-        title: 'Не получилось создать заметку',
+        title: t('createNoteFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
     } finally {
@@ -457,27 +459,26 @@ export function HomePage() {
     // Из заметок, уже лежащих в папке, новые папки не создаём
     if (!canMergeNotes(source, target)) {
       toast({
-        title: 'Заметка уже в папке',
-        description:
-          'Новые папки создаются только из заметок на главной — сначала уберите её из папки',
+        title: t('noteAlreadyInFolder'),
+        description: t('noteAlreadyInFolderDesc'),
       });
       return;
     }
     try {
-      const folder = await createFolder(`Новая папка ${folders.length + 1}`);
+      const folder = await createFolder(`${t('newFolder')} ${folders.length + 1}`);
       await moveNote(source.id, folder.id);
       await moveNote(target.id, folder.id);
       setJustCreatedFolderId(folder.id);
       await loadNotes();
       await loadFolders();
       toast({
-        title: 'Папка создана',
+        title: t('folderCreated'),
         description: `«${truncate(source.title, 24)}» + «${truncate(target.title, 24)}» → ${folder.name}`,
       });
     } catch (e) {
       console.error('merge to folder failed', e);
       toast({
-        title: 'Не получилось создать папку',
+        title: t('createFolderFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
       await loadNotes();
@@ -490,14 +491,14 @@ export function HomePage() {
       await loadNotes();
       if (folderId) {
         const dest = folders.find(f => f.id === folderId);
-        toast({ title: `Перемещено в «${dest?.name ?? 'папку'}»` });
+        toast({ title: t('noteMovedTo', { name: dest?.name ?? t('folder') }) });
       } else {
-        toast({ title: 'Заметка убрана из папки' });
+        toast({ title: t('noteRemovedFromFolder') });
       }
     } catch (e) {
       console.error('move to folder failed', e);
       toast({
-        title: 'Не получилось переместить',
+        title: t('moveNoteFailed'),
         description: e instanceof Error ? e.message : String(e),
       });
       await loadNotes();
@@ -517,7 +518,7 @@ export function HomePage() {
         .catch((e: unknown) => {
           console.error('rename note failed', e);
           toast({
-            title: 'Не получилось переименовать заметку',
+            title: t('renameNoteFailed'),
             description: e instanceof Error ? e.message : String(e),
           });
         });
@@ -535,7 +536,7 @@ export function HomePage() {
       {/* Центрированный заголовок + бейджи активных фильтров */}
       <div className="flex flex-col items-center gap-3 text-center">
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
-          {currentFolder ? currentFolder.name : 'Мои заметки'}
+          {currentFolder ? currentFolder.name : t('myNotes')}
         </h1>
         {(showArchived || showFavoritesOnly || filter.searchQuery) && (
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -543,10 +544,10 @@ export function HomePage() {
               <button
                 onClick={() => setShowArchived(false)}
                 className="badge badge-secondary gap-1.5 transition-all hover:bg-accent"
-                aria-label="Скрыть архив"
+                aria-label={t('hideArchived')}
               >
                 <Archive className="h-3 w-3" aria-hidden="true" />
-                Архив
+                {t('archive')}
                 <X className="h-3 w-3" aria-hidden="true" />
               </button>
             )}
@@ -554,16 +555,16 @@ export function HomePage() {
               <button
                 onClick={() => setShowFavoritesOnly(false)}
                 className="badge badge-secondary gap-1.5 transition-all hover:bg-accent"
-                aria-label="Показать все заметки"
+                aria-label={t('showAllNotes')}
               >
                 <Star className="h-3 w-3" aria-hidden="true" />
-                Избранное
+                {t('favorites')}
                 <X className="h-3 w-3" aria-hidden="true" />
               </button>
             )}
             {filter.searchQuery && (
               <span className="badge badge-primary gap-1.5">
-                Поиск: «{truncate(filter.searchQuery, 20)}»
+                {t('searchQuery', { query: truncate(filter.searchQuery, 20) })}
               </span>
             )}
           </div>
@@ -579,7 +580,7 @@ export function HomePage() {
             className="flex items-center gap-1.5 rounded-2xl px-3 py-2 text-muted-foreground transition-all duration-300 hover:bg-accent/70 hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
-            Все заметки
+            {t('allNotes')}
           </button>
           <span className="font-display font-bold">{currentFolder.name}</span>
         </div>
@@ -593,24 +594,24 @@ export function HomePage() {
           disabled={creating}
           size="icon"
           className="h-9 w-9 rounded-xl"
-          aria-label="Создать заметку"
-          title="Создать заметку"
+          aria-label={t('newNote')}
+          title={t('newNote')}
         >
           <Plus className="h-[18px] w-[18px]" aria-hidden="true" />
         </Button>
         <button
           onClick={() => navigate('/calendar')}
           className="toolbar-icon-btn"
-          aria-label="Календарь"
-          title="Календарь"
+          aria-label={t('calendar')}
+          title={t('calendar')}
         >
           <Calendar className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
         <button
           onClick={() => navigate('/archive')}
           className="toolbar-icon-btn"
-          aria-label="Архив"
-          title="Архив"
+          aria-label={t('archive')}
+          title={t('archive')}
         >
           <Archive className="h-[18px] w-[18px]" aria-hidden="true" />
         </button>
@@ -618,15 +619,15 @@ export function HomePage() {
           <DropdownMenuTrigger asChild>
             <button
               className="toolbar-icon-btn"
-              aria-label="Вид и сортировка"
-              title="Вид и сортировка"
+              aria-label={t('viewAndSort')}
+              title={t('viewAndSort')}
             >
               <ArrowUpDown className="h-[18px] w-[18px]" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-64">
             <div className="px-3.5 py-2 font-display text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Сортировка
+              {t('sortBy')}
             </div>
             {sortOptions.map(o => (
               <DropdownMenuItem
@@ -638,19 +639,19 @@ export function HomePage() {
                 }}
               >
                 <ArrowUpDown className="mr-1 h-4 w-4" />
-                {o.label}
+                {t(o.labelKey)}
                 {activeSort === o.value && <span className="ml-auto">✓</span>}
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => setShowArchived(v => !v)}>
               <Archive className="mr-1 h-4 w-4" />
-              {showArchived ? 'Скрыть архив' : 'Показать архив'}
+              {showArchived ? t('hideArchived') : t('showArchived')}
               {showArchived && <span className="ml-auto">✓</span>}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShowFavoritesOnly(v => !v)}>
               <Star className="mr-1 h-4 w-4" />
-              {showFavoritesOnly ? 'Все заметки' : 'Только избранное'}
+              {showFavoritesOnly ? t('showAllNotes') : t('showFavoritesOnly')}
               {showFavoritesOnly && <span className="ml-auto">✓</span>}
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -668,14 +669,14 @@ export function HomePage() {
               <FileText className="h-6 w-6" />
             </span>
             <div className="space-y-1.5">
-              <h3 className="font-display text-lg font-bold">Пока тихо и пусто</h3>
+              <h3 className="font-display text-lg font-bold">{t('noNotes')}</h3>
               <p className="text-sm leading-relaxed text-muted-foreground">
-                Создайте первую заметку — она появится здесь
+                {t('noNotesDesc')}
               </p>
             </div>
             <Button onClick={handleNewNote} disabled={creating} className="gap-2">
               <Plus className="h-4 w-4" />
-              {creating ? 'Создаём…' : 'Создать заметку'}
+              {creating ? t('creating') : t('createNote')}
             </Button>
           </div>
         ) : (
@@ -699,7 +700,7 @@ export function HomePage() {
                     justCreatedFolderId === folder.id && 'folder-just-created',
                     dropTargetId === `f:${folder.id}` && 'folder-object-drop'
                   )}
-                  aria-label={`Открыть папку ${folder.name}`}
+                  aria-label={t('openFolder', { name: folder.name })}
                 >
                   {/* Большая папка (в пустой листиков нет), название — подписью снизу */}
                   <span
@@ -727,7 +728,7 @@ export function HomePage() {
                       <span className="folder-object-name">
                         {folder.name}
                         {justCreatedFolderId === folder.id && (
-                          <span className="badge badge-primary ml-2 align-middle">новая</span>
+                          <span className="badge badge-primary ml-2 align-middle">{t('newBadge')}</span>
                         )}
                       </span>
                     )}
@@ -760,7 +761,7 @@ export function HomePage() {
                 />
                 {note.is_pinned && (
                   <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Pin className="h-3 w-3" /> закреплена
+                    <Pin className="h-3 w-3" /> {t('pinned')}
                   </div>
                 )}
               </div>
@@ -771,8 +772,8 @@ export function HomePage() {
         {draggedNote && (
           <p className="mt-6 text-center text-xs text-muted-foreground" role="status">
             {draggedNote.folder_id
-              ? 'Заметка уже в папке: её можно переместить на папку или пустое место'
-              : 'На другую заметку — создать папку · на папку — переместить · на пустое место — убрать из папки'}
+              ? t('dragHintInFolder')
+              : t('dragHintMain')}
           </p>
         )}
 
@@ -804,11 +805,11 @@ export function HomePage() {
             >
               <DropdownMenuItem onClick={() => setFilter({ folderId: folderCtx.folder.id })}>
                 <ArrowLeft className="w-4 h-4 mr-1" />
-                Открыть
+                {t('open')}
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setRenamingFolderId(folderCtx.folder.id)}>
                 <Pencil className="w-4 h-4 mr-1" />
-                Переименовать
+                {t('rename')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -816,7 +817,7 @@ export function HomePage() {
                 onClick={() => setDeletingFolder(folderCtx.folder)}
               >
                 <Trash2 className="w-4 h-4 mr-1" />
-                Удалить
+                {t('delete')}
               </DropdownMenuItem>
             </div>,
             document.body

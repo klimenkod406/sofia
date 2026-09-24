@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
-import type { LiveSegment, LiveStatus } from '@/types';
+import type { LiveSegment, LiveStatus, LiveTranscriptionResult } from '@/types';
 
 const TARGET_SAMPLE_RATE = 16000;
 const CHUNK_SECONDS = 2;
@@ -40,6 +40,7 @@ export function useLiveTranscription(): LiveTranscriptionController {
   const [error, setError] = useState<string | null>(null);
 
   const sessionRef = useRef<string | null>(null);
+  const stoppingRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const processorRef = useRef<ScriptProcessorNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -181,31 +182,55 @@ export function useLiveTranscription(): LiveTranscriptionController {
   );
 
   const stopRecording = useCallback(async () => {
+    // Двойной клик / повторный вызов не должен останавливать сессию дважды —
+    // второй `stop_live_transcription` упал бы с «Unknown live session».
+    if (stoppingRef.current) return;
     const sid = sessionRef.current;
-    // Flush the trailing partial chunk (the <2s tail that never triggered a
-    // full-chunk send) so the final backend decode sees every sample.
-    if (sid && accumulatorRef.current.length > 0) {
-      const tail = accumulatorRef.current;
-      accumulatorRef.current = new Float32Array(0);
+    if (!sid) return;
+    stoppingRef.current = true;
+
+    // Финальный результат бэкенда (все абзацы, включая хвост). Хук
+    // отписывается от событий сразу после остановки, а финальные segment
+    // события могут не успеть дойти до webview — поэтому хвост берём из
+    // возвращённого значения и мёржим в состояние по paragraph_id.
+    let finalSegments: LiveSegment[] = [];
+
+    try {
+      // Flush the trailing partial chunk (the <2s tail that never triggered a
+      // full-chunk send) so the final backend decode sees every sample.
+      if (accumulatorRef.current.length > 0) {
+        const tail = accumulatorRef.current;
+        accumulatorRef.current = new Float32Array(0);
+        try {
+          await sendChunk(sid, tail);
+        } catch (err: unknown) {
+          setError(String(err instanceof Error ? err.message : err));
+        }
+      }
+      teardownCapture();
       try {
-        await sendChunk(sid, tail);
+        const result = (await invoke('stop_live_transcription', {
+          sessionId: sid,
+        })) as LiveTranscriptionResult | null;
+        finalSegments = result?.paragraphs ?? [];
       } catch (err: unknown) {
         setError(String(err instanceof Error ? err.message : err));
       }
-    }
-    teardownCapture();
-    if (sid) {
-      try {
-        await invoke('stop_live_transcription', { sessionId: sid });
-      } catch (err: unknown) {
-        setError(String(err instanceof Error ? err.message : err));
+    } finally {
+      sessionRef.current = null;
+      setSessionId(null);
+      setIsRecording(false);
+      stoppingRef.current = false;
+      if (finalSegments.length > 0) {
+        setSegments(prev => {
+          const seen = new Set(prev.map(s => s.paragraph_id));
+          const fresh = finalSegments.filter(s => !seen.has(s.paragraph_id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
       }
+      // keep segments around so the caller can still see what was captured
+      unsubscribe();
     }
-    sessionRef.current = null;
-    setSessionId(null);
-    setIsRecording(false);
-    // keep segments around so the caller can still see what was captured
-    unsubscribe();
   }, [sendChunk, teardownCapture, unsubscribe]);
 
   useEffect(() => unsubscribe, [unsubscribe]);

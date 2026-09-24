@@ -1,5 +1,5 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Suspense, lazy, useEffect } from 'react';
 import { TitleBar } from '@/components/ui/title-bar';
 import { PageLayout } from '@/components/ui/page-layout';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -17,23 +17,30 @@ const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.
 const ArchivePage = lazy(() => import('@/pages/archive').then(m => ({ default: m.ArchivePage })));
 
 function App() {
+  const location = useLocation();
+
+  // Плавная смена палитры при входе/выходе из архива:
+  // тёплые цвета → серая палитра. Переход CSS-переменных плавный
+  // благодаря transition на body и компонентах.
+  useEffect(() => {
+    const isArchive = location.pathname.startsWith('/archive');
+    document.body.classList.toggle('archive-theme', isArchive);
+    return () => {
+      document.body.classList.remove('archive-theme');
+    };
+  }, [location.pathname]);
+
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background">
-      {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста */}
+      {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста.
+          При входе в архив они переключаются на серые тона — цвета
+          «выползают» из верхней и нижней точек экрана. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 overflow-hidden print:hidden"
       >
-        <div
-          className="absolute -top-32 left-1/2 h-96 w-[60rem] -translate-x-1/2 rounded-full opacity-60 blur-3xl dark:opacity-30"
-          style={{
-            background: 'radial-gradient(closest-side, hsl(var(--secondary)), transparent)',
-          }}
-        />
-        <div
-          className="absolute -bottom-40 left-1/2 h-80 w-[50rem] -translate-x-1/2 rounded-full opacity-40 blur-3xl dark:opacity-20"
-          style={{ background: 'radial-gradient(closest-side, hsl(var(--accent)), transparent)' }}
-        />
+        <div className="theme-bleed theme-bleed-top" />
+        <div className="theme-bleed theme-bleed-bottom" />
       </div>
 
       {/* Custom window controls + drag region + хлебные крошки + поиск.

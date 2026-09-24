@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { useTranslation, type TranslationKey } from '@/lib/i18n';
 
 export interface ReminderDraft {
   note_id: string;
@@ -36,6 +37,7 @@ export function ReminderModal({
   onClose,
   onSave,
 }: ReminderModalProps) {
+  const { t } = useTranslation();
   const sortedNotes = useMemo(
     () =>
       [...notes]
@@ -91,13 +93,13 @@ export function ReminderModal({
     return d;
   };
 
-  const quickOptions = [
+  const quickOptions: { labelKey: TranslationKey; get: () => Date }[] = [
     {
-      label: 'Через час',
+      labelKey: 'inAnHour',
       get: () => roundTo5(new Date(Date.now() + 3600000)),
     },
     {
-      label: 'Завтра в 9:00',
+      labelKey: 'tomorrowAt9',
       get: () => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
@@ -106,7 +108,7 @@ export function ReminderModal({
       },
     },
     {
-      label: 'Завтра в это же время',
+      labelKey: 'tomorrowSameTime',
       get: () => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
@@ -121,7 +123,7 @@ export function ReminderModal({
         <div className="flex items-center justify-between border-b p-4">
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <Bell className="h-4 w-4 text-red-500" />
-            Напоминание
+            {t('reminder')}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="h-5 w-5" />
@@ -136,34 +138,34 @@ export function ReminderModal({
           }}
         >
           <div className="space-y-2">
-            <Label htmlFor="reminder-note">Заметка</Label>
+            <Label htmlFor="reminder-note">{t('note')}</Label>
             <select
               id="reminder-note"
               value={noteId}
               onChange={e => handleNoteChange(e.target.value)}
               className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
-              {sortedNotes.length === 0 && <option value="">Нет заметок</option>}
+              {sortedNotes.length === 0 && <option value="">{t('calNoNotes')}</option>}
               {sortedNotes.map(note => (
                 <option key={note.id} value={note.id}>
-                  {note.title || 'Без названия'}
+                  {note.title || t('untitled')}
                 </option>
               ))}
             </select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reminder-title">Заголовок</Label>
+            <Label htmlFor="reminder-title">{t('title')}</Label>
             <Input
               id="reminder-title"
               value={title}
               onChange={e => setTitle(e.target.value)}
-              placeholder="О чём напомнить"
+              placeholder={t('reminderTitlePlaceholder')}
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reminder-when">Когда</Label>
+            <Label htmlFor="reminder-when">{t('when')}</Label>
             <Input
               id="reminder-when"
               type="datetime-local"
@@ -173,17 +175,17 @@ export function ReminderModal({
             {isPast && (
               <div className="mt-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
                 <p className="text-xs font-medium text-red-500">
-                  Время уже прошло — напоминание сработает сразу. Выберите время в будущем:
+                  {t('timeInPastDesc')}
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {quickOptions.map(opt => (
                     <button
-                      key={opt.label}
+                      key={opt.labelKey}
                       type="button"
                       onClick={() => setTriggerAt(toDatetimeLocal(opt.get()))}
                       className="rounded-lg border border-input bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     >
-                      {opt.label}
+                      {t(opt.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -192,22 +194,22 @@ export function ReminderModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="reminder-message">Сообщение (необязательно)</Label>
+            <Label htmlFor="reminder-message">{t('messageOptional')}</Label>
             <Textarea
               id="reminder-message"
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder="Например: доделать план на неделю"
+              placeholder={t('messagePlaceholder')}
               rows={2}
             />
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t pt-4">
             <Button variant="outline" onClick={onClose} type="button">
-              Отмена
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={!noteId || !title.trim() || !triggerAt || isPast}>
-              {isPast ? 'Время в прошлом' : 'Создать напоминание'}
+              {isPast ? t('timeInPast') : t('createReminder')}
             </Button>
           </div>
         </form>

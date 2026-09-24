@@ -95,17 +95,17 @@ pub fn recommend_transcription_model(
 
     let reason = if is_downloaded && fits_ram {
         format!(
-            "Downloaded and fits ~{} GB free RAM (needs {})",
-            profile.available_ram_gb, best.recommended_ram_gb
+            "Модель установлена и подходит для вашего устройства (~{} ГБ свободной памяти)",
+            profile.available_ram_gb
         )
     } else if is_downloaded {
         format!(
-            "Downloaded but recommends {} GB RAM; only ~{} GB free — may not run in real time",
+            "Модели нужно ~{} ГБ памяти, свободно ~{} ГБ — может работать с задержками",
             best.recommended_ram_gb, profile.available_ram_gb
         )
     } else {
         format!(
-            "Recommended download for this hardware ({} GB free RAM; model needs {})",
+            "Подходит для вашего устройства: свободно ~{} ГБ памяти, модели нужно ~{} ГБ",
             profile.available_ram_gb, best.recommended_ram_gb
         )
     };
