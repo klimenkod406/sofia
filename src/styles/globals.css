@@ -4,34 +4,38 @@
 
 @layer base {
   :root {
-    /* 1. Тихая тёплая пастель — светлая тема («тёплый пергамент»).
-       Только приглушённые тёплые тона, без контрастных акцентов. */
-    --background: 40 33% 97%;
-    --foreground: 24 14% 22%;
-    --card: 42 60% 99%;
-    --card-foreground: 24 14% 22%;
-    --popover: 42 50% 98%;
-    --popover-foreground: 24 14% 22%;
-    --primary: 32 26% 62%;
-    --primary-foreground: 30 20% 16%;
-    --secondary: 38 38% 91%;
-    --secondary-foreground: 26 16% 30%;
-    --muted: 38 30% 91%;
-    --muted-foreground: 28 12% 48%;
-    --accent: 36 36% 89%;
-    --accent-foreground: 26 16% 28%;
+    /* 1. Пастельная тёплая палитра — «тетрадный лист».
+       Мягкие сливочно-бежевые тона, напоминающие качественную
+       бумагу для записей. Тёплый, уютный, не перегруженный. */
+    --background: 36 33% 96%;
+    --foreground: 24 14% 20%;
+    --card: 38 50% 98%;
+    --card-foreground: 24 14% 20%;
+    --popover: 36 40% 97%;
+    --popover-foreground: 24 14% 20%;
+    --primary: 28 30% 58%;
+    --primary-foreground: 28 20% 14%;
+    --secondary: 34 36% 92%;
+    --secondary-foreground: 26 16% 28%;
+    --muted: 34 30% 92%;
+    --muted-foreground: 28 12% 44%;
+    --accent: 32 32% 90%;
+    --accent-foreground: 26 16% 26%;
     /* Приглушённая тёплая терракота вместо ярко-красного */
-    --destructive: 14 32% 62%;
-    --destructive-foreground: 40 33% 97%;
-    --border: 36 28% 86%;
-    --input: 36 24% 84%;
-    --ring: 32 26% 62%;
+    --destructive: 12 30% 58%;
+    --destructive-foreground: 36 33% 96%;
+    --border: 32 24% 88%;
+    --input: 32 22% 86%;
+    --ring: 28 30% 58%;
     --radius: 1.25rem;
 
     /* Гибкие границы шапки (п.6): переменные оставлены под будущие
        hover-анимации. Низ скруглён, верх пришит к кромке. */
     --notch-radius-bottom: 1.5rem;
     --notch-pad-x: 1rem;
+
+    /* Длительность перехода цветовой темы страницы */
+    --theme-transition-duration: 0.7s;
   }
 
   .dark {
@@ -56,6 +60,189 @@
     --border: 28 12% 22%;
     --input: 28 12% 24%;
     --ring: 34 28% 68%;
+  }
+
+  /* Серая палитра архива — светлая тема.
+     Резкий контраст с тёплой светлой темой: холодный сине-серый оттенок,
+     значительно более тёмный. Архив должен ощущаться как «зимний»,
+     обесцвеченный, по сравнению с тёплым «тетрадным» светлым режимом. */
+  body.archive-theme {
+    --background: 220 8% 86%;
+    --foreground: 220 10% 22%;
+    --card: 220 6% 92%;
+    --card-foreground: 220 10% 22%;
+    --popover: 220 6% 91%;
+    --popover-foreground: 220 10% 22%;
+    --primary: 220 10% 48%;
+    --primary-foreground: 220 10% 96%;
+    --secondary: 220 6% 80%;
+    --secondary-foreground: 220 10% 28%;
+    --muted: 220 6% 80%;
+    --muted-foreground: 220 8% 42%;
+    --accent: 220 5% 78%;
+    --accent-foreground: 220 10% 26%;
+    --destructive: 0 8% 48%;
+    --destructive-foreground: 220 8% 92%;
+    --border: 220 6% 74%;
+    --input: 220 6% 72%;
+    --ring: 220 10% 48%;
+  }
+
+  /* Серая палитра архива — тёмная тема.
+     Холодный графитовый, заметно отличается от тёплой тёмной. */
+  .dark body.archive-theme,
+  body.dark.archive-theme {
+    --background: 220 6% 12%;
+    --foreground: 220 8% 88%;
+    --card: 220 5% 16%;
+    --card-foreground: 220 8% 88%;
+    --popover: 220 5% 17%;
+    --popover-foreground: 220 8% 88%;
+    --primary: 220 8% 62%;
+    --primary-foreground: 220 8% 10%;
+    --secondary: 220 5% 22%;
+    --secondary-foreground: 220 8% 84%;
+    --muted: 220 5% 22%;
+    --muted-foreground: 220 6% 58%;
+    --accent: 220 4% 24%;
+    --accent-foreground: 220 8% 84%;
+    --destructive: 0 6% 48%;
+    --destructive-foreground: 220 6% 90%;
+    --border: 220 4% 26%;
+    --input: 220 4% 28%;
+    --ring: 220 8% 62%;
+  }
+
+  /* Плавный переход цветовых переменных при смене темы */
+  body,
+  body.archive-theme {
+    transition:
+      background-color var(--theme-transition-duration) ease,
+      color var(--theme-transition-duration) ease;
+  }
+
+  /* Фоновые пятна, которые «выползают» из верхней и нижней точек
+     при переходе в архив. В тёплой теме — пастельные, в архиве — серые.
+     Переход фона плавный благодаря transition на background-image. */
+  .theme-bleed {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 9999px;
+    filter: blur(3rem);
+    pointer-events: none;
+    transition: background-image var(--theme-transition-duration) ease;
+  }
+  .theme-bleed-top {
+    top: -8rem;
+    width: 60rem;
+    height: 24rem;
+    opacity: 0.6;
+    background-image: radial-gradient(closest-side, hsl(var(--secondary)), transparent);
+  }
+  .theme-bleed-bottom {
+    bottom: -10rem;
+    width: 50rem;
+    height: 20rem;
+    opacity: 0.4;
+    background-image: radial-gradient(closest-side, hsl(var(--accent)), transparent);
+  }
+  .dark .theme-bleed-top {
+    opacity: 0.3;
+  }
+  .dark .theme-bleed-bottom {
+    opacity: 0.2;
+  }
+  /* В архиве пятна становятся серыми — те же переменные, но обесцвеченные */
+  body.archive-theme .theme-bleed-top {
+    background-image: radial-gradient(closest-side, hsl(var(--secondary)), transparent);
+  }
+  body.archive-theme .theme-bleed-bottom {
+    background-image: radial-gradient(closest-side, hsl(var(--accent)), transparent);
+  }
+
+  /* Анимация появления архивной темы: цвета «выползают»
+     из верхней и нижней точек экрана одновременно */
+  body.archive-theme .theme-bleed-top {
+    animation: archiveBleedTop var(--theme-transition-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  body.archive-theme .theme-bleed-bottom {
+    animation: archiveBleedBottom var(--theme-transition-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes archiveBleedTop {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-30%) scale(0.6);
+    }
+    100% {
+      opacity: 0.6;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+  }
+  @keyframes archiveBleedBottom {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(30%) scale(0.6);
+    }
+    100% {
+      opacity: 0.4;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+  }
+  .dark body.archive-theme .theme-bleed-top {
+    animation-name: archiveBleedTopDark;
+  }
+  .dark body.archive-theme .theme-bleed-bottom {
+    animation-name: archiveBleedBottomDark;
+  }
+  @keyframes archiveBleedTopDark {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-30%) scale(0.6);
+    }
+    100% {
+      opacity: 0.3;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+  }
+  @keyframes archiveBleedBottomDark {
+    0% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(30%) scale(0.6);
+    }
+    100% {
+      opacity: 0.2;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+  }
+
+  body.archive-theme .glass-card,
+  body.archive-theme .liquid-glass,
+  body.archive-theme .glass-subtle,
+  body.archive-theme .notch-search-input,
+  body.archive-theme .editor-sheet,
+  body.archive-theme .note-card,
+  body.archive-theme .folder-card,
+  body.archive-theme .folder-chip,
+  body.archive-theme .folder-item,
+  body.archive-theme .calendar-grid,
+  body.archive-theme .calendar-day,
+  body.archive-theme .settings-panel,
+  body.archive-theme .model-card,
+  body.archive-theme .dropdown,
+  body.archive-theme .overlay-chat,
+  body.archive-theme .overlay-chat-header,
+  body.archive-theme .overlay-chat-input,
+  body.archive-theme .card,
+  body.archive-theme .input,
+  body.archive-theme .textarea,
+  body.archive-theme .btn,
+  body.archive-theme .badge {
+    transition:
+      background-color var(--theme-transition-duration) ease,
+      border-color var(--theme-transition-duration) ease,
+      color var(--theme-transition-duration) ease,
+      box-shadow var(--theme-transition-duration) ease;
   }
 }
 
@@ -1570,11 +1757,8 @@
     box-shadow: 0 0 0 3px hsl(var(--primary) / 0.2);
   }
 
-  /* Цель сброса при перетаскивании: у папки свечения нет — только само
-     открывание; у заметки — пульс-свечение вокруг иллюстрации */
-  .note-object[data-drop-target='true'] .page-illus {
-    animation: objectDropPulse 1.2s ease-in-out infinite;
-  }
+  /* Цель сброса при перетаскивании: без свечения/пульса, заметка остаётся
+     нейтральной — пользователь ориентируется по курсору и drop-зоне. */
   /* Тянущийся лист едет сам, без названия: подпись прячется мгновенно */
   .note-object[data-dragging='true'] .note-object-caption {
     opacity: 0;
@@ -1822,16 +2006,6 @@
     box-shadow:
       0 0 0 5px hsl(var(--primary) / 0.35),
       0 8px 40px rgba(180, 156, 125, 0.5);
-  }
-}
-
-@keyframes objectDropPulse {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.65));
-  }
-  50% {
-    filter: drop-shadow(0 0 18px hsl(var(--primary) / 0.95));
   }
 }
 
