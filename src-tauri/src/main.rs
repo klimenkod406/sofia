@@ -73,9 +73,11 @@ fn main() {
                 tracing::warn!("Failed to setup shortcuts: {}", e);
             }
 
-            // Minimize to tray instead of quitting.
-            // NOTE: the window is created with "visible": false (see
-            // tauri.conf.json), so it must be shown explicitly.
+            // Окно создаётся с `visible: true` (см. tauri.conf.json), чтобы
+            // JS-сторона сразу могла показать загрузочный сплеш
+            // (`<SplashScreen />`) без «мигающего» пустого окна. Явный show
+            // здесь оставлен как no-op страховка на случай будущей
+            // конфигурации, где окно стартует скрытым.
             if let Some(main_window) = app.get_webview_window("main") {
                 let _ = main_window.show();
                 let _ = main_window.set_focus();

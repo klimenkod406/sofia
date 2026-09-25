@@ -21,11 +21,11 @@
         "resizable": true,
         "fullscreen": false,
         "maximized": false,
-        "visible": false,
+        "visible": true,
         "decorations": false,
-        "transparent": true,
         "titleBarStyle": "Overlay",
-        "hiddenTitle": true
+        "hiddenTitle": true,
+        "backgroundColor": "#F8F5F1"
       }
     ],
     "security": {

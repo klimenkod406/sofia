@@ -12,8 +12,13 @@
          Все три — с кириллицей и латиницей, гротески без вязи, визуально лёгкие. -->
     <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Onest:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   </head>
-  <body class="h-full m-0 bg-background text-foreground antialiased">
-    <div id="root" class="h-full"></div>
+  <!-- Цвет body и <div id="root"> совпадают с `windows[0].backgroundColor`
+       в tauri.conf.json. До того, как React смонтируется, Tauri рисует
+       WebView этим тёплым кремовым — благодаря этому на холодном старте
+       нет ни белой вспышки, ни «прозрачной рамки», через которую
+       просвечивает рабочий стол. -->
+  <body class="h-full m-0 bg-background text-foreground antialiased" style="background-color:#F8F5F1;">
+    <div id="root" class="h-full" style="background-color:#F8F5F1;"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

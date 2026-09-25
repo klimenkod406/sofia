@@ -136,7 +136,14 @@ export function TitleBar() {
         </button>
       </div>
 
-      {/* Поиск — по центру, опущен на 40px от верха */}
+      {/* Пустой спейсер: раздвигает лого и кнопки окна к краям.
+          Поиск вынесен из flex-потока (абсолютное позиционирование),
+          поэтому без этого флекс-элемента всё прижалось бы влево. */}
+      <div className="flex-1" aria-hidden="true" />
+
+      {/* Поиск — по центру окна, опущен на 40px от верха.
+          Абсолютное позиционирование, чтобы не зависеть от ширины
+          соседних flex-детей (лого/кнопки окна). */}
       <div className="notch-search mt-[40px]" role="search">
         <div className="notch-search-box mx-auto">
           <Search className="notch-search-icon" aria-hidden="true" />

@@ -3,6 +3,7 @@ import { Suspense, lazy, useEffect } from 'react';
 import { TitleBar } from '@/components/ui/title-bar';
 import { PageLayout } from '@/components/ui/page-layout';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { SplashScreen } from '@/components/ui/splash-screen';
 
 // Lazy load pages for code splitting
 const HomePage = lazy(() => import('@/pages/home').then(m => ({ default: m.HomePage })));
@@ -32,6 +33,11 @@ function App() {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-background">
+      {/* Полноэкранная загрузочная заставка: играет до тех пор, пока
+          <video> не закончит декодирование, после чего плавно затухает.
+          Перекрывает и TitleBar, и Suspense-fallback — пользователь видит
+          только анимацию входа, а не мигающий спиннер. */}
+      <SplashScreen />
       {/* Спокойный тёплый фон: два мягких пастельных пятна, без контраста.
           При входе в архив они переключаются на серые тона — цвета
           «выползают» из верхней и нижней точек экрана. */}

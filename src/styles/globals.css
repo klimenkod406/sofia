@@ -416,15 +416,24 @@
     background: hsl(var(--foreground) / 0.1);
   }
 
-  /* Поиск в верхней панели: широкий, но с фиксированным комфортным максимумом. */
+  /* Поиск в верхней панели: по центру окна, ширина ограничена комфортным максимумом.
+     Абсолютное позиционирование, чтобы не зависеть от соседних flex-детей
+     (логотип слева и кнопки окна справа) — иначе центр считался бы
+     только от оставшегося куска flex-линии. */
   .notch-search {
-    flex: 1 1 auto;
-    min-width: 0;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
     padding: 0 1rem;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
   }
   .notch-search-box {
     position: relative;
     width: min(100%, 34rem);
+    pointer-events: auto;
   }
   @media (max-width: 640px) {
     .notch-search {
