@@ -1,6 +1,6 @@
 [package]
 name = "sofia"
-version = "0.2.0"
+version = "0.2.1"
 description = "Σόφια - Modern note-taking app with AI-powered transcription and analysis"
 authors = ["Sofia Team"]
 license = "MIT"
