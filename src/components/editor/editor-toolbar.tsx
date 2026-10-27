@@ -16,8 +16,10 @@ import {
   useDropdownMenu,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
+import { useSettings, TOOLBAR_ITEMS, type ToolbarItemId } from '@/stores/settings';
 import { toast } from '@/hooks/use-toast';
 import { useTranslation } from '@/lib/i18n';
+import { _registerT, _translate } from './i18n-bridge';
 import {
   Bold,
   Italic,
@@ -38,7 +40,6 @@ import {
   Save,
   Highlighter,
   CheckSquare,
-  MoreHorizontal,
   Eraser,
   Minus,
   Unlink,
@@ -52,6 +53,10 @@ import {
   Search,
   Type,
   Plus,
+  Indent,
+  Outdent,
+  ArrowUpAZ,
+  ArrowDownAZ,
 } from 'lucide-react';
 
 interface EditorToolbarProps {
@@ -67,6 +72,7 @@ type IconComponent = ComponentType<{ className?: string }>;
 
 interface ToolbarButton {
   kind: 'button';
+  id: ToolbarItemId;
   icon: IconComponent;
   action: () => boolean | void;
   disabled?: boolean;
@@ -76,6 +82,7 @@ interface ToolbarButton {
 
 interface ToolbarMenu {
   kind: 'menu';
+  id: ToolbarItemId;
   icon: ComponentType<{ className?: string }>;
   title: string;
   menuItems: {
@@ -90,11 +97,13 @@ interface ToolbarMenu {
 
 interface ToolbarCustom {
   kind: 'custom';
+  id: ToolbarItemId;
   render: () => JSX.Element;
 }
 
 interface ToolbarDivider {
   kind: 'divider';
+  id?: string;
   title?: string;
 }
 
@@ -192,6 +201,7 @@ function ColorMenu({
   onSelect,
   onClear,
   side,
+  id,
 }: {
   title: string;
   icon: IconComponent;
@@ -200,6 +210,8 @@ function ColorMenu({
   onSelect: (color: string) => void;
   onClear: () => void;
   side: 'left' | 'right';
+  /** Идентификатор из реестра TOOLBAR_ITEMS — для фильтрации видимости. */
+  id: ToolbarItemId;
 }) {
   const { t } = useTranslation();
   const { colors, addColor } = useCustomColors(customKey);
@@ -218,6 +230,7 @@ function ColorMenu({
           className={cn('editor-toolbar-btn')}
           title={title}
           aria-label={title}
+          data-toolbar-id={id}
         >
           <Icon className="h-4 w-4" />
         </Button>
@@ -357,6 +370,18 @@ function TableInsertMenuContent({
   );
 }
 
+/** Преобразовать выделенный текст в верхний/нижний регистр через ProseMirror. */
+function transformCase(editor: NonNullable<ReturnType<typeof useEditor>>, mode: 'upper' | 'lower') {
+  const { state, dispatch } = editor.view;
+  const { from, to, empty } = state.selection;
+  if (empty) return false;
+  const text = state.doc.textBetween(from, to, '\n', '\n');
+  const out = mode === 'upper' ? text.toUpperCase() : text.toLowerCase();
+  if (out === text) return false;
+  dispatch(state.tr.insertText(out, from, to));
+  return true;
+}
+
 /** Меню «Таблица»: сетка выбора размера (N×M) + ширина создаваемой таблицы
  *  (небольшая по содержимому или на всю ширину листа). Клик по ячейке вставляет. */
 function TableInsertMenu({
@@ -386,6 +411,13 @@ function TableInsertMenu({
 
 export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorToolbarProps) {
   const { t } = useTranslation();
+  // Подписка на список видимых инструментов: при изменении настроек
+  // (см. Настройки → Редактор → «Меню инструментов») рейка должна
+  // перерисоваться. Хук обязан вызываться на каждом рендере в одном порядке.
+  const toolbarItems = useSettings(s => s.toolbarItems);
+  // Сохраняем t для модульных обработчиков (reportExportError и др.) —
+  // реализация моста в ./i18n-bridge.
+  _registerT(t as unknown as (key: string, params?: unknown) => string);
   // Без подписки на транзакции кнопки isActive/disabled протухают:
   // рейка рендерится только при смене пропсов, а не при каждом наборе текста.
   const [, setTick] = useState(0);
@@ -400,8 +432,11 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
 
   if (!editor) return null;
 
+  const toolbarVisible = new Set<ToolbarItemId>(toolbarItems);
   const canUndo = editor.can().undo();
   const canRedo = editor.can().redo();
+  const inList =
+    editor.isActive('bulletList') || editor.isActive('orderedList') || editor.isActive('taskList');
 
   const addHeading = (level: Level) => {
     editor.chain().focus().toggleHeading({ level }).run();
@@ -482,6 +517,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
   const leftItems: ToolbarItem[] = [
     {
       kind: 'button',
+      id: 'bold',
       icon: Bold,
       action: () => editor.chain().focus().toggleBold().run(),
       active: editor.isActive('bold'),
@@ -489,6 +525,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'italic',
       icon: Italic,
       action: () => editor.chain().focus().toggleItalic().run(),
       active: editor.isActive('italic'),
@@ -496,6 +533,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'strike',
       icon: Strikethrough,
       action: () => editor.chain().focus().toggleStrike().run(),
       active: editor.isActive('strike'),
@@ -503,6 +541,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'code',
       icon: Code,
       action: () => editor.chain().focus().toggleCode().run(),
       active: editor.isActive('code'),
@@ -510,8 +549,10 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'custom',
+      id: 'highlight',
       render: () => (
         <ColorMenu
+          id="highlight"
           key="highlight-menu"
           title={t('highlight')}
           icon={Highlighter}
@@ -525,8 +566,10 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'custom',
+      id: 'textColor',
       render: () => (
         <ColorMenu
+          id="textColor"
           key="text-color-menu"
           title={t('textColor')}
           icon={Palette}
@@ -538,9 +581,10 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
         />
       ),
     },
-    { kind: 'divider' },
+    { kind: 'divider', id: 'align-divider' },
     {
       kind: 'button',
+      id: 'alignLeft',
       icon: AlignLeft,
       action: () => setAlignment('left'),
       active: editor.isActive({ textAlign: 'left' }),
@@ -548,6 +592,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'alignCenter',
       icon: AlignCenter,
       action: () => setAlignment('center'),
       active: editor.isActive({ textAlign: 'center' }),
@@ -555,13 +600,16 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'alignRight',
       icon: AlignRight,
       action: () => setAlignment('right'),
       active: editor.isActive({ textAlign: 'right' }),
       title: t('alignRight'),
     },
+    { kind: 'divider', id: 'headings-divider' },
     {
       kind: 'button',
+      id: 'h1',
       icon: Heading1,
       action: () => addHeading(1),
       active: editor.isActive('heading', { level: 1 }),
@@ -569,6 +617,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'h2',
       icon: Heading2,
       action: () => addHeading(2),
       active: editor.isActive('heading', { level: 2 }),
@@ -576,6 +625,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'h3',
       icon: Heading3,
       action: () => addHeading(3),
       active: editor.isActive('heading', { level: 3 }),
@@ -583,13 +633,16 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'paragraph',
       icon: Pilcrow,
       action: () => editor.chain().focus().setParagraph().run(),
       active: editor.isActive('paragraph'),
       title: t('paragraph'),
     },
+    { kind: 'divider', id: 'lists-divider' },
     {
       kind: 'button',
+      id: 'bulletList',
       icon: List,
       action: () => editor.chain().focus().toggleBulletList().run(),
       active: editor.isActive('bulletList'),
@@ -597,6 +650,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'numberedList',
       icon: ListOrdered,
       action: () => editor.chain().focus().toggleOrderedList().run(),
       active: editor.isActive('orderedList'),
@@ -604,17 +658,50 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'taskList',
       icon: CheckSquare,
       action: () => editor.chain().focus().toggleTaskList().run(),
       active: editor.isActive('taskList'),
       title: t('taskList'),
     },
+    {
+      kind: 'button',
+      id: 'indent',
+      icon: Indent,
+      action: () => editor.chain().focus().sinkListItem('listItem').run(),
+      disabled: !inList,
+      title: t('indent'),
+    },
+    {
+      kind: 'button',
+      id: 'outdent',
+      icon: Outdent,
+      action: () => editor.chain().focus().liftListItem('listItem').run(),
+      disabled: !inList,
+      title: t('outdent'),
+    },
+    { kind: 'divider', id: 'script-divider' },
+    {
+      kind: 'button',
+      id: 'uppercase',
+      icon: ArrowUpAZ,
+      action: () => transformCase(editor, 'upper'),
+      title: t('uppercase'),
+    },
+    {
+      kind: 'button',
+      id: 'lowercase',
+      icon: ArrowDownAZ,
+      action: () => transformCase(editor, 'lower'),
+      title: t('lowercase'),
+    },
   ];
 
-  // Правая рейка: история + блоки/медиа + меню «Ещё».
+  // Правая рейка: история + блоки/медиа + чистка + экспорт/печать.
   const rightItems: ToolbarItem[] = [
     {
       kind: 'button',
+      id: 'undo',
       icon: Undo,
       action: () => editor.chain().focus().undo().run(),
       disabled: !canUndo,
@@ -622,13 +709,16 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'redo',
       icon: Redo,
       action: () => editor.chain().focus().redo().run(),
       disabled: !canRedo,
       title: t('redo'),
     },
+    { kind: 'divider', id: 'blocks-divider' },
     {
       kind: 'button',
+      id: 'quote',
       icon: Quote,
       action: () => editor.chain().focus().toggleBlockquote().run(),
       active: editor.isActive('blockquote'),
@@ -636,6 +726,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'codeBlock',
       icon: Code,
       action: () => editor.chain().focus().insertCodeBlock3().run(),
       active: editor.isActive('codeBlock'),
@@ -643,25 +734,35 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'hr',
       icon: Minus,
       action: () => editor.chain().focus().setHorizontalRule().run(),
       title: t('horizontalRule'),
     },
     {
       kind: 'button',
+      id: 'link',
       icon: Link,
       action: addLink,
       active: editor.isActive('link'),
       title: t('link'),
     },
-    { kind: 'button', icon: Image, action: addImage, title: t('image') },
+    {
+      kind: 'button',
+      id: 'image',
+      icon: Image,
+      action: addImage,
+      title: t('image'),
+    },
     {
       kind: 'custom',
+      id: 'table',
       render: () => <TableInsertMenu key="table-menu" editor={editor} side={side} />,
     },
     {
       kind: 'menu',
-      icon: MoreHorizontal,
+      id: 'tableFloat',
+      icon: AlignCenter,
       title: t('tableFloat'),
       menuItems: [
         {
@@ -683,7 +784,8 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'menu',
-      icon: MoreHorizontal,
+      id: 'imageSize',
+      icon: Type,
       title: t('imageSize'),
       menuItems: [
         { icon: Type, label: '25%', action: () => editor.chain().focus().setImageWidth(25).run() },
@@ -698,7 +800,8 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'menu',
-      icon: MoreHorizontal,
+      id: 'imageFloat',
+      icon: AlignCenter,
       title: t('imageFloat'),
       menuItems: [
         {
@@ -720,18 +823,39 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     },
     {
       kind: 'button',
+      id: 'find',
       icon: Search,
       action: () => onOpenSearch?.(),
       title: t('findAndReplace'),
     },
+    { kind: 'divider', id: 'cleanup-divider' },
+    {
+      kind: 'button',
+      id: 'clearFormatting',
+      icon: Eraser,
+      action: clearFormatting,
+      title: t('clearFormatting'),
+    },
+    {
+      kind: 'button',
+      id: 'removeLink',
+      icon: Unlink,
+      action: removeLink,
+      title: t('removeLink'),
+    },
+    {
+      kind: 'button',
+      id: 'export',
+      icon: Save,
+      action: saveNow,
+      title: t('saveNow'),
+    },
     {
       kind: 'menu',
-      icon: MoreHorizontal,
-      title: t('more'),
+      id: 'print',
+      icon: Printer,
+      title: t('exportAndPrint'),
       menuItems: [
-        { icon: Eraser, label: t('clearFormatting'), action: clearFormatting },
-        { icon: Unlink, label: t('removeLink'), action: removeLink },
-        { icon: Save, label: t('saveNow'), action: saveNow },
         {
           icon: FileDown,
           label: t('exportMarkdown'),
@@ -748,6 +872,15 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
   ];
 
   const items = side === 'left' ? leftItems : rightItems;
+  // Видимость управляется пользователем: см. Настройки → Редактор →
+  // «Меню инструментов». Реестр TOOLBAR_ITEMS задаёт полный набор id, а
+  // useSettings().toolbarItems — какие из них показывать. Разделители
+  // автоматически исчезают, если соседние группы скрыты.
+  type VisibleItem = ToolbarButton | ToolbarMenu | ToolbarCustom;
+  const filtered = items.filter((item): item is VisibleItem => {
+    if (item.kind === 'divider') return false;
+    return toolbarVisible.has(item.id);
+  });
 
   return (
     <div
@@ -755,15 +888,12 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
       role="toolbar"
       aria-label={side === 'left' ? t('leftRail') : t('rightRail')}
     >
-      {items.map((item, itemIndex) => {
-        if (item.kind === 'divider') {
-          return <div key={itemIndex} className="editor-rail-divider" aria-hidden="true" />;
-        }
+      {filtered.map((item, itemIndex) => {
         if (item.kind === 'custom') {
-          return <div key={itemIndex}>{item.render()}</div>;
+          return <div key={item.id || itemIndex}>{item.render()}</div>;
         }
         return item.kind === 'menu' ? (
-          <DropdownMenu key={itemIndex}>
+          <DropdownMenu key={item.id || itemIndex}>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
@@ -776,6 +906,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
                 )}
                 title={item.title}
                 aria-label={item.title}
+                data-toolbar-id={item.id}
               >
                 <item.icon className="h-4 w-4" />
               </Button>
@@ -788,7 +919,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
           </DropdownMenu>
         ) : (
           <Button
-            key={itemIndex}
+            key={item.id || itemIndex}
             variant="ghost"
             size="icon"
             className={cn('editor-toolbar-btn', item.active && 'editor-toolbar-btn-active')}
@@ -797,6 +928,7 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
             title={item.title}
             aria-label={item.title}
             aria-pressed={item.active}
+            data-toolbar-id={item.id}
           >
             <item.icon className="h-4 w-4" />
           </Button>
@@ -805,6 +937,10 @@ export function EditorToolbar({ editor, side, noteTitle, onOpenSearch }: EditorT
     </div>
   );
 }
+
+// Маркируем все идентификаторы реестра как «используемые», чтобы линтер
+// не ругался, что часть id объявлена, но не вставлена в toolbarItems.
+void TOOLBAR_ITEMS;
 
 function FragmentItem({
   menuItem,
@@ -836,10 +972,9 @@ function FragmentItem({
 }
 
 function reportExportError(e: unknown) {
-  const { t } = useTranslation();
   console.error('export failed', e);
   toast({
-    title: t('exportError'),
+    title: _translate('exportError'),
     description: e instanceof Error ? e.message : String(e),
     variant: 'destructive',
   });

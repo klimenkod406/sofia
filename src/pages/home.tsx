@@ -670,9 +670,7 @@ export function HomePage() {
             </span>
             <div className="space-y-1.5">
               <h3 className="font-display text-lg font-bold">{t('noNotes')}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {t('noNotesDesc')}
-              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{t('noNotesDesc')}</p>
             </div>
             <Button onClick={handleNewNote} disabled={creating} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -728,7 +726,9 @@ export function HomePage() {
                       <span className="folder-object-name">
                         {folder.name}
                         {justCreatedFolderId === folder.id && (
-                          <span className="badge badge-primary ml-2 align-middle">{t('newBadge')}</span>
+                          <span className="badge badge-primary ml-2 align-middle">
+                            {t('newBadge')}
+                          </span>
                         )}
                       </span>
                     )}
@@ -771,9 +771,7 @@ export function HomePage() {
 
         {draggedNote && (
           <p className="mt-6 text-center text-xs text-muted-foreground" role="status">
-            {draggedNote.folder_id
-              ? t('dragHintInFolder')
-              : t('dragHintMain')}
+            {draggedNote.folder_id ? t('dragHintInFolder') : t('dragHintMain')}
           </p>
         )}
 

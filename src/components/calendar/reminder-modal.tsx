@@ -174,9 +174,7 @@ export function ReminderModal({
             />
             {isPast && (
               <div className="mt-2 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
-                <p className="text-xs font-medium text-red-500">
-                  {t('timeInPastDesc')}
-                </p>
+                <p className="text-xs font-medium text-red-500">{t('timeInPastDesc')}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {quickOptions.map(opt => (
                     <button

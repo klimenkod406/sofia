@@ -19,7 +19,10 @@ import { useNotes, type Note } from '@/stores/notes';
 import { useSettings } from '@/stores/settings';
 import { EditorToolbar } from '@/components/editor/editor-toolbar';
 import { EditorContextMenu } from '@/components/editor/editor-context-menu';
-import { LiveTranscriptionBar } from '@/components/editor/live-transcription-bar';
+// FIXME(AI-FEATURE): голосовая расшифровка временно скрыта из интерфейса.
+// Бэкенд и хук useLiveTranscription оставлены в коде, чтобы при возврате
+// достаточно было снять комментарии ниже и удалить этот FIXME.
+// import { LiveTranscriptionBar } from '@/components/editor/live-transcription-bar';
 import {
   EnhancedImage,
   EnhancedTable,
@@ -32,6 +35,9 @@ import { createLowlight, common } from 'lowlight';
 import { Button } from '@/components/ui/button';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Search, X } from 'lucide-react';
+// FIXME(AI-FEATURE): голосовая расшифровка временно скрыта из интерфейса.
+// Хук нужен типизации компиляции, но без рендера <LiveTranscriptionBar />
+// никто не зовёт startRecording — микрофон не запрашивается, событий нет.
 import { useLiveTranscription } from '@/hooks/use-live-transcription';
 import { useTranslation } from '@/lib/i18n';
 
@@ -66,9 +72,7 @@ function upsertTranscriptDraft(
     const cur = doc.nodeAt(draft.pos);
     if (cur?.type.name === 'paragraph' && cur.textContent !== text) {
       view.dispatch(
-        state.tr
-          .replaceWith(draft.pos, draft.pos + draft.size, node)
-          .setMeta('addToHistory', false)
+        state.tr.replaceWith(draft.pos, draft.pos + draft.size, node).setMeta('addToHistory', false)
       );
       draft.size = node.nodeSize;
     }
@@ -80,9 +84,7 @@ function upsertTranscriptDraft(
     doc.firstChild?.type.name === 'paragraph' &&
     doc.firstChild.textContent === '';
   if (blankDoc) {
-    view.dispatch(
-      state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false)
-    );
+    view.dispatch(state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false));
     draft.pos = 0;
     draft.size = node.nodeSize;
     return;
@@ -115,9 +117,7 @@ function insertTranscriptParagraph(
     const cur = doc.nodeAt(draft.pos);
     if (cur?.type.name === 'paragraph') {
       view.dispatch(
-        state.tr
-          .replaceWith(draft.pos, draft.pos + draft.size, node)
-          .setMeta('addToHistory', false)
+        state.tr.replaceWith(draft.pos, draft.pos + draft.size, node).setMeta('addToHistory', false)
       );
       insertPos.current = draft.pos + node.nodeSize;
       draft.pos = null;
@@ -136,9 +136,7 @@ function insertTranscriptParagraph(
     // Первый пустой документ заменяется целиком, дальше абзацы добавляются
     // друг за другом — так расшифровка остаётся «с логическими разделениями»,
     // а не сливается в сплошной текст.
-    view.dispatch(
-      state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false)
-    );
+    view.dispatch(state.tr.replaceWith(0, doc.content.size, node).setMeta('addToHistory', false));
     insertPos.current = node.nodeSize;
     return;
   }
@@ -156,6 +154,25 @@ export function EditorPage() {
   const { font, editor: editorSettings, uiPreferences } = useSettings();
   // Вход в редактор — только с существующим id (создание происходит
   // на главной / в чёлке с немедленным переходом на /editor/:id).
+  // CSS-переменные редактора — это настройки страницы; применяем их
+  // к <html>, чтобы работали в обоих направлениях (CSS читает их и из
+  // .editor-prose, и из .editor-sheet).
+  useEffect(() => {
+    const root = document.documentElement;
+    const spacing = Math.max(0, Math.min(1.5, editorSettings.paragraphSpacing));
+    root.style.setProperty('--editor-paragraph-spacing', `${spacing}rem`);
+    const weight = editorSettings.textWeight;
+    root.style.setProperty(
+      '--editor-text-weight',
+      weight === 'medium' ? '500' : weight === 'semibold' ? '600' : '400'
+    );
+    root.setAttribute('data-sheet-width', editorSettings.sheetWidth);
+    return () => {
+      root.style.removeProperty('--editor-paragraph-spacing');
+      root.style.removeProperty('--editor-text-weight');
+      root.removeAttribute('data-sheet-width');
+    };
+  }, [editorSettings.paragraphSpacing, editorSettings.textWeight, editorSettings.sheetWidth]);
   const [isSaving, setIsSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -183,6 +200,10 @@ export function EditorPage() {
 
   // Живая расшифровка речи (микрофон). Хук живёт здесь и поднимает
   // commit/partial/status события из Tauri; вставка в документ — ниже.
+  // FIXME(AI-FEATURE): голосовая расшифровка временно скрыта из интерфейса.
+  // Хук оставляем — он ленивый (startRecording не зовётся, пока нет UI),
+  // но JSX панели убран. Вернуть: снять комментарий с <LiveTranscriptionBar />
+  // ниже и удалить FIXME.
   const live = useLiveTranscription();
   const transcriptInsertedRef = useRef<Set<number>>(new Set());
   // Точка вставки расшифровки в документе (позиция курсора на старте
@@ -248,7 +269,8 @@ export function EditorPage() {
         codeBlock: false,
       }),
       Placeholder.configure({
-        placeholder: ({ node }) => (node.type.name === 'heading' ? t('heading') : t('startWriting')),
+        placeholder: ({ node }) =>
+          node.type.name === 'heading' ? t('heading') : t('startWriting'),
         emptyEditorClass: 'is-editor-empty',
         emptyNodeClass: 'is-empty-node',
       }),
@@ -311,7 +333,12 @@ export function EditorPage() {
     for (const seg of live.segments) {
       if (transcriptInsertedRef.current.has(seg.paragraph_id)) continue;
       transcriptInsertedRef.current.add(seg.paragraph_id);
-      insertTranscriptParagraph(tiptapEditor, seg.text, transcriptInsertPosRef, transcriptDraftRef.current);
+      insertTranscriptParagraph(
+        tiptapEditor,
+        seg.text,
+        transcriptInsertPosRef,
+        transcriptDraftRef.current
+      );
     }
   }, [live.segments, tiptapEditor]);
 
@@ -336,9 +363,7 @@ export function EditorPage() {
     const cur = state.doc.nodeAt(pos);
     if (cur?.type.name === 'paragraph') {
       const node = makeTranscriptParagraph(tiptapEditor, cur.textContent, false);
-      view.dispatch(
-        state.tr.replaceWith(pos, pos + size, node).setMeta('addToHistory', false)
-      );
+      view.dispatch(state.tr.replaceWith(pos, pos + size, node).setMeta('addToHistory', false));
     }
     transcriptDraftRef.current.pos = null;
     transcriptDraftRef.current.size = 0;
@@ -527,6 +552,9 @@ export function EditorPage() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('sofia:save-note', handleSaveEvent);
     };
+    // t стабилен между рендерами одного языка; если зависим от t, обработчик
+    // пересоздаётся при каждом переводе — лишний шум.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tiptapEditor]);
 
   if (!noteId) return <Navigate to="/home" replace />;
@@ -535,9 +563,7 @@ export function EditorPage() {
     return (
       <div className="liquid-glass mx-auto flex max-w-md flex-col items-center gap-4 rounded-3xl p-10 text-center">
         <h3 className="font-display text-lg font-bold">{t('noteNotFound')}</h3>
-        <p className="text-sm leading-relaxed text-muted-foreground">
-          {t('noteNotFoundDesc')}
-        </p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{t('noteNotFoundDesc')}</p>
         <Button onClick={() => navigate('/home')} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           {t('backToHome')}
@@ -584,7 +610,8 @@ export function EditorPage() {
         )}
         {uiPreferences.showWordCount && (
           <span className="ml-auto shrink-0 text-xs text-muted-foreground tabular-nums">
-            {docStats.words.toLocaleString()} {t('words')} · {docStats.chars.toLocaleString()} {t('chars')}
+            {docStats.words.toLocaleString()} {t('words')} · {docStats.chars.toLocaleString()}{' '}
+            {t('chars')}
           </span>
         )}
       </div>
@@ -624,7 +651,11 @@ export function EditorPage() {
         />
       </div>
 
-      <LiveTranscriptionBar controller={live} />
+      {false &&
+        // FIXME(AI-FEATURE): голосовая расшифровка отключена в UI.
+        // Снимаем `false && (` ниже и разкомментируем JSX, чтобы вернуть.
+        // <LiveTranscriptionBar controller={live} />
+        null}
 
       {showSearch && (
         <div className="editor-search-panel" role="dialog" aria-label={t('findAndReplace')}>

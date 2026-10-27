@@ -18,19 +18,14 @@ export function LanguageSelector() {
     <div className="flex items-center justify-between">
       <div className="space-y-0.5">
         <div className="text-sm font-medium">{t('language')}</div>
-        <div className="text-xs text-muted-foreground">
-          {t('languageDesc')}
-        </div>
+        <div className="text-xs text-muted-foreground">{t('languageDesc')}</div>
       </div>
-      <Select
-        value={language}
-        onValueChange={(value) => setLanguage(value as Language)}
-      >
+      <Select value={language} onValueChange={value => setLanguage(value as Language)}>
         <SelectTrigger className="w-[180px]">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {languages.map((lang) => (
+          {languages.map(lang => (
             <SelectItem key={lang.value} value={lang.value}>
               <span className="mr-2">{lang.flag}</span>
               {lang.label}

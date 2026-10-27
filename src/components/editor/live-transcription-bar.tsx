@@ -1,5 +1,9 @@
 'use client';
 
+// FIXME(LOCAL-QUESTION): локальные модели диктовки временно отключены —
+// показываем только API-сервисы с сохранённым ключом. Чтобы вернуть
+// локальные модели, убрать условие source === 'api' ниже.
+
 import { useEffect, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { Mic, Square, AlertCircle } from 'lucide-react';
@@ -11,7 +15,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { AIModel, ModelRecommendation } from '@/types';
+import type { AIModel } from '@/types';
+// FIXME(LOCAL-QUESTION): ModelRecommendation временно не используется
+// (рекомендация была только для локальных моделей). Импорт удалён —
+// восстановить вместе с возвратом локальных моделей.
 import type { LiveTranscriptionController } from '@/hooks/use-live-transcription';
 import { useTranslation } from '@/lib/i18n';
 
@@ -30,30 +37,32 @@ const LANGUAGES: Array<{ value: string; label: string }> = [
 export function LiveTranscriptionBar({ controller }: { controller: LiveTranscriptionController }) {
   const { t } = useTranslation();
   const [models, setModels] = useState<AIModel[]>([]);
-  const [recommendation, setRecommendation] = useState<ModelRecommendation | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [language, setLanguage] = useState('auto');
+  // FIXME(LOCAL-QUESTION): recommendation/ModelRecommendation временно не
+  // используются (рекомендация была только для локальных моделей). Тип
+  // импортирован как type-only, но useState/state удалены — оставлен только
+  // комментарий, чтобы было легко вернуть при восстановлении локальных моделей.
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [list, rec] = await Promise.allSettled([
-        invoke<AIModel[]>('list_local_models', { modelType: 'transcription' }),
-        invoke<ModelRecommendation>('recommend_transcription_model'),
-      ]);
+      // FIXME(LOCAL-QUESTION): рекомендация recommend_transcription_model
+      // была про локальные модели и временно не вызывается. Возвращается
+      // вместе с локальными моделями.
+      const list = await invoke<AIModel[]>('list_local_models', {
+        modelType: 'transcription',
+      }).catch(() => null);
       if (cancelled) return;
-      if (list.status === 'fulfilled') {
-        setModels(list.value);
-        // Только реально готовые к работе модели: скачанные локальные и API.
-        const usable = list.value.filter(m => m.is_downloaded || m.source === 'api');
-        if (usable.length > 0) {
-          const preferred =
-            rec.status === 'fulfilled' ? usable.find(m => m.id === rec.value.model_id) : undefined;
-          setSelectedModelId(prev => prev || preferred?.id || usable[0].id);
-        }
+      if (!list) {
+        setModels([]);
+        return;
       }
-      if (rec.status === 'fulfilled') {
-        setRecommendation(rec.value);
+      setModels(list);
+      // Только API-модели с сохранённым ключом: локальные скрыты до возврата.
+      const usable = list.filter(m => m.source === 'api' && Boolean(m.api_key_encrypted));
+      if (usable.length > 0) {
+        setSelectedModelId(prev => prev || usable[0].id);
       }
     })();
     return () => {
@@ -61,12 +70,15 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
     };
   }, []);
 
-  // Только готовые к работе модели: скачанные локальные и API-сервисы.
-  // Нескачанные в списке не показываем, чтобы их нельзя было выбрать.
-  const usableModels = models.filter(m => m.is_downloaded || m.source === 'api');
+  // FIXME(LOCAL-QUESTION): локальные модели скрыты — оставляем только API
+  // с сохранённым ключом. Чтобы вернуть локальные, достаточно убрать фильтр.
+  const usableModels = models.filter(m => m.source === 'api' && Boolean(m.api_key_encrypted));
   const sortedModels = [...usableModels].sort(
     (a, b) => (a.recommended_ram_gb ?? 0) - (b.recommended_ram_gb ?? 0)
   );
+
+  // FIXME(LOCAL-QUESTION): подсказка выключена вместе с локальными моделями.
+  const statusLabel: string | null = null;
 
   const toggle = async () => {
     if (controller.isRecording) {
@@ -75,14 +87,6 @@ export function LiveTranscriptionBar({ controller }: { controller: LiveTranscrip
       await controller.startRecording(selectedModelId || undefined, language);
     }
   };
-
-  // Подсказка показывается только когда есть что сказать: если модель
-  // установлена и влезает в память — всё и так готово, лишний текст не нужен.
-  const statusLabel = recommendation
-    ? !recommendation.is_downloaded || !recommendation.fits_ram
-      ? recommendation.reason
-      : null
-    : null;
 
   return (
     <div className="liquid-glass fixed bottom-6 left-1/2 z-30 flex max-w-[92vw] -translate-x-1/2 flex-wrap items-center gap-2 rounded-2xl px-2 py-2 shadow-lg">

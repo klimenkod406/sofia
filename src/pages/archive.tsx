@@ -64,6 +64,8 @@ export function ArchivePage() {
     } finally {
       setIsLoading(false);
     }
+    // t стабилен при смене языка (см. useTranslation), eslint не видит замыкания.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -83,11 +85,22 @@ export function ArchivePage() {
       archiveNote(n.id, false)
         .then(loadArchived)
         .catch(fail(t('unarchiveFailed'))),
-    onDelete: (n: Note) => deleteNote(n.id).then(loadArchived).catch(fail(t('deleteFailed'))),
-    onDuplicate: (n: Note) => duplicateNote(n.id).then(loadArchived).catch(fail(t('duplicateFailed'))),
-    onPin: (n: Note) => pinNote(n.id, !n.is_pinned).then(loadArchived).catch(fail(t('pinFailed'))),
+    onDelete: (n: Note) =>
+      deleteNote(n.id)
+        .then(loadArchived)
+        .catch(fail(t('deleteFailed'))),
+    onDuplicate: (n: Note) =>
+      duplicateNote(n.id)
+        .then(loadArchived)
+        .catch(fail(t('duplicateFailed'))),
+    onPin: (n: Note) =>
+      pinNote(n.id, !n.is_pinned)
+        .then(loadArchived)
+        .catch(fail(t('pinFailed'))),
     onFavorite: (n: Note) =>
-      favoriteNote(n.id, !n.is_favorite).then(loadArchived).catch(fail(t('favoriteFailed'))),
+      favoriteNote(n.id, !n.is_favorite)
+        .then(loadArchived)
+        .catch(fail(t('favoriteFailed'))),
     onRename: (n: Note, title: string) =>
       updateNote({ id: n.id, title })
         .then(loadArchived)
@@ -98,13 +111,20 @@ export function ArchivePage() {
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-5">
       {/* Заголовок + возврат на главную в стиле остальных страниц */}
       <div className="flex flex-col items-center gap-3 text-center">
-        <Breadcrumbs onBack={() => navigate('/home')} parentLabel={t('home')} current={t('archive')} />
+        <Breadcrumbs
+          onBack={() => navigate('/home')}
+          parentLabel={t('home')}
+          current={t('archive')}
+        />
         <h1 className="font-display text-[32px] font-extrabold leading-none tracking-tight">
           {t('archive')}
         </h1>
         {!isLoading && notes.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            {notes.length === 1 ? t('archiveNoteCount1') : t('archiveNoteCount', { count: notes.length })} · {t('archiveHint')}
+            {notes.length === 1
+              ? t('archiveNoteCount1')
+              : t('archiveNoteCount', { count: notes.length })}{' '}
+            · {t('archiveHint')}
           </p>
         )}
       </div>

@@ -17,7 +17,91 @@ export interface EditorSettings {
   spellCheck: boolean;
   showLineNumbers: boolean;
   vimMode: boolean;
+  /** Интервал между абзацами в редакторе, rem (0–1.5). */
+  paragraphSpacing: number;
+  /** Ширина листа редактора в rem (узкий/обычный/широкий). */
+  sheetWidth: 'narrow' | 'normal' | 'wide';
+  /** Жирность основного текста: regular/medium/semibold. */
+  textWeight: 'regular' | 'medium' | 'semibold';
 }
+
+/** Идентификаторы инструментов тулбара редактора — фиксированный реестр.
+ *  Порядок и видимость каждой кнопки задаются в editorSettings.toolbarItems. */
+export const TOOLBAR_ITEMS = [
+  'bold',
+  'italic',
+  'strike',
+  'code',
+  'highlight',
+  'textColor',
+  'alignLeft',
+  'alignCenter',
+  'alignRight',
+  'h1',
+  'h2',
+  'h3',
+  'paragraph',
+  'bulletList',
+  'numberedList',
+  'taskList',
+  'indent',
+  'outdent',
+  'uppercase',
+  'lowercase',
+  'quote',
+  'codeBlock',
+  'hr',
+  'link',
+  'image',
+  'table',
+  'tableFloat',
+  'imageSize',
+  'imageFloat',
+  'find',
+  'undo',
+  'redo',
+  'clearFormatting',
+  'removeLink',
+  'export',
+  'print',
+] as const;
+
+export type ToolbarItemId = (typeof TOOLBAR_ITEMS)[number];
+
+export const DEFAULT_TOOLBAR_ITEMS: ToolbarItemId[] = [
+  'bold',
+  'italic',
+  'strike',
+  'code',
+  'highlight',
+  'textColor',
+  'alignLeft',
+  'alignCenter',
+  'alignRight',
+  'h1',
+  'h2',
+  'h3',
+  'paragraph',
+  'bulletList',
+  'numberedList',
+  'taskList',
+  'indent',
+  'outdent',
+  'uppercase',
+  'lowercase',
+  'quote',
+  'codeBlock',
+  'hr',
+  'link',
+  'image',
+  'table',
+  'tableFloat',
+  'imageSize',
+  'imageFloat',
+  'find',
+  'undo',
+  'redo',
+];
 
 export interface AISettings {
   transcriptionLanguage: string;
@@ -37,12 +121,15 @@ interface SettingsState {
   theme: 'light' | 'dark' | 'system';
   font: FontSettings;
   editor: EditorSettings;
+  toolbarItems: ToolbarItemId[];
   ai: AISettings;
   uiPreferences: UIPreferences;
 
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
   setFont: (font: Partial<FontSettings>) => void;
   setEditor: (editor: Partial<EditorSettings>) => void;
+  setToolbarItems: (items: ToolbarItemId[]) => void;
+  toggleToolbarItem: (id: ToolbarItemId) => void;
   setAI: (ai: Partial<AISettings>) => void;
   setUIPreferences: (ui: Partial<UIPreferences>) => void;
   toggleSidebar: () => void;
@@ -64,6 +151,9 @@ const defaultEditor: EditorSettings = {
   spellCheck: true,
   showLineNumbers: false,
   vimMode: false,
+  paragraphSpacing: 0.5,
+  sheetWidth: 'normal',
+  textWeight: 'regular',
 };
 
 // No model is configured until the user actually downloads local weights or
@@ -88,6 +178,7 @@ export const useSettings = create<SettingsState>()(
       theme: 'light',
       font: defaultFont,
       editor: defaultEditor,
+      toolbarItems: DEFAULT_TOOLBAR_ITEMS,
       ai: defaultAI,
       uiPreferences: defaultUI,
 
@@ -105,6 +196,16 @@ export const useSettings = create<SettingsState>()(
 
       setFont: font => set(state => ({ font: { ...state.font, ...font } })),
       setEditor: editor => set(state => ({ editor: { ...state.editor, ...editor } })),
+      setToolbarItems: items => set({ toolbarItems: items }),
+      toggleToolbarItem: id =>
+        set(state => {
+          const current = state.toolbarItems;
+          if (current.includes(id)) {
+            return { toolbarItems: current.filter(x => x !== id) };
+          }
+          // При включении добавляем в конец, чтобы порядок остальных не менялся.
+          return { toolbarItems: [...current, id] };
+        }),
       setAI: ai => set(state => ({ ai: { ...state.ai, ...ai } })),
       setUIPreferences: ui => set(state => ({ uiPreferences: { ...state.uiPreferences, ...ui } })),
 
@@ -120,6 +221,7 @@ export const useSettings = create<SettingsState>()(
         set({
           font: defaultFont,
           editor: defaultEditor,
+          toolbarItems: DEFAULT_TOOLBAR_ITEMS,
           ai: defaultAI,
           uiPreferences: defaultUI,
         }),
@@ -127,7 +229,11 @@ export const useSettings = create<SettingsState>()(
       loadFromBackend: async () => {
         try {
           const settings = (await invoke('get_settings')) as Record<string, unknown>;
-          if (settings.theme === 'light' || settings.theme === 'dark' || settings.theme === 'system')
+          if (
+            settings.theme === 'light' ||
+            settings.theme === 'dark' ||
+            settings.theme === 'system'
+          )
             set({ theme: settings.theme });
           if (settings.font_family || settings.font_size || settings.line_height) {
             set(state => ({
@@ -156,7 +262,7 @@ export const useSettings = create<SettingsState>()(
     {
       name: 'sofia-settings',
       storage: createJSONStorage(() => localStorage),
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown, version: number) => {
         let s = persistedState as Record<string, unknown>;
         if (version < 2 && s.theme === 'system') {
@@ -170,9 +276,7 @@ export const useSettings = create<SettingsState>()(
             ...s,
             ai: {
               transcriptionLanguage:
-                typeof ai.transcriptionLanguage === 'string'
-                  ? ai.transcriptionLanguage
-                  : 'auto',
+                typeof ai.transcriptionLanguage === 'string' ? ai.transcriptionLanguage : 'auto',
               transcriptionModel: '',
               analysisModel: '',
               apiProvider: '',
@@ -185,6 +289,36 @@ export const useSettings = create<SettingsState>()(
           if (t !== 'light' && t !== 'dark' && t !== 'system') {
             s = { ...s, theme: 'light' };
           }
+        }
+        // v4 → v5: новые поля редактора (paragraphSpacing, sheetWidth,
+        // textWeight) и toolbarItems. Старые настройки остаются валидными,
+        // просто дозаполняем дефолтами.
+        if (version < 5) {
+          const editor = (s.editor ?? {}) as Record<string, unknown>;
+          s = {
+            ...s,
+            editor: {
+              ...defaultEditor,
+              ...editor,
+              paragraphSpacing:
+                typeof editor.paragraphSpacing === 'number'
+                  ? editor.paragraphSpacing
+                  : defaultEditor.paragraphSpacing,
+              sheetWidth:
+                editor.sheetWidth === 'narrow' ||
+                editor.sheetWidth === 'normal' ||
+                editor.sheetWidth === 'wide'
+                  ? editor.sheetWidth
+                  : defaultEditor.sheetWidth,
+              textWeight:
+                editor.textWeight === 'regular' ||
+                editor.textWeight === 'medium' ||
+                editor.textWeight === 'semibold'
+                  ? editor.textWeight
+                  : defaultEditor.textWeight,
+            },
+            toolbarItems: DEFAULT_TOOLBAR_ITEMS,
+          };
         }
         return s as unknown as SettingsState;
       },

@@ -12,7 +12,7 @@ interface I18nState {
 
 export const useI18n = create<I18nState>()(
   persist(
-    (set) => ({
+    set => ({
       language: 'ru',
       setLanguage: (lang: Language) => set({ language: lang }),
     }),

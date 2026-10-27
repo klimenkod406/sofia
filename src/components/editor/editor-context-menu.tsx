@@ -386,7 +386,8 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={() => setSubmenu(submenu === 'lang' ? null : 'lang')}
               >
-                <Braces className={iconCls} /> {t('languageLabel', { name: '' }).replace('{name}', '')}:
+                <Braces className={iconCls} />{' '}
+                {t('languageLabel', { name: '' }).replace('{name}', '')}:
                 <span className="ml-auto text-zinc-400">
                   {menu.codeLang ? languageLabel(menu.codeLang) : t('auto')}
                 </span>
@@ -459,14 +460,16 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageFloat('left').run())}
               >
-                <AlignLeft className={iconCls} /> {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
+                <AlignLeft className={iconCls} />{' '}
+                {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setImageFloat('right').run())}
               >
-                <AlignRight className={iconCls} /> {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
+                <AlignRight className={iconCls} />{' '}
+                {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
@@ -530,14 +533,16 @@ export function EditorContextMenu({ editor, children }: EditorContextMenuProps) 
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableFloat('left').run())}
               >
-                <AlignLeft className={iconCls} /> {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
+                <AlignLeft className={iconCls} />{' '}
+                {t('floatLeft').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"
                 className={itemCls}
                 onClick={run(() => editor.chain().focus().setTableFloat('right').run())}
               >
-                <AlignRight className={iconCls} /> {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
+                <AlignRight className={iconCls} />{' '}
+                {t('floatRight').replace(/\s*\(Umfließung\)|\s*\(float\)/, '')}
               </button>
               <button
                 type="button"

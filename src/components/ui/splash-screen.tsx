@@ -34,9 +34,7 @@ const SPLASH_BG = '#F8F5F1';
  * заканчивается (ошибка декодирования, отказ автоплея), срабатывает
  * запасной таймаут и оверлей всё равно закрывается.
  */
-export function SplashScreen({
-  minVisibleMs = DEFAULT_MIN_MS,
-}: SplashScreenProps = {}) {
+export function SplashScreen({ minVisibleMs = DEFAULT_MIN_MS }: SplashScreenProps = {}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const startedAtRef = useRef<number>(performance.now());
   const [ready, setReady] = useState(false);

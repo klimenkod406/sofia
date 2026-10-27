@@ -346,9 +346,7 @@ function RemindersBell({
       <DropdownMenuContent className="w-80">
         <DropdownMenuLabel>{t('timeToRemind')}</DropdownMenuLabel>
         {dueReminders.length === 0 ? (
-          <div className="px-3.5 py-3 text-sm text-muted-foreground">
-            {t('noOverdueReminders')}
-          </div>
+          <div className="px-3.5 py-3 text-sm text-muted-foreground">{t('noOverdueReminders')}</div>
         ) : (
           dueReminders.map(reminder => (
             <div key={reminder.id} className="px-3.5 py-2">

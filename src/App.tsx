@@ -14,7 +14,11 @@ const CalendarPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import('@/pages/settings').then(m => ({ default: m.SettingsPage }))
 );
-const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.AIChatPage })));
+// FIXME(AI-FEATURE): маршрут /ai-chat временно отключён — нет ни кнопок
+// открытия, ни ссылки из навигации. При попытке открыть прямой URL
+// редиректим на /home, чтобы не падать. Вернуть:
+//   const AIChatPage = lazy(() => import('@/pages/ai-chat').then(m => ({ default: m.AIChatPage })));
+// и снять комментарий с <Route path="/ai-chat"> ниже.
 const ArchivePage = lazy(() => import('@/pages/archive').then(m => ({ default: m.ArchivePage })));
 
 function App() {
@@ -85,6 +89,10 @@ function App() {
                 главную (создание → /editor/:id). Легаси-ссылки уводим домой. */}
             <Route path="/editor" element={<Navigate to="/home" replace />} />
             <Route path="/editor/new" element={<Navigate to="/home" replace />} />
+            {/* FIXME(AI-FEATURE): /ai-chat временно отключён — редиректим на
+                /home, чтобы не падать на прямых ссылках. Снимается вместе с
+                закомментированным маршрутом выше. */}
+            <Route path="/ai-chat" element={<Navigate to="/home" replace />} />
             <Route
               path="/calendar"
               element={
@@ -112,14 +120,18 @@ function App() {
                 </PageLayout>
               }
             />
-            <Route
-              path="/ai-chat"
-              element={
-                <PageLayout width="narrow">
-                  <AIChatPage />
-                </PageLayout>
-              }
-            />
+            {/* FIXME(AI-FEATURE): маршрут /ai-chat временно отключён. Страница
+                pages/ai-chat.tsx и AIChatPage lazy-импорт оставлены в коде,
+                чтобы при возврате достаточно было снять комментарий.
+                <Route
+                  path="/ai-chat"
+                  element={
+                    <PageLayout width="narrow">
+                      <AIChatPage />
+                    </PageLayout>
+                  }
+                />
+                */}
           </Routes>
         </Suspense>
       </main>

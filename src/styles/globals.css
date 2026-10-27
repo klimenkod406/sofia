@@ -36,6 +36,22 @@
 
     /* Длительность перехода цветовой темы страницы */
     --theme-transition-duration: 0.7s;
+
+    /* Настройки редактора (управляются из Настроек → Редактор):
+       --editor-paragraph-spacing: rem между абзацами (0..1.5)
+       --editor-sheet-max-width: максимальная ширина листа (rem)
+       --editor-text-weight: 400|500|600 — жирность основного текста */
+    --editor-paragraph-spacing: 0.5rem;
+    --editor-sheet-max-width: 44rem;
+    --editor-text-weight: 400;
+  }
+
+  /* Профили ширины листа — переключаются через [data-sheet-width] на <html>. */
+  html[data-sheet-width='narrow'] {
+    --editor-sheet-max-width: 36rem;
+  }
+  html[data-sheet-width='wide'] {
+    --editor-sheet-max-width: 60rem;
   }
 
   .dark {
@@ -167,7 +183,8 @@
     animation: archiveBleedTop var(--theme-transition-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
   }
   body.archive-theme .theme-bleed-bottom {
-    animation: archiveBleedBottom var(--theme-transition-duration) cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: archiveBleedBottom var(--theme-transition-duration) cubic-bezier(0.22, 1, 0.36, 1)
+      both;
   }
   @keyframes archiveBleedTop {
     0% {
@@ -762,7 +779,7 @@
   .editor-sheet {
     display: flex;
     flex-direction: column;
-    width: min(100%, 80rem);
+    width: min(100%, var(--editor-sheet-max-width));
     margin: 0 auto;
     flex: 1 0 auto;
     min-height: 100%;
@@ -812,6 +829,8 @@
     font-kerning: normal;
     font-variant-ligatures: common-ligatures contextual;
     hanging-punctuation: first;
+    /* Жирность основного текста управляется из настроек (textWeight). */
+    font-weight: var(--editor-text-weight);
   }
   /* Клик в строку не должен рисовать фокусную рамку на листе:
      contenteditable всегда матчит :focus-visible, гасим и ring-тень. */
@@ -878,6 +897,260 @@
     color: hsl(var(--foreground));
   }
 
+  /* ── Цветные иконки инструментов ──────────────────────────────
+     Приглушённые пастельные цвета, гармонирующие с тёплой палитрой
+     приложения. В светлой теме — чуть тёмнее muted-foreground,
+     в тёмной — светлее. Цвета не кричащие, но различимые. */
+  .editor-toolbar-btn[data-toolbar-id] svg {
+    transition:
+      color 0.25s ease,
+      filter 0.25s ease;
+  }
+
+  /* Текстовое форматирование — тёплый янтарный */
+  .editor-toolbar-btn[data-toolbar-id='bold'] svg {
+    color: hsl(28 45% 52%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='italic'] svg {
+    color: hsl(200 35% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='strike'] svg {
+    color: hsl(350 30% 55%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='code'] svg {
+    color: hsl(160 30% 42%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='highlight'] svg {
+    color: hsl(45 55% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='textColor'] svg {
+    color: hsl(280 25% 55%);
+  }
+
+  /* Заголовки — тёплая терракота */
+  .editor-toolbar-btn[data-toolbar-id='h1'] svg {
+    color: hsl(15 40% 52%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='h2'] svg {
+    color: hsl(20 38% 50%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='h3'] svg {
+    color: hsl(25 35% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='paragraph'] svg {
+    color: hsl(30 30% 45%);
+  }
+
+  /* Списки — приглушённые зелёно-синие */
+  .editor-toolbar-btn[data-toolbar-id='bulletList'] svg {
+    color: hsl(140 25% 42%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='numberedList'] svg {
+    color: hsl(210 30% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='taskList'] svg {
+    color: hsl(180 28% 40%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='indent'] svg,
+  .editor-toolbar-btn[data-toolbar-id='outdent'] svg {
+    color: hsl(200 22% 48%);
+  }
+
+  /* Выравнивание — нейтрально-серые */
+  .editor-toolbar-btn[data-toolbar-id='alignLeft'] svg {
+    color: hsl(220 12% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='alignCenter'] svg {
+    color: hsl(220 12% 45%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='alignRight'] svg {
+    color: hsl(220 12% 42%);
+  }
+
+  /* Регистр — лавандово-серые */
+  .editor-toolbar-btn[data-toolbar-id='uppercase'] svg {
+    color: hsl(260 20% 52%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='lowercase'] svg {
+    color: hsl(260 18% 48%);
+  }
+
+  /* Цитата, ссылка, таблица, разделитель */
+  .editor-toolbar-btn[data-toolbar-id='quote'] svg {
+    color: hsl(35 35% 45%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='link'] svg {
+    color: hsl(210 40% 50%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='unlink'] svg {
+    color: hsl(0 30% 55%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='table'] svg {
+    color: hsl(190 25% 45%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='horizontalRule'] svg {
+    color: hsl(30 20% 50%);
+  }
+
+  /* Медиа и блоки */
+  .editor-toolbar-btn[data-toolbar-id='image'] svg {
+    color: hsl(150 30% 42%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='codeBlock'] svg {
+    color: hsl(220 25% 50%);
+  }
+
+  /* История — тёплые коричнево-оранжевые */
+  .editor-toolbar-btn[data-toolbar-id='undo'] svg {
+    color: hsl(25 40% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='redo'] svg {
+    color: hsl(35 38% 45%);
+  }
+
+  /* Экспорт и сохранение */
+  .editor-toolbar-btn[data-toolbar-id='save'] svg {
+    color: hsl(140 30% 42%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='export'] svg,
+  .editor-toolbar-btn[data-toolbar-id='exportHtml'] svg {
+    color: hsl(210 28% 48%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='exportPdf'] svg {
+    color: hsl(0 32% 52%);
+  }
+  .editor-toolbar-btn[data-toolbar-id='print'] svg {
+    color: hsl(220 15% 48%);
+  }
+
+  /* Поиск */
+  .editor-toolbar-btn[data-toolbar-id='search'] svg {
+    color: hsl(45 35% 45%);
+  }
+
+  /* Очистка форматирования */
+  .editor-toolbar-btn[data-toolbar-id='clearFormat'] svg,
+  .editor-toolbar-btn[data-toolbar-id='eraser'] svg {
+    color: hsl(350 25% 55%);
+  }
+
+  /* ── Тёмная тема: цвета светлее и мягче ── */
+  .dark .editor-toolbar-btn[data-toolbar-id='bold'] svg {
+    color: hsl(30 45% 68%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='italic'] svg {
+    color: hsl(200 35% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='strike'] svg {
+    color: hsl(350 30% 68%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='code'] svg {
+    color: hsl(160 30% 60%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='highlight'] svg {
+    color: hsl(45 55% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='textColor'] svg {
+    color: hsl(280 25% 70%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='h1'] svg {
+    color: hsl(15 40% 68%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='h2'] svg {
+    color: hsl(20 38% 66%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='h3'] svg {
+    color: hsl(25 35% 64%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='paragraph'] svg {
+    color: hsl(30 30% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='bulletList'] svg {
+    color: hsl(140 25% 60%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='numberedList'] svg {
+    color: hsl(210 30% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='taskList'] svg {
+    color: hsl(180 28% 58%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='indent'] svg,
+  .dark .editor-toolbar-btn[data-toolbar-id='outdent'] svg {
+    color: hsl(200 22% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='alignLeft'] svg {
+    color: hsl(220 12% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='alignCenter'] svg {
+    color: hsl(220 12% 60%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='alignRight'] svg {
+    color: hsl(220 12% 58%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='uppercase'] svg {
+    color: hsl(260 20% 68%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='lowercase'] svg {
+    color: hsl(260 18% 64%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='quote'] svg {
+    color: hsl(35 35% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='link'] svg {
+    color: hsl(210 40% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='unlink'] svg {
+    color: hsl(0 30% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='table'] svg {
+    color: hsl(190 25% 60%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='horizontalRule'] svg {
+    color: hsl(30 20% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='image'] svg {
+    color: hsl(150 30% 58%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='codeBlock'] svg {
+    color: hsl(220 25% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='undo'] svg {
+    color: hsl(25 40% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='redo'] svg {
+    color: hsl(35 38% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='save'] svg {
+    color: hsl(140 30% 60%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='export'] svg,
+  .dark .editor-toolbar-btn[data-toolbar-id='exportHtml'] svg {
+    color: hsl(210 28% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='exportPdf'] svg {
+    color: hsl(0 32% 65%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='print'] svg {
+    color: hsl(220 15% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='search'] svg {
+    color: hsl(45 35% 62%);
+  }
+  .dark .editor-toolbar-btn[data-toolbar-id='clearFormat'] svg,
+  .dark .editor-toolbar-btn[data-toolbar-id='eraser'] svg {
+    color: hsl(350 25% 68%);
+  }
+
+  /* При наведении цвет становится чуть ярче, но всё ещё мягкий */
+  .editor-toolbar-btn:hover:not(:disabled)[data-toolbar-id] svg {
+    filter: saturate(1.3) brightness(1.05);
+  }
+
+  /* Активная кнопка: цветной фон тонкий, иконка насыщеннее */
+  .editor-toolbar-btn-active[data-toolbar-id] svg {
+    filter: saturate(1.4) brightness(1.08);
+  }
+
   .editor-search-panel {
     position: fixed;
     top: 4.5rem;
@@ -924,8 +1197,10 @@
   .editor-prose > * {
     margin-top: 0;
   }
-  .editor-prose > * + * {
-    margin-top: 0;
+  /* Интервал между блоками управляется из настроек. Не применяется к
+     заголовкам — у них свой отступ сверху, иначе они слипнутся с текстом. */
+  .editor-prose > * + *:not(:is(h1, h2, h3, h4, h5, h6)) {
+    margin-top: var(--editor-paragraph-spacing);
   }
   .editor-prose p {
     margin: 0;
