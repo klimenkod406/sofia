@@ -210,7 +210,9 @@ impl ModelManager {
         std::fs::create_dir_all(&local_dir)?;
 
         // Report progress
-        self.models_repo.set_download_progress(&model.id, 0.1).await?;
+        self.models_repo
+            .set_download_progress(&model.id, 0.1)
+            .await?;
         if let Some(cb) = &progress_callback {
             cb(0.1);
         }
@@ -231,7 +233,9 @@ impl ModelManager {
         if let Some(cb) = &progress_callback {
             cb(0.5);
         }
-        self.models_repo.set_download_progress(&model.id, 0.5).await?;
+        self.models_repo
+            .set_download_progress(&model.id, 0.5)
+            .await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -289,8 +293,7 @@ impl ModelManager {
         let mut last_pct: i32 = -1;
 
         while let Some(chunk) = stream.next().await {
-            let chunk =
-                chunk.map_err(|e| anyhow::anyhow!("Download stream error: {e}"))?;
+            let chunk = chunk.map_err(|e| anyhow::anyhow!("Download stream error: {e}"))?;
             file.write_all(&chunk).await?;
             downloaded += chunk.len() as u64;
 
@@ -345,7 +348,8 @@ impl ModelManager {
 
         std::fs::create_dir_all(&bin_dir)?;
 
-        let url = "https://github.com/ggml-org/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip";
+        let url =
+            "https://github.com/ggml-org/whisper.cpp/releases/download/v1.5.4/whisper-bin-x64.zip";
         let response = self.client.get(url).send().await?;
         if !response.status().is_success() {
             return Err(anyhow::anyhow!(
@@ -360,9 +364,10 @@ impl ModelManager {
 
         // `main.exe` is the CLI (renamed for clarity); `whisper.dll` is its
         // runtime and must sit next to it.
-        for (entry_name, target_name) in
-            [("main.exe", "whisper-cli.exe"), ("whisper.dll", "whisper.dll")]
-        {
+        for (entry_name, target_name) in [
+            ("main.exe", "whisper-cli.exe"),
+            ("whisper.dll", "whisper.dll"),
+        ] {
             // Read the entry fully before the await — ZipFile isn't Send.
             let buf = {
                 let mut entry = archive

@@ -81,7 +81,10 @@ impl NotesRepository {
             "#,
                 vec![
                     Value::Text(note.id.clone()),
-                    note.folder_id.clone().map(Value::Text).unwrap_or(Value::Null),
+                    note.folder_id
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
                     Value::Text(note.title.clone()),
                     Value::Text(note.content.clone()),
                     Value::Text(note.content_md.clone()),
@@ -94,9 +97,18 @@ impl NotesRepository {
                     Value::Integer(if note.is_archived { 1 } else { 0 }),
                     Value::Integer(if note.is_deleted { 1 } else { 0 }),
                     Value::Integer(if note.is_favorite { 1 } else { 0 }),
-                    note.cover_image.clone().map(Value::Text).unwrap_or(Value::Null),
-                    note.cover_color.clone().map(Value::Text).unwrap_or(Value::Null),
-                    note.template_id.clone().map(Value::Text).unwrap_or(Value::Null),
+                    note.cover_image
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
+                    note.cover_color
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
+                    note.template_id
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
                     Value::Text(note.created_at.to_rfc3339()),
                     Value::Text(note.updated_at.to_rfc3339()),
                     Value::Text(note.last_edited_at.to_rfc3339()),
@@ -159,7 +171,10 @@ impl NotesRepository {
             WHERE id = ?
             "#,
                 vec![
-                    note.folder_id.clone().map(Value::Text).unwrap_or(Value::Null),
+                    note.folder_id
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
                     Value::Text(note.title.clone()),
                     Value::Text(note.content.clone()),
                     Value::Text(note.content_md.clone()),
@@ -172,9 +187,18 @@ impl NotesRepository {
                     Value::Integer(if note.is_archived { 1 } else { 0 }),
                     Value::Integer(if note.is_deleted { 1 } else { 0 }),
                     Value::Integer(if note.is_favorite { 1 } else { 0 }),
-                    note.cover_image.clone().map(Value::Text).unwrap_or(Value::Null),
-                    note.cover_color.clone().map(Value::Text).unwrap_or(Value::Null),
-                    note.template_id.clone().map(Value::Text).unwrap_or(Value::Null),
+                    note.cover_image
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
+                    note.cover_color
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
+                    note.template_id
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
                     Value::Text(note.updated_at.to_rfc3339()),
                     Value::Text(note.last_edited_at.to_rfc3339()),
                     Value::Text(note.id.clone()),
@@ -405,7 +429,9 @@ impl NotesRepository {
             .execute_with_params(
                 "UPDATE notes SET folder_id = ?, updated_at = ? WHERE id = ?",
                 vec![
-                    folder_id.map(|s| Value::Text(s.to_string())).unwrap_or(Value::Null),
+                    folder_id
+                        .map(|s| Value::Text(s.to_string()))
+                        .unwrap_or(Value::Null),
                     Value::Text(Utc::now().to_rfc3339()),
                     Value::Text(note_id.to_string()),
                 ],

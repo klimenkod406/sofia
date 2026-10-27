@@ -36,11 +36,13 @@ pub async fn get_model_info(
 #[command]
 pub async fn install_model(state: State<'_, AppState>, model_id: String) -> Result<(), String> {
     let ai = state.ai.clone();
-    let _ = tauri::async_runtime::spawn(async move {
+    // JoinHandle отбрасывается явно: задача продолжает выполняться в фоне,
+    // а clippy::let_underscore_future не ругается на такой detach.
+    drop(tauri::async_runtime::spawn(async move {
         if let Err(e) = ai.download_model(&model_id, None).await {
             tracing::error!("model download failed for {model_id}: {e}");
         }
-    });
+    }));
     Ok(())
 }
 

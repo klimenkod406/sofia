@@ -65,7 +65,11 @@ impl FoldersRepository {
             "#,
                 vec![
                     Value::Text(folder.name.clone()),
-                    folder.parent_id.clone().map(Value::Text).unwrap_or(Value::Null),
+                    folder
+                        .parent_id
+                        .clone()
+                        .map(Value::Text)
+                        .unwrap_or(Value::Null),
                     Value::Text(folder.color.clone()),
                     Value::Text(folder.icon.clone()),
                     Value::Integer(folder.sort_order as i64),

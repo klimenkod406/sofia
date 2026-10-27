@@ -257,11 +257,15 @@ pub struct WhisperCppTranscriber {
 impl WhisperCppTranscriber {
     /// Prefer the CLI bundled next to the models, then fall back to PATH.
     pub fn new(models_dir: &str) -> Result<Self> {
-        let bundled = Path::new(models_dir)
-            .join("bin")
-            .join(if cfg!(windows) { "whisper-cli.exe" } else { "whisper-cli" });
+        let bundled = Path::new(models_dir).join("bin").join(if cfg!(windows) {
+            "whisper-cli.exe"
+        } else {
+            "whisper-cli"
+        });
         if bundled.exists() {
-            return Ok(Self { whisper_cli: bundled });
+            return Ok(Self {
+                whisper_cli: bundled,
+            });
         }
         Ok(Self {
             whisper_cli: Self::find_on_path()?,
@@ -346,7 +350,9 @@ impl WhisperCppTranscriber {
         // is the canonical VTT. Fall back to stdout for builds that print the
         // same cues instead of (or in addition to) writing the file.
         let vtt_path = format!("{audio_path}.vtt");
-        let vtt_file = tokio::fs::read_to_string(&vtt_path).await.unwrap_or_default();
+        let vtt_file = tokio::fs::read_to_string(&vtt_path)
+            .await
+            .unwrap_or_default();
         if !vtt_file.trim().is_empty() {
             self.parse_vtt(&vtt_file)
         } else {

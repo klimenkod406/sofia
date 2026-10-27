@@ -362,7 +362,7 @@ async fn run_session(
     if !pcm.is_empty() {
         match decode(&engine, &model, &pcm, sample_rate, &lang_hint, &session_id).await {
             Ok(result) => {
-                if result.language.is_empty() == false {
+                if !result.language.is_empty() {
                     detected_language = result.language.clone();
                 }
                 let remainder: Vec<_> = result.segments.iter().skip(committed).cloned().collect();

@@ -9,8 +9,7 @@ use crate::db::repository::{FoldersRepository, NoteFilter, NotesRepository, Pagi
 use crate::db::sql::Sql;
 
 async fn scratch_db() -> (Sql, std::path::PathBuf) {
-    let path =
-        std::env::temp_dir().join(format!("sofia-merge-test-{}.db", uuid::Uuid::new_v4()));
+    let path = std::env::temp_dir().join(format!("sofia-merge-test-{}.db", uuid::Uuid::new_v4()));
     let url = format!("sqlite:{}?mode=rwc", path.to_string_lossy());
     let pool = sqlx::sqlite::SqlitePoolOptions::new()
         .max_connections(1)
@@ -188,7 +187,12 @@ async fn delete_folder_recursive_removes_notes() {
         )
         .await
         .expect("raw select");
-    assert_eq!(raw.first().and_then(|r| r.get("is_deleted")).and_then(|v| v.as_i64()), Some(1));
+    assert_eq!(
+        raw.first()
+            .and_then(|r| r.get("is_deleted"))
+            .and_then(|v| v.as_i64()),
+        Some(1)
+    );
 
     drop(folders);
     drop(notes);

@@ -202,7 +202,7 @@ fn setup_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> anyhow::Result<()> {
 
     let menu = Menu::with_items(app, &[&show, &new_note, &separator, &quit])?;
 
-    let mut builder = TrayIconBuilder::with_id("main")
+    let builder = TrayIconBuilder::with_id("main")
         .menu(&menu)
         .icon(tauri::include_image!("icons/tray-icon.png"));
 

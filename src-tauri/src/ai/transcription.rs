@@ -77,8 +77,7 @@ pub struct TranscriptionEngine {
 impl TranscriptionEngine {
     pub fn new(models: Arc<ModelManager>) -> Result<Self> {
         let funasr = FunASRTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
-        let whisper =
-            WhisperCppTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
+        let whisper = WhisperCppTranscriber::new(&models.get_models_dir().to_string_lossy()).ok();
 
         Ok(Self {
             models,
